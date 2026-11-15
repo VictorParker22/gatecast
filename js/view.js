@@ -56,7 +56,8 @@ export const compass = (deg) => (deg == null ? '' : COMPASS[Math.round(deg / 45)
 
 /* ---------- Route map ---------- */
 
-export function routeMap(stops) {
+// stops: [{ airport, level }]. plane (optional): { lat, lon, track } drawn as a live marker.
+export function routeMap(stops, plane = null) {
   // Work in a 0..720 wide space so routes across the antimeridian stay continuous.
   const arcs = [];
   const pts = [];
@@ -73,6 +74,13 @@ export function routeMap(stops) {
   let maxX = Math.max(...pts.map((p) => p.x), ...arcs.flat().map((p) => p[0]));
   let minY = Math.min(...pts.map((p) => p.y), ...arcs.flat().map((p) => p[1]));
   let maxY = Math.max(...pts.map((p) => p.y), ...arcs.flat().map((p) => p[1]));
+  if (plane) {
+    let px = plane.lon + 180;
+    const mid0 = (minX + maxX) / 2;
+    while (px - mid0 > 180) px -= 360;
+    while (px - mid0 < -180) px += 360;
+    minX = Math.min(minX, px); maxX = Math.max(maxX, px); minY = Math.min(minY, 90 - plane.lat); maxY = Math.max(maxY, 90 - plane.lat);
+  }
   const pad = Math.max(6, (maxX - minX) * 0.14);
   minX -= pad; maxX += pad; minY -= pad; maxY += pad;
   // Fit a 16:10 frame around the route.
@@ -93,17 +101,28 @@ export function routeMap(stops) {
     return `<g class="map__stop map__stop--${s.level}" stroke-width="${0.5 * u}">${shape}
       <text x="${x}" y="${above ? y - r * 2 : y + r * 3.4}" font-size="${3.6 * u}" text-anchor="middle" stroke-width="${0.9 * u}">${esc(s.airport.code)}</text></g>`;
   }).join('');
-  const label = 'Route map: ' + stops.map((s) => `${s.airport.code} (${LEVEL_LABEL[s.level] || 'no forecast'} risk)`).join(' to ');
+  let craft = '';
+  if (plane) {
+    let px = plane.lon + 180;
+    const mid = minX + w / 2;
+    while (px - mid > 180) px -= 360;
+    while (px - mid < -180) px += 360;
+    const py = 90 - plane.lat, k = 2.6 * u;
+    craft = `<g class="map__plane" transform="translate(${px.toFixed(2)} ${py.toFixed(2)}) rotate(${Math.round(plane.track ?? 0)}) scale(${k})" stroke-width="${0.25}">
+      <path d="M0 -1.1 0.22 -0.25 1.05 0.3 1.05 0.5 0.22 0.25 0.16 0.8 0.42 1 0.42 1.12 0 1 -0.42 1.12 -0.42 1 -0.16 0.8 -0.22 0.25 -1.05 0.5 -1.05 0.3 -0.22 -0.25z"/></g>`;
+  }
+  const label = (plane ? 'Live position on route: ' : 'Route map: ') + stops.map((s) => `${s.airport.code} (${LEVEL_LABEL[s.level] || 'no forecast'} risk)`).join(' to ');
   return `<svg class="map" viewBox="${minX.toFixed(2)} ${minY.toFixed(2)} ${w.toFixed(2)} ${h.toFixed(2)}" role="img" aria-label="${esc(label)}" preserveAspectRatio="xMidYMid slice">
     <rect class="map__sea" x="${minX - 10}" y="${minY - 10}" width="${w + 20}" height="${h + 20}"/>
-    <g class="map__land">${land}</g>${lines}${marks}</svg>`;
+    <g class="map__land">${land}</g>${lines}${marks}${craft}</svg>`;
 }
 
 /* ---------- Hourly strip ---------- */
 
 // Hours from 3h before to 3h after the time the traveller is at the airport.
-export function hourlyStrip(stop, hours, u) {
-  const from = stop.from - 2 * HOUR, to = stop.to + 2 * HOUR;
+// opts.range = [fromMs, toMs] overrides the default window; opts.legend overrides the shading caption.
+export function hourlyStrip(stop, hours, u, opts = {}) {
+  const [from, to] = opts.range || [stop.from - 2 * HOUR, stop.to + 2 * HOUR];
   const tz = stop.airport.tz;
   const slice = hours.filter((h) => h.t + HOUR > from && h.t <= to);
   if (!slice.length) return '';
@@ -129,6 +148,6 @@ export function hourlyStrip(stop, hours, u) {
   }).join('');
   return `<div class="hours" tabindex="0" role="group" aria-label="Hour by hour at ${esc(stop.airport.code)}, local time">
     <ol class="hours__list">${cols}</ol>
-    <p class="hours__legend"><span>Rows: time · sky · temperature · chance of rain or snow in that hour · gusts (${u.speedUnit}) · risk bar</span><span class="hours__key">Shaded = while you are there</span></p>
+    <p class="hours__legend"><span>Rows: time · sky · temperature · chance of rain or snow in that hour · gusts (${u.speedUnit}) · risk bar</span><span class="hours__key">${opts.legend || 'Shaded = while you are there'}</span></p>
   </div>`;
 }

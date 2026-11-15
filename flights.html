@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <script>
+    try { document.querySelector('meta[name="color-scheme"]').content = localStorage.getItem("color-scheme") ?? "light dark"; } catch (e) {}
+  </script>
+  <title>Flights — Gatecast</title>
+  <meta name="description" content="Live flight tracking with weather at both ends, and current weather risk at any airport.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231f4fd8'/%3E%3Cpath d='M7 20h18M10 14a6 6 0 0 1 12 0' stroke='%23fff' stroke-width='2.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles/tokens.css">
+  <link rel="stylesheet" href="styles/app.css">
+  <link rel="preload" href="data/airports.json" as="fetch" crossorigin>
+  <script type="module" src="js/flights.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <a class="brand" href="./" aria-label="Gatecast home">
+      <svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8"/><path d="M7 20h18M10 14a6 6 0 0 1 12 0"/></svg>
+      <span class="brand__name">Gatecast</span>
+    </a>
+    <nav class="site-nav" aria-label="Main">
+      <ul>
+        <li><a href="./">Weather</a></li>
+        <li><a href="flights.html" aria-current="page">Flights</a></li>
+        <li><a href="trip.html">Connections</a></li>
+      </ul>
+    </nav>
+    <button class="btn btn--ghost site-header__settings" type="button" popovertarget="settings" id="settings-btn">
+      <svg viewBox="0 0 24 24" aria-hidden="true" class="icon"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>
+      <span>Units &amp; display</span>
+    </button>
+  </header>
+
+  <div id="settings" class="settings" popover aria-labelledby="settings-title"></div>
+
+  <main id="main">
+    <section class="hero hero--compact" aria-labelledby="hero-title">
+      <h1 id="hero-title">Flight status and airport weather</h1>
+      <p class="hero__lede">Track a flight live, or see what the weather is doing to an airport right now.</p>
+      <form id="flight-form" class="trip-form lookup" novalidate>
+        <fieldset class="segmented lookup__mode"><legend class="sr-only">Search by</legend>
+          <label><input type="radio" name="mode" value="flight" checked><span>Flight number</span></label>
+          <label><input type="radio" name="mode" value="airport"><span>Airport</span></label>
+        </fieldset>
+        <div class="lookup__row">
+          <div class="field" id="flight-field">
+            <label for="flight">Flight number <span class="field__hint">for example UA 1 or BA117</span></label>
+            <input id="flight" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="UA 1">
+          </div>
+          <div class="field combo" id="airport-field" hidden>
+            <label for="airport">Airport <span class="field__hint">city or code</span></label>
+            <input id="airport" type="text" role="combobox" autocomplete="off" spellcheck="false" aria-expanded="false" aria-controls="airport-list" aria-autocomplete="list" placeholder="Chicago or ORD">
+            <ul id="airport-list" class="combo__list" role="listbox" aria-label="Airports" hidden></ul>
+          </div>
+          <button type="submit" class="btn btn--primary">Search</button>
+        </div>
+        <p id="form-error" class="form-error" role="alert" hidden></p>
+      </form>
+      <div class="examples">
+        <span class="examples__label">Try</span>
+        <div class="examples__list" id="example-list"></div>
+      </div>
+    </section>
+
+    <section id="results" class="results" aria-live="polite" aria-busy="false" hidden></section>
+  </main>
+
+  <footer class="site-footer">
+    <p>Gatecast is a planning aid, not an official source. Check your airline for the status of your flight.</p>
+    <p>Forecasts: <a href="https://open-meteo.com/" rel="noopener">Open-Meteo</a> (CC BY 4.0). Radar: <a href="https://www.rainviewer.com/" rel="noopener">RainViewer</a>. Map: © <a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a> contributors. Live aircraft: <a href="https://adsb.lol/" rel="noopener">adsb.lol</a> (ODbL). Routes: <a href="https://www.adsbdb.com/" rel="noopener">adsbdb</a>. Observations: NOAA. US status: FAA. Alerts: National Weather Service.</p>
+  </footer>
+</body>
+</html>
