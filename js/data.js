@@ -196,6 +196,28 @@ export async function loadWeather(lat, lon) {
   return data;
 }
 
+// Current conditions for several far-away cities in one request (the "Here and there" box).
+export async function loadCities(cities) {
+  const key = 'cities:' + cities.map((c) => c.name).join(',');
+  const hit = cacheGet(key);
+  if (hit) return hit;
+  try {
+    const url = new URL('https://api.open-meteo.com/v1/forecast');
+    url.search = new URLSearchParams({
+      latitude: cities.map((c) => c.lat).join(','), longitude: cities.map((c) => c.lon).join(','),
+      current: 'temperature_2m,weather_code,is_day', timeformat: 'unixtime', timezone: 'auto',
+    });
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const json = await res.json();
+    const data = (Array.isArray(json) ? json : [json]).map((j, i) => ({
+      name: cities[i].name, tz: j.timezone, temp: j.current.temperature_2m, code: j.current.weather_code, day: j.current.is_day,
+    }));
+    cacheSet(key, data);
+    return data;
+  } catch { return null; }
+}
+
 /* ---------- Flights (through server.js or the Vercel functions) ---------- */
 
 export async function loadFlight(q) {
