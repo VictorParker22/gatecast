@@ -1,0 +1,15 @@
+{
+  "name": "gatecast",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/build-data.cjs",
+    "start": "node server.js",
+    "test": "node --test tests/*.mjs tests/*.cjs"
+  },
+  "dependencies": {
+    "topojson-client": "^3.1.0",
+    "world-atlas": "^2.0.2"
+  },
+  "engines": { "node": ">=18" }
+}

@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <script>
+    try { document.querySelector('meta[name="color-scheme"]').content = localStorage.getItem("color-scheme") ?? "light dark"; } catch (e) {}
+  </script>
+  <title>Gatecast — will weather disrupt your connection?</title>
+  <meta name="description" content="Enter your flights and see the weather at every airport at the exact time you are there, with a plain-language verdict on your connection.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231f4fd8'/%3E%3Cpath d='M7 20h18M10 14a6 6 0 0 1 12 0' stroke='%23fff' stroke-width='2.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles/tokens.css">
+  <link rel="stylesheet" href="styles/app.css">
+  <link rel="preload" href="data/airports.json" as="fetch" crossorigin>
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <a class="brand" href="./" aria-label="Gatecast home">
+      <svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8"/><path d="M7 20h18M10 14a6 6 0 0 1 12 0"/></svg>
+      <span class="brand__name">Gatecast</span>
+    </a>
+    <button class="btn btn--ghost" type="button" popovertarget="settings" id="settings-btn">
+      <svg viewBox="0 0 24 24" aria-hidden="true" class="icon"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>
+      <span>Units &amp; display</span>
+    </button>
+  </header>
+
+  <div id="settings" class="settings" popover aria-labelledby="settings-title">
+    <h2 id="settings-title">Units &amp; display</h2>
+    <fieldset class="segmented" data-setting="temp">
+      <legend>Temperature</legend>
+      <label><input type="radio" name="temp" value="c"><span>°C</span></label>
+      <label><input type="radio" name="temp" value="f"><span>°F</span></label>
+    </fieldset>
+    <fieldset class="segmented" data-setting="wind">
+      <legend>Wind &amp; distance</legend>
+      <label><input type="radio" name="wind" value="kmh"><span>km/h</span></label>
+      <label><input type="radio" name="wind" value="mph"><span>mph</span></label>
+      <label><input type="radio" name="wind" value="kt"><span>knots</span></label>
+    </fieldset>
+    <fieldset class="segmented" data-setting="theme">
+      <legend>Appearance</legend>
+      <label><input type="radio" name="theme" value="system"><span>Match device</span></label>
+      <label><input type="radio" name="theme" value="light"><span>Light</span></label>
+      <label><input type="radio" name="theme" value="dark"><span>Dark</span></label>
+    </fieldset>
+  </div>
+
+  <main id="main">
+    <section class="hero" aria-labelledby="hero-title">
+      <h1 id="hero-title">Will weather disrupt your connection?</h1>
+      <p class="hero__lede">Enter your airports and departure time. Gatecast lines up the forecast at every stop with the hour you are actually there.</p>
+
+      <form id="trip-form" class="trip-form" novalidate>
+        <ol id="stops" class="stops"></ol>
+        <div class="trip-form__row">
+          <button type="button" class="btn btn--text" id="add-stop">+ Add a connection</button>
+        </div>
+        <div class="trip-form__row trip-form__row--when">
+          <div class="field">
+            <label for="dep">Departure from first airport <span class="field__hint" id="dep-hint">local time there</span></label>
+            <input type="datetime-local" id="dep" name="dep" required aria-describedby="dep-hint">
+          </div>
+          <button type="submit" class="btn btn--primary">Check my trip</button>
+        </div>
+        <details class="fine-tune" id="fine-tune" hidden>
+          <summary>Adjust flight times</summary>
+          <p class="field__hint">Flight times are estimated from distance. Enter the scheduled duration in minutes if you know it.</p>
+          <div id="durations" class="fine-tune__grid"></div>
+        </details>
+        <p id="form-error" class="form-error" role="alert" hidden></p>
+      </form>
+
+      <div class="examples" id="examples">
+        <span class="examples__label">Try an example</span>
+        <div class="examples__list" id="example-list"></div>
+      </div>
+    </section>
+
+    <section id="results" class="results" aria-live="polite" aria-busy="false" hidden></section>
+
+    <section class="how" id="how" aria-labelledby="how-title">
+      <h2 id="how-title">How to read it</h2>
+      <div class="how__grid">
+        <article>
+          <h3><span class="chip chip--low" data-icon="low">Low</span></h3>
+          <p>Nothing in the forecast that usually slows an airport down.</p>
+        </article>
+        <article>
+          <h3><span class="chip chip--elevated" data-icon="elevated">Elevated</span></h3>
+          <p>Weather that often causes delays: gusty wind, snow, fog or heavy rain.</p>
+        </article>
+        <article>
+          <h3><span class="chip chip--high" data-icon="high">High</span></h3>
+          <p>Weather that regularly stops or sharply cuts flights: thunderstorms, freezing rain, heavy snow, dense fog or severe gusts.</p>
+        </article>
+      </div>
+      <details class="method">
+        <summary>How the risk level is worked out, and what it cannot tell you</summary>
+        <div class="method__body">
+          <p>For every hour you are at an airport (from an hour before to an hour after each take-off or landing) Gatecast scores the forecast: thunderstorms, freezing rain, snowfall rate, visibility and fog, wind gusts and rain rate. The worst hour sets the airport's level. For a connection, a short layover raises the level and a long one lowers it, and bad weather where your inbound flight departs counts too, because late departures arrive late.</p>
+          <p>This is a weather-based estimate, not a prediction from airline or air-traffic data. Airports differ: the same snowfall that closes one airport is routine at another. Flights are also delayed for reasons that have nothing to do with weather. Forecasts more than about a week out are an outlook only. Always check with your airline.</p>
+          <p>Forecast data: <a href="https://open-meteo.com/" rel="noopener">Open-Meteo</a> (CC BY 4.0). US alerts: National Weather Service. Airport observations: NOAA Aviation Weather Center. US airport status: FAA. Airport list: mwgg/Airports (MIT). Map outline: Natural Earth.</p>
+        </div>
+      </details>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>Gatecast is a planning aid, not an official source. Check your airline for the status of your flight.</p>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,107 @@
+/* Gatecast design tokens.
+   Three layers: raw values -> semantic tokens -> component styles (app.css).
+   Components must only reference semantic tokens. See docs/design-system.md. */
+
+:root {
+  color-scheme: light dark;
+
+  /* ---- Raw palette (never use directly in components) ---- */
+  --paper-50: #fffdf8;
+  --paper-100: #f4f1ea;
+  --paper-200: #e9e4d8;
+  --paper-300: #d6cfbf;
+  --ink-900: #0d131b;
+  --ink-800: #151d28;
+  --ink-700: #1c2634;
+  --ink-600: #2a3646;
+  --ink-500: #5b6675;
+  --ink-300: #9aa6b5;
+  --ink-100: #e9edf2;
+  --cobalt-600: #1f4fd8;
+  --cobalt-300: #8fb0ff;
+  --teal-700: #0b6b5f;
+  --teal-300: #5fd3c0;
+  --amber-700: #8f4e00;
+  --amber-300: #f2b450;
+  --rose-700: #a81c48;
+  --rose-300: #ff8aa8;
+
+  /* ---- Semantic colour ---- */
+  --color-bg: light-dark(var(--paper-100), var(--ink-900));
+  --color-surface: light-dark(var(--paper-50), var(--ink-800));
+  --color-surface-sunken: light-dark(var(--paper-200), var(--ink-700));
+  --color-border: light-dark(var(--paper-300), var(--ink-600));
+  --color-text: light-dark(#17202b, var(--ink-100));
+  --color-text-muted: light-dark(var(--ink-500), var(--ink-300));
+  --color-accent: light-dark(var(--cobalt-600), var(--cobalt-300));
+  --color-on-accent: light-dark(#ffffff, var(--ink-900));
+  --color-map-land: light-dark(var(--paper-300), #3a4a60);
+  --color-map-sea: light-dark(var(--paper-200), #101822);
+
+  /* Risk scale: three levels, always paired with an icon shape and a text label.
+     Teal / amber / rose stays distinguishable under red-green colour blindness. */
+  --risk-low: light-dark(var(--teal-700), var(--teal-300));
+  --risk-elevated: light-dark(var(--amber-700), var(--amber-300));
+  --risk-high: light-dark(var(--rose-700), var(--rose-300));
+
+  /* ---- Typography ---- */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: clamp(1.5rem, 1.1rem + 1.6vw, 2.125rem);
+  --text-2xl: clamp(2rem, 1.2rem + 3.6vw, 3.5rem);
+  --leading-tight: 1.15;
+  --leading-body: 1.5;
+
+  /* ---- Spacing (4px base) ---- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+
+  /* ---- Shape, elevation, motion ---- */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+  --shadow-1: 0 1px 2px light-dark(rgb(23 32 43 / 0.08), rgb(0 0 0 / 0.4));
+  --shadow-2: 0 8px 28px light-dark(rgb(23 32 43 / 0.12), rgb(0 0 0 / 0.5));
+  --duration-fast: 120ms;
+  --duration-base: 240ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --tap-target: 44px;
+  --page-max: 72rem;
+
+  /* User override of the colour scheme: the inline script in index.html
+     writes the stored choice into the <meta>, and these map it back to CSS. */
+  &:has(> head > meta[name="color-scheme"][content="dark"]) { color-scheme: dark; }
+  &:has(> head > meta[name="color-scheme"][content="light"]) { color-scheme: light; }
+}
+
+/* Browsers without light-dark(): follow the system preference with plain values. */
+@supports not (color: light-dark(#000, #fff)) {
+  :root {
+    --color-bg: #f4f1ea; --color-surface: #fffdf8; --color-surface-sunken: #e9e4d8;
+    --color-border: #d6cfbf; --color-text: #17202b; --color-text-muted: #5b6675;
+    --color-accent: #1f4fd8; --color-on-accent: #fff;
+    --color-map-land: #d6cfbf; --color-map-sea: #e9e4d8;
+    --risk-low: #0b6b5f; --risk-elevated: #8f4e00; --risk-high: #a81c48;
+    --shadow-1: 0 1px 2px rgb(23 32 43 / 0.08); --shadow-2: 0 8px 28px rgb(23 32 43 / 0.12);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --color-bg: #0d131b; --color-surface: #151d28; --color-surface-sunken: #1c2634;
+      --color-border: #2a3646; --color-text: #e9edf2; --color-text-muted: #9aa6b5;
+      --color-accent: #8fb0ff; --color-on-accent: #0d131b;
+      --color-map-land: #3a4a60; --color-map-sea: #101822;
+      --risk-low: #5fd3c0; --risk-elevated: #f2b450; --risk-high: #ff8aa8;
+      --shadow-1: 0 1px 2px rgb(0 0 0 / 0.4); --shadow-2: 0 8px 28px rgb(0 0 0 / 0.5);
+    }
+  }
+}
