@@ -38,6 +38,16 @@
   --color-map-land: light-dark(var(--paper-300), #3a4a60);
   --color-map-sea: light-dark(var(--paper-200), #101822);
 
+  /* Sky panels on the weather page: dark enough for white text at 4.5:1 in both themes. */
+  --sky-day: linear-gradient(160deg, #1c56c4, #2f74cf);
+  --sky-night: linear-gradient(160deg, #131a3a, #2a3872);
+  --sky-cloud: linear-gradient(160deg, #46556a, #647489);
+  --sky-rain: linear-gradient(160deg, #33465f, #56708f);
+  --sky-snow: linear-gradient(160deg, #445c7c, #5f7797);
+  --sky-storm: linear-gradient(160deg, #272c42, #4a4e6c);
+  --color-on-sky: #ffffff;
+  --color-live: light-dark(#0b6b5f, #5fd3c0);
+
   /* Risk scale: three levels, always paired with an icon shape and a text label.
      Teal / amber / rose stays distinguishable under red-green colour blindness. */
   --risk-low: light-dark(var(--teal-700), var(--teal-300));

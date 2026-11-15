@@ -3,18 +3,11 @@ import {
   fmtTime, fmtDay, fmtZone, fmtDuration, utcToLocalInput, HOUR, LEVEL_LABEL,
 } from './core.js';
 import { loadAirports, airport, searchAirports, loadForecasts, loadAlerts, loadLive } from './data.js';
+import { $, store, prefs, initSettings } from './shell.js';
 import { esc, weatherIcon, riskIcon, chip, units, compass, routeMap, hourlyStrip } from './view.js';
-
-const $ = (sel, root = document) => root.querySelector(sel);
-const store = {
-  get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
-  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
-};
 
 /* ---------- State ---------- */
 
-const usDefaults = /^en-US/i.test(navigator.language || '');
-const prefs = { temp: usDefaults ? 'f' : 'c', wind: usDefaults ? 'mph' : 'kmh', ...store.get('gatecast:prefs', {}) };
 let uid = 0;
 const blank = () => ({ id: ++uid, code: '', layover: 90 });
 let stops = [blank(), blank(), blank()]; // from, one optional connection, to
@@ -471,34 +464,6 @@ $('#example-list').addEventListener('click', (e) => {
   run(trip);
 });
 
-/* ---------- Settings ---------- */
-
-function initSettings() {
-  const theme = (() => { try { return localStorage.getItem('color-scheme') || 'system'; } catch { return 'system'; } })();
-  const current = { temp: prefs.temp, wind: prefs.wind, theme };
-  for (const [name, value] of Object.entries(current)) {
-    const input = $(`#settings input[name="${name}"][value="${value}"]`);
-    if (input) input.checked = true;
-  }
-  $('#settings').addEventListener('change', (e) => {
-    const { name, value } = e.target;
-    if (name === 'theme') {
-      try { value === 'system' ? localStorage.removeItem('color-scheme') : localStorage.setItem('color-scheme', value); } catch {}
-      $('meta[name="color-scheme"]').content = value === 'system' ? 'light dark' : value;
-    } else {
-      prefs[name] = value;
-      store.set('gatecast:prefs', prefs);
-      render();
-    }
-  });
-  window.addEventListener('storage', (e) => {
-    if (e.key !== 'color-scheme') return;
-    $('meta[name="color-scheme"]').content = e.newValue ?? 'light dark';
-    const input = $(`#settings input[name="theme"][value="${e.newValue ?? 'system'}"]`);
-    if (input) input.checked = true;
-  });
-}
-
 /* ---------- Start ---------- */
 
 function decorateLegend() {
@@ -506,7 +471,7 @@ function decorateLegend() {
 }
 
 async function start() {
-  initSettings();
+  initSettings(render);
   decorateLegend();
   depEl.value = defaultDeparture();
   depEl.max = utcToLocalInput(Date.now() + 15 * 24 * HOUR, Intl.DateTimeFormat().resolvedOptions().timeZone);

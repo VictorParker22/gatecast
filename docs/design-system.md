@@ -114,6 +114,38 @@ Inline SVG, no tiles or map library. Land outline from Natural Earth, great-circ
 
 Current observation ("Right now: …") with the raw METAR behind a disclosure, active National Weather Service alerts, and FAA delay programmes. Alerts use the elevated tint with its icon.
 
+### Site navigation (`.site-nav`)
+
+Three links (Weather, Flights, Connections) in the header. The current page is marked with `aria-current="page"` and shown with a bold label plus an accent underline, never colour alone. On narrow screens the links move to their own row and the settings button collapses to its icon.
+
+### Location bar and welcome (`.locbar`, `.welcome`)
+
+City search (combobox) and a "Use my location" button. The location prompt only appears after the visitor presses the button, and the welcome panel says what the location is used for first. A refusal shows a plain message and leaves search and popular cities available.
+
+### Now panel (`.now`)
+
+Place, local time, large temperature, condition, feels-like and the day's range, then one sentence about the next 24 hours. The background is a sky gradient chosen by condition (`--sky-day`, `--sky-night`, `--sky-cloud`, `--sky-rain`, `--sky-snow`, `--sky-storm`); all are dark enough for white text.
+
+### Stat tiles (`.tiles`, `.tile`)
+
+Label, value and an optional one-line note. Two columns on phones, four from tablet width.
+
+### Day rows (`.days`, `.day`)
+
+One row per day: name, sky icon, chance of rain or snow (shown from 20%), low, a range bar positioned on the 10-day span, high.
+
+### Radar (`.radar`)
+
+Map with past radar frames, a play button and a time slider. The map library and tiles load only when the panel nears the screen; nothing plays automatically.
+
+### Flight card (`.flight`, `.status`, `.progress`)
+
+Airline and flight, route, a status pill ("In the air" with a pulsing dot, "On the ground", "Not tracked right now"), a progress track with a plane marker, and live figures. A note states what the data cannot show.
+
+### Panel (`.panel`)
+
+Plain titled surface for a block of content (hourly, days, radar, nearby aircraft).
+
 ## Patterns
 
 - **Search-first page.** The form is the page. Results appear below it and the address bar updates, so every result is a shareable link and the back button works.

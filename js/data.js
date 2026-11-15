@@ -11,10 +11,9 @@ export function loadAirports() {
   airportsPromise ??= fetch('data/airports.json')
     .then((r) => { if (!r.ok) throw new Error('airports'); return r.json(); })
     .then((rows) => {
-      list = rows.map(([code, icao, name, city, country, lat, lon, tz]) => ({
-        code, icao, name, city, country, lat, lon, tz,
+      list = rows.map(([code, icao, name, city, country, lat, lon, tz, rank = 0]) => ({
+        code, icao, name, city, country, lat, lon, tz, rank,
         hay: `${city} ${name}`.toLowerCase(),
-        major: /international|intl/i.test(name),
       }));
       byCode = new Map(list.map((a) => [a.code, a]));
       return list;
@@ -38,7 +37,7 @@ export function searchAirports(q, limit = 7) {
     else if (q.length >= 4 && a.hay.includes(q)) s = 20;
     else if (q.length < 3 && a.code.toLowerCase().startsWith(q)) s = 30;
     if (!s) continue;
-    if (a.major) s += 8;
+    s += a.rank * 6;
     scored.push([s, a]);
   }
   scored.sort((x, y) => y[0] - x[0] || x[1].name.length - y[1].name.length);
@@ -129,6 +128,86 @@ export async function loadLive(airports) {
     airports.some((a) => a.country === 'US') ? fetch('api/faa').then((r) => (r.ok ? r.json() : null)).catch(() => null) : null,
   ]);
   return { metar, faa };
+}
+
+/* ---------- Places and local weather (weather home page) ---------- */
+
+export async function searchPlaces(q) {
+  q = q.trim();
+  if (q.length < 2) return [];
+  try {
+    const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=6&language=en&format=json`);
+    if (!res.ok) return [];
+    return ((await res.json()).results || []).map((r) => ({
+      name: r.name, region: [r.admin1, r.country].filter(Boolean).join(', '), lat: +r.latitude.toFixed(3), lon: +r.longitude.toFixed(3), country: r.country_code,
+    }));
+  } catch { return []; }
+}
+
+const kmBetween = (aLat, aLon, bLat, bLon) => {
+  const r = Math.PI / 180, dLat = (bLat - aLat) * r, dLon = (bLon - aLon) * r;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(aLat * r) * Math.cos(bLat * r) * Math.sin(dLon / 2) ** 2;
+  return 12742 * Math.asin(Math.sqrt(h));
+};
+// Nearest airports from the bundled list, so naming a spot needs no third-party lookup.
+// minRank 1 keeps airports with airline service; 2 keeps only large ones.
+export function nearestAirports(lat, lon, n = 3, minRank = 0) {
+  return list
+    .filter((a) => a.rank >= minRank)
+    .map((a) => ({ airport: a, km: kmBetween(lat, lon, a.lat, a.lon) }))
+    .sort((x, y) => x.km - y.km)
+    .slice(0, n);
+}
+
+const CURRENT = 'temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,wind_gusts_10m,wind_direction_10m,is_day,precipitation,surface_pressure,visibility';
+const DAILY = 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,sunrise,sunset,uv_index_max,wind_gusts_10m_max';
+
+// Current conditions, 48 hours and 10 days for one spot, plus air quality when available.
+export async function loadWeather(lat, lon) {
+  const key = `wx:${lat},${lon}`;
+  const hit = cacheGet(key);
+  if (hit) return hit;
+  const url = new URL('https://api.open-meteo.com/v1/forecast');
+  url.search = new URLSearchParams({
+    latitude: lat, longitude: lon, current: CURRENT, hourly: HOURLY, daily: DAILY,
+    forecast_hours: '48', forecast_days: '10', timeformat: 'unixtime', timezone: 'auto', wind_speed_unit: 'kmh',
+  });
+  const airUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=us_aqi,pm2_5&timezone=auto`;
+  let res = await fetch(url);
+  if (res.status === 429) { await new Promise((r) => setTimeout(r, 1500)); res = await fetch(url); }
+  if (!res.ok) { const err = new Error(res.status === 429 ? 'rate' : 'forecast'); throw err; }
+  const [json, air] = await Promise.all([res.json(), fetch(airUrl).then((r) => (r.ok ? r.json() : null)).catch(() => null)]);
+  const c = json.current, d = json.daily;
+  const data = {
+    at: Date.now(), tz: json.timezone,
+    now: {
+      t: c.time * 1000, temp: c.temperature_2m, feels: c.apparent_temperature, humidity: c.relative_humidity_2m, code: c.weather_code,
+      wind: c.wind_speed_10m, gust: c.wind_gusts_10m, dir: c.wind_direction_10m, day: c.is_day, precip: c.precipitation,
+      pressure: c.surface_pressure, vis: c.visibility,
+    },
+    hours: toHours(json),
+    days: d.time.map((t, i) => ({
+      t: t * 1000, code: d.weather_code[i], max: d.temperature_2m_max[i], min: d.temperature_2m_min[i], pop: d.precipitation_probability_max[i],
+      precip: d.precipitation_sum[i], sunrise: d.sunrise[i] * 1000, sunset: d.sunset[i] * 1000, uv: d.uv_index_max[i], gust: d.wind_gusts_10m_max[i],
+    })).filter((x) => x.max != null),
+    air: air && air.current && air.current.us_aqi != null ? { aqi: air.current.us_aqi, pm25: air.current.pm2_5 } : null,
+  };
+  cacheSet(key, data);
+  return data;
+}
+
+/* ---------- Flights (through server.js or the Vercel functions) ---------- */
+
+export async function loadFlight(q) {
+  const res = await fetch(`api/flight?q=${encodeURIComponent(q)}`);
+  if (!res.ok || !res.headers.get('content-type')?.includes('json')) throw new Error('unavailable');
+  return res.json();
+}
+export async function loadNearby(a) {
+  try {
+    const res = await fetch(`api/near?lat=${a.lat}&lon=${a.lon}`);
+    return res.ok && res.headers.get('content-type')?.includes('json') ? await res.json() : null;
+  } catch { return null; }
 }
 
 export { HOUR };

@@ -8,3 +8,13 @@ test('FAA XML parsing keeps delay programmes and drops NOTAM closures', () => {
   assert.equal(out.airports.ORD[0].type, 'Ground Delay Program');
   assert.match(out.airports.ORD[0].detail, /1 hour and 12 minutes, snow/);
 });
+const { parseFlight } = require('../lib/live.js');
+test('flight numbers are parsed in the forms people type', () => {
+  assert.deepEqual(parseFlight('UA 1'), { prefix: 'UA', number: '1' });
+  assert.deepEqual(parseFlight('ba0117'), { prefix: 'BA', number: '117' });
+  assert.deepEqual(parseFlight('UAL1'), { prefix: 'UAL', number: '1' });
+  assert.deepEqual(parseFlight('B6 23'), { prefix: 'B6', number: '23' });
+  assert.deepEqual(parseFlight('U2-8001'), { prefix: 'U2', number: '8001' });
+  assert.equal(parseFlight('hello'), null);
+  assert.equal(parseFlight('12345'), null);
+});
