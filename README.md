@@ -2,7 +2,7 @@
 
 Local weather with flight status. Three pages:
 
-- **Weather** (`index.html`): asks for your location (or a city) and shows current conditions, the next 24 hours, 10 days, rain radar, air quality and the weather risk at nearby airports.
+- **Weather** (`index.html`): asks for your location (or a city) and answers in one sentence under a sky-coloured header. Below it is a personal board: boxes for the next 24 hours, 10 days, radar, current details, a daily question from the forecast, a here-and-there city comparison, flights, and a tip with a season checklist. Each box can be resized, reordered, hidden or kept on a shelf, and the arrangement is saved on the device.
 - **Flights** (`flights.html`): track a flight live by number, with weather at both ends, or look up any airport's current weather risk and the aircraft around it.
 - **Connections** (`trip.html`): enter your airports, departure time and layover and get a plain-language verdict on whether weather threatens the connection.
 
@@ -26,7 +26,8 @@ node --test tests/*.mjs tests/*.cjs
 
 | Path | What it does |
 |---|---|
-| `index.html`, `js/weather.js` | Weather home: location, current conditions, hourly, 10 days, radar, nearby airports |
+| `index.html`, `js/weather.js`, `styles/board.css` | Weather home: sky header, the board and its boxes, shelf, options panel |
+| `js/boardcontent.js` | Headline sentence, parts of the day, daily question, tips, season checklists, city comparison (pure, unit-tested) |
 | `flights.html`, `js/flights.js` | Flight tracking and airport view |
 | `trip.html`, `js/trip.js` | Connection checker |
 | `js/shell.js` | Shared storage, unit and theme preferences, settings popover |
@@ -39,6 +40,7 @@ node --test tests/*.mjs tests/*.cjs
 | `server.js` | Local static server exposing the same `/api` routes |
 | `scripts/build-data.cjs` | Build step: airport list with size ranking, map outline, assembles `public/` |
 | `vendor/leaflet/` | Leaflet 1.9.4 (BSD-2-Clause), used only for the radar map |
+| `vendor/fonts/` | Inter and Space Grotesk (SIL Open Font License), self-hosted |
 | `data/airports.json` | 7,769 airports with IATA codes, time zones and a size rank |
 | `docs/` | Design system, user research plan, research report |
 

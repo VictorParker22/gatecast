@@ -16,13 +16,13 @@ The visual language and components of the Gatecast site. Tokens live in `styles/
 
 | Token | Light | Dark | Use |
 |---|---|---|---|
-| `--color-bg` | `#f4f1ea` | `#0d131b` | Page background |
-| `--color-surface` | `#fffdf8` | `#151d28` | Cards, form, popover |
-| `--color-surface-sunken` | `#e9e4d8` | `#1c2634` | Wells, hover rows, empty bar track |
-| `--color-border` | `#d6cfbf` | `#2a3646` | Hairlines |
-| `--color-text` | `#17202b` | `#e9edf2` | Body text |
-| `--color-text-muted` | `#5b6675` | `#9aa6b5` | Labels, captions |
-| `--color-accent` | `#1f4fd8` | `#8fb0ff` | Primary action, links, airport codes, "you are here" shading |
+| `--color-bg` | `#f4f6fa` | `#0b1120` | Page background |
+| `--color-surface` | `#ffffff` | `#141c2e` | Cards, form, popover |
+| `--color-surface-sunken` | `#e8edf5` | `#1c2640` | Wells, hover rows, empty bar track |
+| `--color-border` | `#d3dae6` | `#2a3550` | Hairlines |
+| `--color-text` | `#0f1728` | `#e9edf5` | Body text |
+| `--color-text-muted` | `#55607a` | `#9aa6bd` | Labels, captions |
+| `--color-accent` | `#1d5fd6` | `#8fb0ff` | Primary action, links, airport codes, "you are here" shading |
 | `--risk-low` | `#0b6b5f` | `#5fd3c0` | Low risk (teal, tick in circle) |
 | `--risk-elevated` | `#8f4e00` | `#f2b450` | Elevated risk (amber, triangle) |
 | `--risk-high` | `#a81c48` | `#ff8aa8` | High risk (rose, octagon) |
@@ -33,7 +33,7 @@ Teal, amber and rose were chosen over green, yellow and red so the three levels 
 
 ### Typography
 
-System font stack (`--font-sans`) with tabular numerals everywhere, so times and temperatures line up. `--font-mono` is reserved for airport codes and route strings.
+Inter (`--font-sans`) for text and Space Grotesk (`--font-display`) for headings, big numbers and airport codes. Both are self-hosted from `vendor/fonts/`, so no visitor data goes to a font service. Tabular numerals are on everywhere so times and temperatures line up.
 
 | Token | Size | Use |
 |---|---|---|
@@ -114,6 +114,40 @@ Inline SVG, no tiles or map library. Land outline from Natural Earth, great-circ
 
 Current observation ("Right now: …") with the raw METAR behind a disclosure, active National Weather Service alerts, and FAA delay programmes. Alerts use the elevated tint with its icon.
 
+### Sky header (`.sky`, `.hero-wx`)
+
+The top of the weather page is one flat colour chosen by the current conditions (`--sky-day`, `--sky-night`, `--sky-cloud`, `--sky-rain`, `--sky-snow`, `--sky-storm`), each dark enough for white text. It holds the navigation, the location bar, the place and time, a very large temperature, one headline sentence that says what the weather is doing and when it changes, and the four parts of the day ahead. It is the only part of the page the visitor cannot move.
+
+### Board and boxes (`.board`, `.tile`)
+
+Everything below the sky is a box on a six-column grid. Each box has three sizes: small (2 columns), medium (3) and large (6); two-column and one-column layouts apply on tablets and phones. A bigger box shows more: more hours, more days, more stats, more cities, more checklist items.
+
+| Control | What it does |
+|---|---|
+| Grip (six dots) | Drag to reorder with mouse, pen or touch. Dropping on the shelf adds the box to it. Pressing it opens the options panel. |
+| Resize (arrows) | Cycles small, medium, large. |
+| Options (three dots) | Opens the options panel. |
+
+Changes animate with view transitions, which are switched off under `prefers-reduced-motion`. Every move is announced to screen readers ("10 days moved to position 3 of 8"). The arrangement is saved on the device.
+
+Two boxes use fixed emphasis colours in both themes: the quick question (`--color-sun`) and "Get ready" (`--color-ink-surface`).
+
+### Options panel (`.sheet`)
+
+A native modal `<dialog>` styled as frosted glass: a translucent surface with a strong backdrop blur over a lightly blurred page. Actions: keep on shelf, bigger, smaller, move earlier, move later, copy a link, hide. Move earlier and later are the keyboard and screen-reader route to reordering. Unavailable actions are disabled, not hidden.
+
+### Shelf (`.shelf`)
+
+A frosted bar pinned to the bottom of the screen holding shortcuts to the boxes the visitor has kept. Selecting one scrolls to that box and outlines it briefly.
+
+### Pedestal (`.pedestal`)
+
+A card that overlaps the sky and introduces the board: a one-line explanation, the visitor's day streak, shelf count and questions answered, and the reset and show-hidden controls.
+
+### Quick question (`.quiz__*`)
+
+One question a day made from the forecast on the page, answered with one tap. The correct option gets a tick and inverted colours; a wrong pick is struck through with a cross, so the result never depends on colour alone.
+
 ### Site navigation (`.site-nav`)
 
 Three links (Weather, Flights, Connections) in the header. The current page is marked with `aria-current="page"` and shown with a bold label plus an accent underline, never colour alone. On narrow screens the links move to their own row and the settings button collapses to its icon.
@@ -121,14 +155,6 @@ Three links (Weather, Flights, Connections) in the header. The current page is m
 ### Location bar and welcome (`.locbar`, `.welcome`)
 
 City search (combobox) and a "Use my location" button. The location prompt only appears after the visitor presses the button, and the welcome panel says what the location is used for first. A refusal shows a plain message and leaves search and popular cities available.
-
-### Now panel (`.now`)
-
-Place, local time, large temperature, condition, feels-like and the day's range, then one sentence about the next 24 hours. The background is a sky gradient chosen by condition (`--sky-day`, `--sky-night`, `--sky-cloud`, `--sky-rain`, `--sky-snow`, `--sky-storm`); all are dark enough for white text.
-
-### Stat tiles (`.tiles`, `.tile`)
-
-Label, value and an optional one-line note. Two columns on phones, four from tablet width.
 
 ### Day rows (`.days`, `.day`)
 

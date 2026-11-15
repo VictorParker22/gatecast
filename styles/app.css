@@ -307,31 +307,10 @@ details.live summary { cursor: pointer; }
 .welcome > p { max-width: 62ch; color: var(--color-text-muted); }
 .welcome__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); color: var(--color-text-muted); font-size: var(--text-sm); }
 
-.now { color: var(--color-on-sky); border-radius: var(--radius-lg); padding: var(--space-5); display: grid; gap: var(--space-2); background: var(--sky-cloud); box-shadow: var(--shadow-1); }
-.now--day { background: var(--sky-day); } .now--night { background: var(--sky-night); } .now--rain { background: var(--sky-rain); }
-.now--snow { background: var(--sky-snow); } .now--storm { background: var(--sky-storm); }
-.now small { color: inherit; opacity: 0.85; font-size: var(--text-sm); }
-.now__place { font-size: var(--text-lg); font-weight: 700; }
-.now__time { font-size: var(--text-sm); opacity: 0.9; }
-.now__main { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-4); margin-block: var(--space-2); }
-.wx--hero { width: clamp(4rem, 14vw, 6rem); height: clamp(4rem, 14vw, 6rem); stroke-width: 1.1; }
-.now__temp { font-size: clamp(4rem, 16vw, 6.5rem); font-weight: 700; line-height: 0.9; letter-spacing: -0.05em; }
-.now__temp small { font-size: 0.35em; letter-spacing: 0; vertical-align: top; opacity: 0.85; }
-.now__cond { font-size: var(--text-lg); font-weight: 600; }
-.now__summary { font-size: var(--text-md); font-weight: 500; padding-top: var(--space-3); border-top: 1px solid rgb(255 255 255 / 0.25); }
 #alerts { display: grid; gap: var(--space-2); margin-bottom: var(--space-3); }
 #alerts:empty { display: none; }
 
-.tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); margin-block: var(--space-4); }
-@media (min-width: 46rem) { .tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
-.tile { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); }
-.tile dt { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-text-muted); font-weight: 700; }
-.tile dd { font-size: var(--text-lg); font-weight: 700; margin-top: 2px; }
-.tile p { font-size: var(--text-xs); color: var(--color-text-muted); }
 
-.wx-grid { display: grid; gap: var(--space-4); padding-bottom: var(--space-6); }
-.wx-grid__main, .wx-grid__side { display: grid; gap: var(--space-4); align-content: start; min-width: 0; }
-@media (min-width: 64rem) { .wx-grid { grid-template-columns: minmax(0, 1fr) 24rem; } }
 .panel { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-4); display: grid; gap: var(--space-3); min-width: 0; }
 .panel h2 { font-size: var(--text-md); }
 .panel--flush { padding: 0; overflow: hidden; gap: 0; }
@@ -365,7 +344,6 @@ details.live summary { cursor: pointer; }
 .airports .code { color: var(--color-accent); }
 .airports__name { display: grid; line-height: 1.25; min-width: 0; font-size: var(--text-sm); font-weight: 600; }
 .airports__name small { font-weight: 400; }
-.skeleton--now span:first-child { height: 15rem; border-radius: var(--radius-lg); }
 
 /* ================= Flights page ================= */
 .lookup { display: grid; gap: var(--space-3); margin-top: var(--space-4); }
@@ -396,3 +374,7 @@ details.live summary { cursor: pointer; }
 .nearby li:first-child { border-top: 0; }
 .nearby .pill { justify-self: start; }
 .results__grid--airport { margin-top: 0; }
+
+/* Display type */
+h1, h2, h3, .brand__name, .code { font-family: var(--font-display); }
+.code { letter-spacing: 0.02em; }
