@@ -46,6 +46,7 @@ node --test tests/*.mjs tests/*.cjs
 | `vendor/leaflet/` | Leaflet 1.9.4 (BSD-2-Clause), used only for the radar map |
 | `vendor/fonts/` | Inter and Space Grotesk (SIL Open Font License), self-hosted |
 | `data/airports.json` | 7,769 airports with IATA codes, time zones and a size rank |
+| `supabase/migrations/` | Database for the "Both sides" review queue (not yet read by the site); see `docs/content-sources.md` |
 | `docs/` | Design system, user research plan, research report |
 
 ## Data sources and limits
