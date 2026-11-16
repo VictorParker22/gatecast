@@ -14,6 +14,26 @@ The owner asked for the call that gives the site the best chance of success. It 
 4. **Review:** the owner is the first reviewer. Nothing political is published without approval. The review queue lives in a small database (Supabase).
 5. **Keys needed:** an api.data.gov key (free) for the Congressional Record. A YouTube key is not needed.
 
+## Decision update (16 November 2026, later the same day)
+
+The owner did not want to use api.data.gov for now and asked for Open States plus other free sources. Three keys are stored as secrets in the Supabase project: Open States, YouTube and a Claude API key. What changed:
+
+1. **A new box, "In your statehouse", comes first.** It shows how each party voted on recent bills in the visitor's state, taken from Open States. It is the "both sides" idea in its most factual form: counts, not quotes.
+2. **The approval rule is narrowed, not dropped.** Vote records are shown without the owner approving each one, because every word and number comes from the public record: the legislature's official title (labelled as such), the count, the party split, the date and links. Nothing is written by us or by a model. Anything we write ourselves, and any quote, still needs approval in the review queue. There are two off switches: hide one vote, or turn the whole box off (see `supabase/migrations/`).
+3. **The quote-based "Both sides" box waits.** Its source, the Congressional Record, needs the api.data.gov key. The review queue built for it stays in place.
+4. **The Claude and YouTube keys are not used yet.**
+
+**What was checked by calling the services from inside the Supabase project (not by reading their documentation, which could not be reached):**
+
+| Source | Key | Result |
+|---|---|---|
+| Open States | Stored secret | Works. Each vote lists every voter with their party, so the party split needs no second lookup. Committee votes are mixed in and labelled differently in each state, so the collector keeps only votes cast by at least 60% of the chamber. Michigan returned no roll calls at all. Some voters are not matched to a legislator (14 of 80 in the New Jersey Assembly), so their party is unknown and the box says so. |
+| Wikipedia most-viewed (US) | None | Works, but the raw list includes the home page, search pages, adult-site articles and many named people. Not usable on a weather home page without a filter and a human look. Parked. |
+| USGS earthquakes | None | Works. A candidate for a place-based box ("felt near you"). Not built. |
+| GDELT news search | None | Refused with "limit requests to one every 5 seconds" on the first call, because Supabase's servers share addresses with other users. Not dependable from there. Parked. |
+
+Open States' rate limits and terms of use could not be read, so the collector is cautious: at most 8 requests a run, one run an hour, under 200 requests a day. Its terms are on the list to verify before launch.
+
 ## Recommendation at a glance
 
 | Row | Use | Cost | Biggest catch |
@@ -125,6 +145,8 @@ What it needs that the site does not have today: a database for the queue and th
 - **AI-written text is probably not protected by copyright**, so competitors may copy it. The protection is the service, not the words.
 
 ## To verify before launch
+
+0. Open States' terms of use, attribution wording and rate limits for a site that carries ads.
 
 1. YouTube API terms on showing ranked view counts and on ads beside embeds.
 2. Spoonacular's current price and data-retention terms.
