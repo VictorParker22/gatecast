@@ -226,7 +226,14 @@ export function bookshopUrl(book, affiliate = BOOKSHOP_AFFILIATE) {
 
 // The cover to show: one baked into data/books.json (checked by a person, no API call) wins; otherwise whatever
 // /api/book-covers found for this book, if anything. Same shape either way: { coverId, olKey, year }.
+// Books that always show our stand-in (decided 16 Nov 2026, see tests/library.test.mjs): Open Library's match is
+// the wrong book or a film tie-in, or the usual cover shows a killer or a cult leader. Not even the cover API may
+// give them a picture.
+export const NO_COVER = new Set(['the-monster-of-florence', 'the-lost-city-of-z', 'helter-skelter', 'the-stranger-beside-me', 'wicked-beyond-belief',
+  'the-executioners-song', 'the-road-to-jonestown', 'the-man-in-the-rockefeller-suit']);
+
 export function coverFor(book, apiCovers = {}) {
+  if (book && NO_COVER.has(book.id)) return null;
   const c = book && book.cover;
   if (c && Number.isInteger(c.id) && c.id > 0) return { coverId: c.id, olKey: c.olKey || null, year: c.year ?? null, baked: true };
   const r = apiCovers && book ? apiCovers[book.id] : null;
@@ -234,7 +241,7 @@ export function coverFor(book, apiCovers = {}) {
 }
 
 // Do any books still need the cover API? (Only those with no baked cover may ask.)
-export const needsCoverApi = (books) => books.some((b) => !(b.cover && Number.isInteger(b.cover.id) && b.cover.id > 0));
+export const needsCoverApi = (books) => books.some((b) => !NO_COVER.has(b.id) && !(b.cover && Number.isInteger(b.cover.id) && b.cover.id > 0));
 
 // A record that was matched (baked into the data, or confirmed by the server: title and author matched) wins; an unverified ID is never linked as if it
 // were certain, so until then the link is an Open Library search for the title and author.

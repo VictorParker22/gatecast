@@ -1,11 +1,18 @@
-// The Stacks (library.html): renders the bays from data/books.json, search and shelf chips, the library card,
-// and the book you pull out (a real <dialog>: a 3D box that flies off the shelf, shows its cover, then turns
-// to its back; a flat card instead when motion is reduced or 3D is unsupported). Pure logic: librarymodel.js.
+// The Stacks (library.html). Two layers over the same page:
+// - The DOM shelves: bays of spine buttons rendered from data/books.json, search and shelf chips, the library
+//   card, and the book you pull out in a real <dialog> (a CSS 3D box, or a flat card when motion is reduced).
+//   This is the whole library on every device, and the accessible layer under the 3D one.
+// - On capable devices (WebGL2, motion allowed, no Save-Data, not a very weak device) the 3D room from
+//   js/stacks3d/ is mounted over it. The spine buttons then become a visually hidden list that drives the
+//   scene (focus tips a book, Enter pulls it out) and the dialog holds the controls and the back-cover text.
+// Pure logic: librarymodel.js and stacks3d/model.js.
 import { initSettings, store } from './shell.js';
 import {
   BOOKSHOP_AFFILIATE, BOOKSHOP_DISCLOSURE, authorLine, surname, filterView, statusText, pickRandom, spineStyle, balancedRows,
   bookBox, flightStart, parseHash, buildHash, stampCard, stampDate, worldcatUrl, bookshopUrl, openLibraryUrl, coverUrl, coverFor, needsCoverApi,
 } from './librarymodel.js';
+import { bookLook, decideTier, stampText } from './stacks3d/model.js';
+import * as sound from './stacks3d/sound.js';
 
 initSettings();
 
@@ -13,7 +20,9 @@ const $ = (id) => document.getElementById(id);
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
 const svgNS = 'http://www.w3.org/2000/svg';
 const CARD_KEY = 'gatecast:library-card';
-const OBJECTS = { // decorative objects at the end of each bay (the board's line drawings)
+const PREF_3D = 'gatecast:stacks-3d';
+const CARD_MAX = 3;
+const OBJECTS = { // decorative objects at the end of each bay (line drawings, DOM shelves only)
   lens: ['M38 40l16 18', 'M18 22a10 10 0 0 1 8-4', 'C 26 28 16'],
   file: ['M6 24h18l5 6h29v40H6z', 'M6 34h52', 'M14 46h22', 'M14 54h30'],
   candle: ['M24 34h16v36H24z', 'M32 34v-6', 'M32 12c5 6 5 10 0 14c-5-4-5-8 0-14z', 'M16 70h32'],
@@ -21,50 +30,88 @@ const OBJECTS = { // decorative objects at the end of each bay (the board's line
   flask: ['M26 6h12', 'M28 6v20L12 64a4 4 0 0 0 4 6h32a4 4 0 0 0 4-6L36 26V6', 'M18 52h28'],
   hat: ['M20 20h24v36H20z', 'M8 56h48', 'M20 46h24', 'M44 62l10 10'],
 };
+// Photographic textures and backdrops (assets/stacks/, generated imagery). {size} is 1024 or 512.
+const ASSETS = {
+  wood: 'assets/stacks/tex-wood-{size}.webp', cloth: 'assets/stacks/tex-cloth-{size}.webp', leather: 'assets/stacks/tex-leather-{size}.webp',
+  paper: 'assets/stacks/tex-paper-{size}.webp', pages: 'assets/stacks/tex-pages-512.webp', pocket: 'assets/stacks/pocket-{size}.webp',
+  brass: 'assets/stacks/tex-brass-512.webp',
+};
 
 const mq = (q) => (window.matchMedia ? window.matchMedia(q) : { matches: false, addEventListener() {} });
 const reduceMq = mq('(prefers-reduced-motion: reduce)');
 const tapMq = mq('(max-width: 767px), (pointer: coarse)');
 const has3d = !window.CSS || !CSS.supports || CSS.supports('transform-style', 'preserve-3d');
 const motionOn = () => !reduceMq.matches && has3d;
+const locale = navigator.language || undefined;
+
+/* ---------- Which library: 3D or DOM ---------- */
+
+const root = document.documentElement;
+const tier = (() => {
+  let override = null;
+  try { override = new URLSearchParams(location.search).get('stacks'); } catch {}
+  let pref = null;
+  try { pref = localStorage.getItem(PREF_3D); } catch {}
+  if (pref === 'off' && !override) override = 'dom';
+  return decideTier({
+    webgl2: !!window.WebGL2RenderingContext, reducedMotion: reduceMq.matches, saveData: !!navigator.connection?.saveData,
+    deviceMemory: navigator.deviceMemory, cores: navigator.hardwareConcurrency, mobile: tapMq.matches, override,
+  });
+})();
+// The head script guessed already (so the page reserves room for the cases before first paint); agree with it.
+if (tier === 'dom') root.classList.remove('s3d'); else root.classList.add('s3d');
+// Start fetching the 3D code at once, while the shelves load.
+const stacksModule = tier !== 'dom' ? import('./stacks3d/index.js').catch((e) => { console.warn('3D shelves unavailable:', e); return null; }) : null;
 
 const state = { data: null, shelf: 'all', query: '', covers: {}, open: null, card: [] };
 const spines = new Map(); // id -> button on the shelf
 const shelfOf = (id) => state.data.shelves.find((s) => s.id === id);
 const bookOf = (id) => state.data.books.find((b) => b.id === id);
+let s3d = null; // the mounted 3D scene, when there is one
 
 /* ---------- Spines and bays ---------- */
 
-function decorate(node, st) {
-  node.style.backgroundColor = st.bg;
-  node.style.color = st.fg;
-}
-
-// The inside of a spine (also cloned onto the pulled-out book's spine face).
-function spineInner(book, st) {
+function spineInner(book, st, look) {
   const frag = document.createDocumentFragment();
-  const cloth = el('span', 'lib-spine__cloth cloth'); frag.append(cloth);
-  const deco = el('span', 'lib-spine__deco'); deco.style.background = st.trim; frag.append(deco);
+  frag.append(el('span', 'lib-spine__cloth ' + (look.binding.kind === 'leather' ? 'is-leather' : 'is-cloth')));
+  const deco = el('span', 'lib-spine__deco lib-spine__deco--' + look.band); frag.append(deco);
   const title = el('span', 'lib-spine__title', book.title);
   Object.assign(title.style, { fontFamily: st.font, fontSize: st.fontSize + 'px', fontWeight: st.weight, textTransform: st.upper ? 'uppercase' : 'none' });
   frag.append(title);
   frag.append(el('span', 'lib-spine__author', surname(book.authors[0])));
-  const foot = el('span', 'lib-spine__foot'); foot.style.background = st.foot; frag.append(foot);
+  frag.append(el('span', 'lib-spine__foot lib-spine__deco--' + look.band));
   for (const n of frag.children) n.setAttribute('aria-hidden', 'true');
   return frag;
 }
 
+function dress(node, look) {
+  node.style.setProperty('--cloth', look.binding.base);
+  node.style.setProperty('--foil', look.binding.foil);
+  node.style.setProperty('--second', look.second.base);
+}
+
 function makeSpine(book) {
   const st = spineStyle(book, { minWidth: tapMq.matches ? 44 : 0 });
+  const look = bookLook(book);
   const b = el('button', 'lib-spine');
   b.type = 'button';
   b.dataset.book = book.id;
   b.style.width = st.width + 'px';
   b.style.height = st.height + 'px';
-  decorate(b, st);
-  b.append(spineInner(book, st));
-  b.addEventListener('click', () => openBook(book.id, b));
-  b._style = st;
+  dress(b, look);
+  b.append(spineInner(book, st, look));
+  b.addEventListener('click', () => (s3d ? open3d(book.id) : openBook(book.id, b)));
+  b.addEventListener('focus', () => {
+    if (!s3d) return;
+    s3d.focusBook(book.id, b.matches(':focus-visible'));
+    // The button itself is hidden; bring the book on the shelf into view instead.
+    requestAnimationFrame(() => {
+      const r = s3d?.spineRect(book.id);
+      if (r && (r.top < 8 || r.top + r.height > window.innerHeight - 8)) window.scrollBy({ top: r.top + r.height / 2 - window.innerHeight / 2, behavior: 'smooth' });
+    });
+  });
+  b.addEventListener('blur', () => { if (s3d) s3d.focusBook(null); });
+  b._style = st; b._look = look;
   return b;
 }
 
@@ -82,8 +129,8 @@ function objectSvg(kind) {
 
 let lastInner = 0;
 function renderBays() {
-  const root = $('lib-bays');
-  root.textContent = '';
+  const rootEl = $('lib-bays');
+  rootEl.textContent = '';
   spines.clear();
   for (const shelf of state.data.shelves) {
     const bay = el('section', 'lib-bay');
@@ -92,14 +139,13 @@ function renderBays() {
     const plate = el('div', 'lib-bay__plate');
     const h2 = el('h2', null, shelf.name); h2.id = 'shelf-' + shelf.id;
     plate.append(h2); bay.append(plate);
-    const rowsWrap = el('div', 'lib-bay__rows');
-    bay.append(rowsWrap);
+    bay.append(el('div', 'lib-bay__rows'));
     bay.append(el('p', 'lib-bay__note', shelf.note));
     const list = state.data.books.filter((b) => b.shelf === shelf.id).map(makeSpine);
     list.forEach((s) => spines.set(s.dataset.book, s));
     bay._spines = list;
     bay._object = shelf.object;
-    root.append(bay);
+    rootEl.append(bay);
   }
   layoutRows();
   applyFilter();
@@ -110,7 +156,7 @@ function layoutRows() {
   const bays = [...document.querySelectorAll('.lib-bay')];
   const visible = bays.find((b) => !b.hidden) || bays[0];
   if (!visible) return;
-  const inner = Math.floor(visible.clientWidth - 28 - 24); // bay padding 14+14, shelf padding 12+12
+  const inner = Math.max(240, Math.floor(visible.clientWidth - 28 - 24)); // bay padding 14+14, shelf padding 12+12
   lastInner = inner;
   for (const bay of bays) {
     const wrap = bay.querySelector('.lib-bay__rows');
@@ -144,9 +190,10 @@ function renderChips() {
   const wrap = $('lib-chips');
   wrap.textContent = '';
   for (const s of [{ id: 'all', chip: 'All shelves' }, ...state.data.shelves]) {
-    const b = el('button', 'lib-bev lib-chip', s.chip);
+    const b = el('button', 'lib-chip');
     b.type = 'button';
     b.dataset.shelf = s.id;
+    b.append(el('span', 'lib-chip__label', s.chip));
     b.addEventListener('click', () => { setShelf(s.id); writeHash(); });
     wrap.append(b);
   }
@@ -155,21 +202,25 @@ function renderChips() {
 function setShelf(id) {
   state.shelf = id;
   for (const b of document.querySelectorAll('.lib-chip')) b.setAttribute('aria-pressed', String(b.dataset.shelf === id));
-  for (const bay of document.querySelectorAll('.lib-bay')) bay.hidden = id !== 'all' && bay.dataset.shelf !== id;
+  // The 3D room keeps every case standing (the others dim); the DOM shelves hide the other bays.
+  for (const bay of document.querySelectorAll('.lib-bay')) bay.hidden = !s3d && id !== 'all' && bay.dataset.shelf !== id;
   applyFilter();
 }
 
 function applyFilter() {
   const view = filterView(state.data, { shelf: state.shelf, query: state.query });
+  const hits = new Set();
   for (const bay of view.bays) {
     for (const { book, hit } of bay.books) {
+      if (hit) hits.add(book.id);
       const s = spines.get(book.id);
       if (!s) continue;
       s.classList.toggle('is-dim', !hit);
       s.setAttribute('aria-label', `${book.title}, ${authorLine(book.authors)}, ${book.year}${view.query && !hit ? ' (not a match)' : ''}. Pull it off the shelf.`);
     }
   }
-  $('lib-status').textContent = statusText(view, { motion: motionOn() });
+  $('lib-status').textContent = statusText(view, { motion: motionOn() || !!s3d });
+  s3d?.setView({ shelf: state.shelf, hits: view.query ? hits : null });
   return view;
 }
 
@@ -177,9 +228,9 @@ function applyFilter() {
 
 function loadCard() {
   const raw = store.get(CARD_KEY, []);
-  state.card = Array.isArray(raw) ? raw.filter((c) => c && typeof c.id === 'string' && bookOf(c.id)).slice(0, 5) : [];
+  state.card = Array.isArray(raw) ? raw.filter((c) => c && typeof c.id === 'string' && bookOf(c.id)).slice(0, CARD_MAX) : [];
 }
-function renderCard() {
+function renderCard(fresh = null) {
   const list = $('card-list');
   list.textContent = '';
   for (const c of state.card) {
@@ -188,18 +239,26 @@ function renderCard() {
     const b = el('button', null, book.title);
     b.type = 'button';
     b.addEventListener('click', () => pullOut(book.id));
-    li.append(b, el('span', 'lib-stamp', stampDate(c.at)));
+    const st = el('span', 'lib-stamp', stampDate(c.at));
+    st.setAttribute('aria-label', 'Stamped ' + stampText(c.at, locale));
+    li.append(b, st);
+    if (fresh === c.id) li.classList.add('is-fresh');
     list.append(li);
   }
   const empty = !state.card.length;
   list.hidden = empty; $('card-foot').hidden = empty; $('card-empty').hidden = !empty;
-  $('card-count').textContent = empty ? 'NO STAMPS' : `${state.card.length} ${state.card.length === 1 ? 'STAMP' : 'STAMPS'}`;
+  const n = state.card.length;
+  const count = empty ? 'NO STAMPS' : `${n} ${n === 1 ? 'STAMP' : 'STAMPS'}`;
+  $('card-count').textContent = count;
+  $('card-toggle-n').textContent = empty ? 'no stamps' : `${n} ${n === 1 ? 'stamp' : 'stamps'}`;
+  if (fresh) { for (const n2 of [$('card-count'), $('card-toggle')]) { n2.classList.remove('is-bump'); void n2.offsetWidth; n2.classList.add('is-bump'); } }
 }
 function stamp(id) {
-  state.card = stampCard(state.card, id, Date.now());
+  state.card = stampCard(state.card, id, Date.now(), CARD_MAX);
   store.set(CARD_KEY, state.card);
-  renderCard();
+  renderCard(id);
 }
+const announce = (text) => { const a = $('lib-announce'); a.textContent = ''; setTimeout(() => { a.textContent = text; }, 30); };
 
 /* ---------- Hash ---------- */
 
@@ -223,28 +282,31 @@ const bookEl = $('lib-book');
 const front = $('bk-front');
 const back = $('bk-back');
 const turnBtn = $('bk-turn');
+const borrowBtn = $('bk-borrow');
 let timers = [];
 const later = (fn, ms) => { const t = setTimeout(fn, ms); timers.push(t); return t; };
 const clearTimers = () => { timers.forEach(clearTimeout); timers = []; };
+const coverOf = (book) => coverFor(book, state.covers);
 
 function fillBook(book) {
   const shelf = shelfOf(book.shelf);
   const idx = state.data.shelves.indexOf(shelf) + 1;
   const st = spineStyle(book);
-  const cover = coverFor(book, state.covers);
+  const look = bookLook(book);
+  const cover = coverOf(book);
   $('bk-name').textContent = `${book.title}, by ${authorLine(book.authors)}`;
-  // Stand-in cover, in the spine's colours and type.
+  // Stand-in cover, in the binding's colours.
   const standin = $('bk-standin');
   const len = book.title.length;
-  for (const [k, v] of Object.entries({ '--bg': st.bg, '--fg': st.fg, '--font': st.font, '--fw': st.weight, '--case': st.upper ? 'uppercase' : 'none',
-    '--deco': st.trimIndex === 1 ? st.fg : st.trim.replace('0 0/7px 7px', '0 0/12px 12px'),
+  for (const [k, v] of Object.entries({ '--cloth': look.binding.base, '--foil': look.binding.foil, '--font': st.font, '--fw': st.weight, '--case': st.upper ? 'uppercase' : 'none',
     '--cfs': ((len > 30 ? 34 : len > 16 ? 42 : 54) - (st.kind === 'slab' ? 6 : 0)) + 'px' })) standin.style.setProperty(k, String(v));
   $('bk-cover-shelf').textContent = shelf.name;
   $('bk-cover-title').textContent = book.title;
   $('bk-cover-author').textContent = authorLine(book.authors);
   front.querySelector('.lib-cover')?.remove();
   $('bk-credit').hidden = true;
-  const src = coverUrl(cover);
+  // In 3D the scene loads the cover itself; the DOM cover only matters on the DOM shelves.
+  const src = !s3d ? coverUrl(cover) : null;
   if (src) {
     const img = el('img', 'lib-cover');
     img.alt = `Cover of ${book.title}`;
@@ -261,16 +323,14 @@ function fillBook(book) {
     img.src = src;
     front.append(img);
   }
-  // The spine face: the shelf spine's own markup, scaled up.
   const sp = $('bk-spine');
   sp.textContent = '';
   const shelfSpine = spines.get(book.id);
   const w = shelfSpine ? shelfSpine._style.width : st.width;
   sp.style.width = w + 'px'; sp.style.height = st.height + 'px';
-  decorate(sp, st);
-  sp.className = 'lib-face__spine cloth';
-  sp.append(spineInner(book, st));
-  // The back.
+  dress(sp, look);
+  sp.className = 'lib-face__spine lib-spine';
+  sp.append(spineInner(book, st, look));
   $('bk-shelf').textContent = `${shelf.name.toUpperCase()} · SHELF ${idx}`;
   $('bk-title').textContent = book.title;
   $('bk-author').textContent = authorLine(book.authors);
@@ -285,13 +345,31 @@ function fillBook(book) {
   $('bk-ol').href = openLibraryUrl(book, cover);
   $('bk-disclosure').textContent = BOOKSHOP_AFFILIATE ? ' · ' + BOOKSHOP_DISCLOSURE : '';
   back.scrollTop = 0;
+  // The date-due slip (DOM shelves): earlier stamps from this device's card.
+  $('bk-slip-title').textContent = book.title;
+  setBorrowed(false);
+}
+
+function setBorrowed(done) {
+  borrowBtn.setAttribute('aria-disabled', String(!!done)); // not `disabled`: focus must stay on it
+  borrowBtn.querySelector('span').textContent = done ? 'Borrowed' : 'Borrow';
+  dlg.classList.toggle('is-borrowed', !!done);
+}
+
+function slipRows(stampedAt = null) {
+  const prev = state.card.filter((c) => !state.open || c.id !== state.open.id).slice(0, 3).map((c) => stampText(c.at, locale));
+  const list = $('bk-slip-rows');
+  list.textContent = '';
+  prev.forEach((d) => list.append(el('li', 'is-old', d)));
+  if (stampedAt) { const li = el('li', 'is-new', stampText(stampedAt, locale)); list.append(li); }
+  return prev;
 }
 
 function setFace(face) {
   state.open.face = face;
   // Only the side facing you can be reached: the other is inert (no focus, hidden from assistive tech).
   front.inert = face === 'back';
-  back.inert = face === 'cover';
+  back.inert = face !== 'back';
   turnBtn.textContent = face === 'back' ? 'Show the cover' : 'Turn it over';
 }
 
@@ -327,10 +405,10 @@ function placeBox() {
   return box;
 }
 
-// Resting transforms. The face toward you sits at z = 0, so at rest it is drawn at its true size on whole pixels.
 const rest = (o, r) => ({ x: 0, y: 0, s: 1, z: -o.depth / 2, r });
 const away = (o, r) => ({ x: o.start.dx, y: o.start.dy, s: o.start.s, z: -o.box.W / 2, r });
 
+// DOM shelves: the CSS 3D book (or the flat card when motion is reduced).
 function openBook(id, spineEl) {
   if (state.open || !spineEl) return;
   const book = bookOf(id);
@@ -339,15 +417,15 @@ function openBook(id, spineEl) {
   const flat = !motionOn();
   state.open = { id, spine: spineEl, flat, face: flat ? 'back' : 'cover' };
   fillBook(book);
+  slipRows();
   dlg.classList.toggle('is-flat', flat);
-  dlg.classList.remove('is-settled');
-  stamp(id);
+  dlg.classList.remove('is-settled', 'is-gl', 'is-turned', 'is-slip');
   writeHash();
   if (flat) {
     bookEl.style.cssText = '';
     front.inert = false; back.inert = false;
     dlg.showModal();
-    $('bk-close').focus();
+    borrowBtn.focus();
     return;
   }
   const r = spineEl.getBoundingClientRect();
@@ -357,23 +435,22 @@ function openBook(id, spineEl) {
   state.open.start = start;
   state.open.depth = start.depth;
   bookEl.style.setProperty('--D', start.depth + 'px');
-  const sp = $('bk-spine');
-  sp.style.transform = `scale(${box.H / spineEl._style.height})`;
+  $('bk-spine').style.transform = `scale(${box.H / spineEl._style.height})`;
   setFace('cover');
   setTransform(away(state.open, 90));
   spineEl.classList.add('is-out');
-  $('bk-close').focus({ preventScroll: true });
+  borrowBtn.focus({ preventScroll: true });
   requestAnimationFrame(() => requestAnimationFrame(() => {
     if (!state.open) return;
     setTransform(rest(state.open, -18), EASE.cover);
     dlg.classList.add('is-settled');
   }));
-  later(() => { if (state.open && state.open.face === 'cover' && !state.open.closing) turn('back'); }, 1250);
 }
 
 function turn(face) {
   const o = state.open;
   if (!o || o.flat || o.closing) return;
+  if (o.gl) { turn3d(face); return; }
   clearTimers();
   setFace(face);
   setTransform(rest(o, face === 'back' ? -180 : -18), EASE.turn);
@@ -384,44 +461,150 @@ function finish() {
   if (!o) return;
   clearTimers();
   state.open = null;
-  o.spine.classList.remove('is-out', 'is-fly');
-  dlg.classList.remove('is-settled');
+  o.spine?.classList.remove('is-out', 'is-fly');
+  dlg.classList.remove('is-settled', 'is-turned', 'is-slip');
+  root.classList.remove('is-reading');
   if (dlg.open) dlg.close();
   bookEl.style.transition = 'none';
   front.inert = false; back.inert = false;
   writeHash();
-  if (o.spine.isConnected) o.spine.focus({ preventScroll: false });
+  if (o.spine && o.spine.isConnected) o.spine.focus({ preventScroll: true });
 }
 
 function closeBook(now = false) {
   const o = state.open;
   if (!o || o.closing) return;
+  if (o.gl) { putBack3d(now); return; }
   if (o.flat || now) { finish(); return; }
   o.closing = true;
   clearTimers();
-  dlg.classList.remove('is-settled');
+  dlg.classList.remove('is-settled', 'is-slip');
   setTransform(away(o, o.face === 'back' ? -270 : 90), EASE.close);
   later(finish, 560);
 }
 
-turnBtn.addEventListener('click', () => { if (state.open) turn(state.open.face === 'back' ? 'cover' : 'back'); });
+// Borrow: stamp the date-due slip and the library card.
+async function borrow() {
+  const o = state.open;
+  if (!o || o.borrowed || o.closing) return;
+  sound.unlock();
+  o.borrowed = true;
+  const book = bookOf(o.id);
+  const at = Date.now();
+  const date = stampText(at, locale);
+  const done = () => {
+    stamp(o.id);
+    setBorrowed(true);
+    announce(`Stamped ${date}. ${book.title} is on your library card.`);
+  };
+  if (o.gl) {
+    if (o.face === 'back') { dlg.classList.remove('is-turned'); setFace('cover'); }
+    const prev = state.card.filter((c) => c.id !== o.id).slice(0, 3).map((c) => stampText(c.at, locale));
+    borrowBtn.setAttribute('aria-disabled', 'true');
+    await s3d.borrow({ title: book.title, previous: prev, stamped: date }, done);
+    turnBtn.textContent = 'Turn it over';
+    return;
+  }
+  // DOM shelves: the slip slides up and the stamp comes down (no animation when motion is reduced).
+  slipRows();
+  dlg.classList.add('is-slip');
+  const slip = $('bk-slip');
+  if (motionOn()) {
+    slip.classList.remove('is-stamping'); void slip.offsetWidth; slip.classList.add('is-stamping');
+    setTimeout(() => { slipRows(at); sound.stampThud(); done(); }, 620);
+  } else { slipRows(at); done(); }
+}
+
+turnBtn.addEventListener('click', () => { sound.unlock(); if (state.open) turn(state.open.face === 'back' ? 'cover' : 'back'); });
+borrowBtn.addEventListener('click', borrow);
 $('bk-close').addEventListener('click', () => closeBook());
 dlg.addEventListener('cancel', (e) => { e.preventDefault(); closeBook(); });
-dlg.addEventListener('close', () => { if (state.open) finish(); });
+dlg.addEventListener('close', () => { if (state.open && !state.open.gl) finish(); });
 dlg.addEventListener('click', (e) => {
   if (e.target === dlg || (e.target instanceof Element && e.target.hasAttribute('data-close'))) closeBook();
 });
 window.addEventListener('resize', () => {
   const o = state.open;
-  if (!o || o.flat || o.closing) return;
+  if (!o || o.closing) return;
+  if (o.gl) { if (o.face === 'back') placeBack(); return; }
+  if (o.flat) return;
   placeBox();
   setTransform(rest(o, o.face === 'back' ? -180 : -18));
 });
+
+/* ---------- The book in 3D ---------- */
+
+async function open3d(id, { flick = false } = {}) {
+  if (state.open || !s3d || s3d.isBusy()) return;
+  const book = bookOf(id);
+  if (!book) return;
+  // The room must be on screen for the book to fly to you.
+  const cases = $('lib-cases').getBoundingClientRect();
+  if (cases.top > window.innerHeight * 0.75 || cases.bottom < window.innerHeight * 0.4) $('lib-cases').scrollIntoView({ block: 'end', behavior: 'instant' });
+  state.open = { id, spine: spines.get(id), gl: true, face: 'cover' };
+  fillBook(book);
+  dlg.classList.add('is-gl');
+  dlg.classList.remove('is-flat', 'is-settled', 'is-turned', 'is-slip');
+  root.classList.add('is-reading');
+  setFace('cover');
+  dlg.showModal();
+  borrowBtn.focus({ preventScroll: true });
+  writeHash();
+  const res = await s3d.pullOut(id, { flick });
+  if (!res) { state.open = null; root.classList.remove('is-reading'); if (dlg.open) dlg.close(); return; }
+  $('bk-credit').hidden = !res.photo;
+  if (state.open && state.open.id === id) dlg.classList.add('is-settled');
+}
+
+function placeBorrowOnPage() {
+  const r = s3d?.faceRect('leftpage');
+  if (!r || r.width < 80) return;
+  borrowBtn.style.setProperty('--px', Math.round(r.left + r.width / 2) + 'px');
+  borrowBtn.style.setProperty('--py', Math.round(r.top + r.height * 0.7) + 'px');
+  borrowBtn.classList.add('is-onpage');
+}
+const borrowOffPage = () => borrowBtn.classList.remove('is-onpage');
+
+function placeBack() {
+  const r = s3d.faceRect('back');
+  if (!r) return;
+  const inset = Math.round(r.width * 0.06);
+  bookEl.style.setProperty('--bx', Math.round(r.left + inset) + 'px');
+  bookEl.style.setProperty('--by', Math.round(r.top + inset) + 'px');
+  bookEl.style.setProperty('--bw', Math.round(r.width - 2 * inset) + 'px');
+  bookEl.style.setProperty('--bh', Math.round(r.height - 2 * inset) + 'px');
+}
+
+async function turn3d(face) {
+  const o = state.open;
+  if (!o || s3d.isBusy()) return;
+  dlg.classList.remove('is-turned');
+  borrowOffPage();
+  setFace(face);
+  await s3d.turn(face);
+  if (face === 'back' && state.open === o) { placeBack(); dlg.classList.add('is-turned'); back.focus({ preventScroll: true }); }
+  if (o.borrowed) setBorrowed(true);
+}
+
+async function putBack3d() {
+  const o = state.open;
+  if (!o || o.closing) return;
+  o.closing = true;
+  borrowOffPage();
+  dlg.classList.remove('is-turned', 'is-settled');
+  root.classList.remove('is-reading');
+  if (dlg.open) dlg.close();
+  state.open = null;
+  writeHash();
+  if (o.spine && o.spine.isConnected) o.spine.focus({ preventScroll: true });
+  await s3d.putBack();
+}
 
 // Opens a book from anywhere (card, hash, Surprise me): show its bay, bring the spine into view, then pull it out.
 function pullOut(id, { fly = false } = {}) {
   const book = bookOf(id);
   if (!book) return;
+  if (s3d) { open3d(id, { flick: fly }); return; }
   if (state.shelf !== 'all' && state.shelf !== book.shelf) { setShelf(book.shelf); }
   const s = spines.get(id);
   if (!s) return;
@@ -433,10 +616,74 @@ function pullOut(id, { fly = false } = {}) {
   } else openBook(id, s);
 }
 
+/* ---------- Mounting the 3D room ---------- */
+
+function backdropUrl() {
+  const m = /url\(["']?([^"')]+)["']?\)/.exec(getComputedStyle($('lib-room-bg')).backgroundImage || '');
+  return m ? m[1] : null;
+}
+
+async function mount3d() {
+  const canvas = $('lib-gl');
+  const mod = await stacksModule;
+  if (!mod) { toDom(); return; }
+  canvas.hidden = false;
+  try {
+    const mounting = mod.mount({
+      canvas, stage: $('lib-room'), region: $('lib-cases'), data: state.data, tier, mobile: tapMq.matches, assets: ASSETS,
+      backdropUrl: backdropUrl(), ringEl: $('lib-ring'),
+      coverUrl: (book) => coverUrl(coverOf(book), 'L'),
+      shelfName: (id) => shelfOf(id)?.name || '',
+      safeTop: () => {
+        const card = document.querySelector('.lib-cardwrap').getBoundingClientRect();
+        const wide = window.innerWidth >= 1100;
+        return Math.max(16, wide ? 16 : card.bottom + 8);
+      },
+      safeBottom: () => (window.innerWidth < 736 ? 92 : 96),
+      stampPause: Number(new URLSearchParams(location.search).get('stamppause')) || 160,
+      on: {
+        ready: () => { root.classList.add('s3d-ready'); },
+        lost: () => toDom(),
+        pull: (id, o) => open3d(id, o),
+        window: (first, visible) => updatePager(first, visible),
+        stampPhase: (phase) => {
+          root.dataset.stamp = phase;
+          // Once the cover is open, the Borrow plate sits on the left-hand page, as in the design.
+          if (phase === 'air') placeBorrowOnPage();
+        },
+      },
+    });
+    s3d = await Promise.race([mounting, new Promise((_, rej) => setTimeout(() => rej(new Error('3D took too long')), 25000))]);
+    window.__stacks3d = s3d; // for the screenshot scripts and debugging
+    setShelf(state.shelf);
+    if (parseHash(location.hash, state.data).book) readHash();
+  } catch (e) {
+    console.warn('3D shelves failed, using the DOM shelves:', e);
+    toDom();
+  }
+}
+
+// Back to the DOM shelves (WebGL lost or failed): same page, same state.
+function toDom() {
+  if (state.open?.gl) { state.open = null; if (dlg.open) dlg.close(); root.classList.remove('is-reading'); }
+  try { s3d?.destroy(); } catch {}
+  s3d = null;
+  root.classList.remove('s3d', 's3d-ready');
+  $('lib-gl').hidden = true;
+  setShelf(state.shelf);
+  layoutRows();
+}
+
+function updatePager(first, visible) {
+  const n = state.data.shelves.length;
+  const names = state.data.shelves.slice(first, first + visible).map((s) => s.name).join(', ');
+  $('lib-pager').textContent = visible === 1 ? `Shelf ${first + 1} of ${n}: ${names}` : `Shelves ${first + 1}–${first + visible} of ${n}`;
+  $('lib-prev').disabled = first <= 0;
+  $('lib-next').disabled = first + visible >= n;
+}
+
 /* ---------- Start ---------- */
 
-// Books with a baked cover never call the API; the rest may ask once (cached at the edge) and otherwise
-// show their stand-in.
 async function loadCovers() {
   if (!needsCoverApi(state.data.books)) return;
   try {
@@ -447,7 +694,45 @@ async function loadCovers() {
   } catch {}
 }
 
+function surprise() {
+  sound.unlock();
+  const view = filterView(state.data, { shelf: state.shelf, query: state.query });
+  let all = view.bays.flatMap((b) => b.books);
+  if (s3d) { const vis = new Set(s3d.visibleBooks()); const here = all.filter((x) => vis.has(x.book.id)); if (here.some((x) => x.hit)) all = here; }
+  const hits = all.filter((x) => x.hit);
+  const pick = pickRandom(hits.length ? hits : all);
+  if (pick) pullOut(pick.book.id, { fly: true });
+}
+
+function setupToggles() {
+  const sBtn = $('lib-sound');
+  const paintSound = () => { sBtn.setAttribute('aria-pressed', String(sound.soundOn())); sBtn.title = sound.soundOn() ? 'Sound is on' : 'Sound is off'; };
+  sBtn.addEventListener('click', () => { sound.setSound(!sound.soundOn()); sound.unlock(); paintSound(); });
+  paintSound();
+  const vBtn = $('lib-3d');
+  const on3d = tier !== 'dom';
+  vBtn.setAttribute('aria-pressed', String(!on3d));
+  vBtn.hidden = !window.WebGL2RenderingContext || reduceMq.matches;
+  vBtn.addEventListener('click', () => {
+    try { localStorage.setItem(PREF_3D, on3d ? 'off' : 'on'); } catch {}
+    const u = new URL(location.href); u.searchParams.delete('stacks'); location.replace(u.href);
+  });
+  const cardBtn = $('card-toggle');
+  cardBtn.addEventListener('click', () => {
+    const open = cardBtn.getAttribute('aria-expanded') !== 'true';
+    cardBtn.setAttribute('aria-expanded', String(open));
+    $('lib-card').classList.toggle('is-open', open);
+  });
+  $('lib-prev').addEventListener('click', () => s3d?.pan(-1));
+  $('lib-next').addEventListener('click', () => s3d?.pan(1));
+  // Any first gesture may start the audio (browsers need one).
+  const first = () => sound.unlock();
+  window.addEventListener('pointerdown', first, { once: true, capture: true });
+  window.addEventListener('keydown', first, { once: true, capture: true });
+}
+
 async function start() {
+  setupToggles();
   try {
     const res = await fetch('data/books.json');
     if (!res.ok) throw new Error(String(res.status));
@@ -456,6 +741,7 @@ async function start() {
     const msg = el('p', 'lib-msg', 'The shelves could not be loaded. Please try again in a moment.');
     $('lib-bays').replaceChildren(msg);
     $('lib-status').textContent = 'The shelves could not be loaded.';
+    toDom();
     return;
   }
   renderChips();
@@ -465,16 +751,11 @@ async function start() {
   setShelf(parseHash(location.hash, state.data).shelf);
   $('lib-q').addEventListener('input', (e) => { state.query = e.target.value; applyFilter(); });
   $('lib-search').addEventListener('submit', (e) => e.preventDefault());
-  $('lib-surprise').addEventListener('click', () => {
-    const view = filterView(state.data, { shelf: state.shelf, query: state.query });
-    const all = view.bays.flatMap((b) => b.books);
-    const hits = all.filter((x) => x.hit);
-    const pick = pickRandom(hits.length ? hits : all);
-    if (pick) pullOut(pick.book.id, { fly: true });
-  });
-  $('card-clear').addEventListener('click', () => { state.card = []; store.set(CARD_KEY, []); renderCard(); $('card-empty').focus(); });
+  $('lib-surprise').addEventListener('click', surprise);
+  $('card-clear').addEventListener('click', () => { state.card = []; store.set(CARD_KEY, []); renderCard(); $('card-empty').focus(); announce('Library card cleared.'); });
   reduceMq.addEventListener?.('change', applyFilter);
   const relayout = () => {
+    if (s3d) return;
     const visible = [...document.querySelectorAll('.lib-bay')].find((b) => !b.hidden);
     if (visible && Math.floor(visible.clientWidth - 52) !== lastInner) layoutRows();
   };
@@ -482,8 +763,9 @@ async function start() {
   else window.addEventListener('resize', relayout);
   tapMq.addEventListener?.('change', () => { if (!state.open) renderBays(); });
   window.addEventListener('hashchange', readHash);
-  if (parseHash(location.hash, state.data).book) requestAnimationFrame(() => readHash());
   loadCovers();
+  if (tier !== 'dom') mount3d();
+  else if (parseHash(location.hash, state.data).book) requestAnimationFrame(() => readHash());
 }
 
 start();

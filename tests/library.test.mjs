@@ -5,7 +5,7 @@ import { createRequire } from 'node:module';
 import {
   BOOKSHOP_AFFILIATE, fold, surname, authorLine, matches, filterView, statusText, pickRandom, hashId, spineStyle, SPINE_PALETTE,
   shelfRows, balancedRows, bookBox, flightStart, BOOK_ASPECT, parseHash, buildHash, stampCard, stampDate, worldcatUrl, bookshopUrl,
-  openLibraryUrl, coverUrl, validate,
+  openLibraryUrl, coverUrl, validate, NO_COVER, coverFor,
 } from '../js/librarymodel.js';
 
 const require = createRequire(import.meta.url);
@@ -456,5 +456,9 @@ test('rejected covers stay stand-ins: no baked cover for these books', () => {
   for (const id of REJECTED) {
     assert.ok(byId(id), `${id} is still on a shelf`);
     assert.equal(byId(id).cover, undefined, `${id} must not have a baked cover`);
+    // Nor may the cover API give them one, on the shelf or in 3D.
+    assert.ok(NO_COVER.has(id), `${id} is in NO_COVER`);
+    assert.equal(coverFor(byId(id), { [id]: { coverId: 5, olKey: '/works/OL1W' } }), null, `${id} ignores an API cover`);
   }
+  assert.equal(NO_COVER.size, REJECTED.length);
 });

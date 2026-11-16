@@ -11,15 +11,15 @@ const PORT = Number(process.env.PORT) || 4173;
 const ROOT = __dirname;
 const TYPES = {
   '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
-  '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2', '.md': 'text/markdown; charset=utf-8',
+  '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.webp': 'image/webp', '.avif': 'image/avif', '.woff2': 'font/woff2', '.md': 'text/markdown; charset=utf-8',
   '.txt': 'text/plain; charset=utf-8', '.xml': 'application/xml; charset=utf-8',
 };
-const PUBLIC = ['index.html', 'flights.html', 'trip.html', 'review.html', 'how.html', 'library.html', 'robots.txt', 'styles', 'js', 'data', 'vendor'];
+const PUBLIC = ['index.html', 'flights.html', 'trip.html', 'review.html', 'how.html', 'library.html', 'robots.txt', 'styles', 'js', 'data', 'vendor', 'assets'];
 // File names carry no content hash, so pages, scripts and styles are always revalidated (a cheap 304):
 // a long cache could pair a new weather.js with an old core.js. Only files whose staleness is harmless
 // get a short freshness window: the airport list, and the vendored fonts and map library. Same as vercel.json.
 const cacheControl = (top) => (top === 'data' ? 'public, max-age=3600, stale-while-revalidate=86400'
-  : top === 'vendor' ? 'public, max-age=86400, stale-while-revalidate=604800'
+  : top === 'vendor' || top === 'assets' ? 'public, max-age=86400, stale-while-revalidate=604800'
     : 'public, max-age=0, must-revalidate');
 
 const { api, parseFaa, FAA_PLANS_CACHE } = require('./lib/live.js');
