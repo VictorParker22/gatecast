@@ -556,6 +556,15 @@ async function open3d(id, { flick = false } = {}) {
   if (state.open && state.open.id === id) dlg.classList.add('is-settled');
 }
 
+function placeBorrowOnPage() {
+  const r = s3d?.faceRect('leftpage');
+  if (!r || r.width < 80) return;
+  borrowBtn.style.setProperty('--px', Math.round(r.left + r.width / 2) + 'px');
+  borrowBtn.style.setProperty('--py', Math.round(r.top + r.height * 0.7) + 'px');
+  borrowBtn.classList.add('is-onpage');
+}
+const borrowOffPage = () => borrowBtn.classList.remove('is-onpage');
+
 function placeBack() {
   const r = s3d.faceRect('back');
   if (!r) return;
@@ -570,6 +579,7 @@ async function turn3d(face) {
   const o = state.open;
   if (!o || s3d.isBusy()) return;
   dlg.classList.remove('is-turned');
+  borrowOffPage();
   setFace(face);
   await s3d.turn(face);
   if (face === 'back' && state.open === o) { placeBack(); dlg.classList.add('is-turned'); back.focus({ preventScroll: true }); }
@@ -580,6 +590,7 @@ async function putBack3d() {
   const o = state.open;
   if (!o || o.closing) return;
   o.closing = true;
+  borrowOffPage();
   dlg.classList.remove('is-turned', 'is-settled');
   root.classList.remove('is-reading');
   if (dlg.open) dlg.close();
@@ -635,7 +646,11 @@ async function mount3d() {
         lost: () => toDom(),
         pull: (id, o) => open3d(id, o),
         window: (first, visible) => updatePager(first, visible),
-        stampPhase: (phase) => { root.dataset.stamp = phase; },
+        stampPhase: (phase) => {
+          root.dataset.stamp = phase;
+          // Once the cover is open, the Borrow plate sits on the left-hand page, as in the design.
+          if (phase === 'air') placeBorrowOnPage();
+        },
       },
     });
     s3d = await Promise.race([mounting, new Promise((_, rej) => setTimeout(() => rej(new Error('3D took too long')), 25000))]);

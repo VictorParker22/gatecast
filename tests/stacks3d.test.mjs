@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
-  BINDINGS, bookLook, BAY, bayX, spanOf, layoutBay, frameCamera, windowFor, windowX, pageCount, PULL, pullFraction, pointerSpeed,
+  BINDINGS, bookLook, BAY, bayX, spanOf, frameWorld, layoutBay, frameCamera, windowFor, windowX, pageCount, PULL, pullFraction, pointerSpeed,
   releaseAction, springStep, springAtRest, decideTier, renderScale, frameInterval, stampText, coverCrop,
 } from '../js/stacks3d/model.js';
 
@@ -43,9 +43,9 @@ test('bookLook is derived from the id: stable, varied, sizes in range', () => {
   const seen = new Set();
   for (const b of data.books) {
     const l = bookLook(b);
-    assert.ok(l.thick >= 0.046 && l.thick <= 0.078, `${b.id} thick ${l.thick}`);
-    assert.ok(l.height >= 0.19 && l.height <= 0.26, `${b.id} height ${l.height}`);
-    assert.ok(l.depth > 0.12 && l.depth <= 0.2);
+    assert.ok(l.thick >= 0.058 && l.thick <= 0.092, `${b.id} thick ${l.thick}`);
+    assert.ok(l.height >= 0.22 && l.height <= 0.295, `${b.id} height ${l.height}`);
+    assert.ok(l.depth > 0.14 && l.depth <= 0.21);
     assert.ok(l.height <= BAY.clear - 0.04, 'fits under the shelf above with room for the hand');
     assert.notEqual(l.second, l.binding);
     seen.add(l.binding.name + l.band);
@@ -59,29 +59,30 @@ test('bays: six in a row, centred, three fit a 2.16 m window', () => {
   assert.equal(bayX(0) + bayX(5), 0);
   assert.equal(Math.round((bayX(1) - bayX(0)) * 1000) / 1000, BAY.pitch);
   assert.ok(Math.abs(spanOf(3) - 2.16) < 1e-9);
+  assert.deepEqual(frameWorld(3), { w: 2.24, h: BAY.height + 0.03 });
   assert.ok(Math.abs(BAY.floors[0] - BAY.floors[1] - (BAY.clear + BAY.board)) < 1e-9);
 });
 
-test('layoutBay: every book placed once, inside the bay, rows do not overlap, props get the rest', () => {
+test('layoutBay: rows packed edge to edge: every book once, blank fillers after them, room kept for props', () => {
   for (const [i, shelf] of data.shelves.entries()) {
     const looks = data.books.filter((b) => b.shelf === shelf.id).map(bookLook);
-    const { placed, free } = layoutBay(looks, i);
+    const props = [0.16, 0.2];
+    const { placed, fillers, free } = layoutBay(looks, i, props);
     assert.equal(placed.length, looks.length);
-    assert.deepEqual(new Set(placed.map((p) => p.id)).size, looks.length);
+    assert.equal(new Set(placed.map((p) => p.id)).size, looks.length);
+    for (const f of fillers) assert.match(f.id, /^filler-/, 'fillers never take a real id');
     for (const r of [0, 1]) {
-      const row = placed.filter((p) => p.row === r).sort((a, b) => a.x - b.x);
-      assert.ok(row.length >= 3 && row.length <= 5, `${shelf.id} row ${r}: ${row.length}`);
-      for (let k = 1; k < row.length; k++) {
-        const a = looks.find((l) => l.id === row[k - 1].id), b = looks.find((l) => l.id === row[k].id);
-        assert.ok(row[k].x - b.thick / 2 >= row[k - 1].x + a.thick / 2 - 1e-6, `${shelf.id} overlap`);
-      }
-      for (const p of row) {
-        const l = looks.find((x) => x.id === p.id);
-        assert.ok(p.x - l.thick / 2 >= -BAY.inner / 2 && p.x + l.thick / 2 <= BAY.inner / 2, `${p.id} inside`);
-      }
+      const items = [...placed.filter((p) => p.row === r).map((p) => ({ x: p.x, t: looks.find((l) => l.id === p.id).thick })),
+        ...fillers.filter((f) => f.row === r).map((f) => ({ x: f.x, t: f.thick }))].sort((a, b) => a.x - b.x);
+      assert.ok(placed.filter((p) => p.row === r).length >= 3, `${shelf.id} row ${r}`);
+      for (let k = 1; k < items.length; k++) assert.ok(items[k].x - items[k].t / 2 >= items[k - 1].x + items[k - 1].t / 2 - 1e-6, `${shelf.id} row ${r} overlap`);
+      const span = items.reduce((t, it) => t + it.t, 0);
       const f = free.find((x) => x.row === r);
-      assert.ok(f.x1 - f.x0 > 0.1, `${shelf.id} row ${r} leaves room for props`);
-      assert.equal(row.filter((p) => p.lean).length <= 1, true);
+      assert.ok(f.x1 - f.x0 >= Math.min(props[r], 0.12) - 1e-6, `${shelf.id} row ${r} keeps room for props`);
+      assert.ok(span + props[r] > BAY.inner - 0.09, `${shelf.id} row ${r} is full (${span.toFixed(3)})`);
+      for (const it of items) assert.ok(it.x - it.t / 2 >= -BAY.inner / 2 - 1e-6 && it.x + it.t / 2 <= BAY.inner / 2 + 1e-6, 'inside the bay');
+      // Props and books do not overlap.
+      for (const it of items) assert.ok(it.x + it.t / 2 <= f.x0 + 1e-6 || it.x - it.t / 2 >= f.x1 - 1e-6, `${shelf.id} row ${r} prop zone`);
     }
   }
 });

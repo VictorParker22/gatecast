@@ -39,12 +39,12 @@ export function bookLook(book) {
   // A contrasting second cloth for the blocks/panel style, never the same as the base.
   let second = BINDINGS[pickFrom(h0, 0x12, BINDINGS.length)];
   if (second === binding) second = BINDINGS[(BINDINGS.indexOf(binding) + 5) % BINDINGS.length];
-  const thick = round3(0.046 + ((st.width - 30) / 22) * 0.032);
-  const height = round3(0.19 + ((st.height - 206) / 51) * 0.07);
+  const thick = round3(0.058 + ((st.width - 30) / 22) * 0.034);
+  const height = round3(0.22 + ((st.height - 206) / 51) * 0.075);
   return {
     id: book.id, binding, second, band: BANDS[pickFrom(h0, 0x13, BANDS.length)], font: st.kind,
     wear: 0.25 + pickFrom(h0, 0x14, 60) / 100, // 0.25..0.84
-    thick, height, depth: round3(Math.min(0.2, height / 1.42)),
+    thick, height, depth: round3(Math.min(0.21, height / 1.42)),
     px: { width: st.width, height: st.height },
   };
 }
@@ -54,51 +54,54 @@ const round3 = (n) => Math.round(n * 1000) / 1000;
 
 // One bay (bookcase), in metres. y = 0 is the floor, z = 0 the front edge of the shelves.
 export const BAY = {
-  width: 0.68, side: 0.03, depth: 0.3, gap: 0.06, board: 0.025, clear: 0.32,
-  floors: [0.435, 0.09], // the top of the board each row of books stands on: upper row, lower row
-  header: [0.755, 0.86], cornice: 0.9, height: 0.9,
+  width: 0.68, side: 0.03, depth: 0.3, gap: 0.06, board: 0.025, clear: 0.34,
+  floors: [0.455, 0.09], // the top of the board each row of books stands on: upper row, lower row
+  header: [0.795, 0.9], cornice: 0.94, height: 0.94,
 };
 BAY.inner = BAY.width - 2 * BAY.side;
 BAY.pitch = BAY.width + BAY.gap;
+// The world rectangle the camera fits into the page's reserved frame: n bays plus a margin.
+export const frameWorld = (n) => ({ w: spanOf(n) + 0.08, h: BAY.height + 0.03 });
 
 export const bayX = (i, count = 6) => round3((i - (count - 1) / 2) * BAY.pitch);
 // Width of n bays side by side.
-export const spanOf = (n) => n * BAY.width + (n - 1) * BAY.gap;
+export function spanOf(n) { return n * BAY.width + (n - 1) * BAY.gap; }
 
-// Places a bay's books on its two rows: books in their order, as many on the upper row as half the shelf
-// takes (at most 5), the rest below. Upper row left-aligned, lower row alternates sides between bays, so the
-// props fill the space that is left. The last book of a row leans when there is room. x is the centre of the
-// book relative to the bay centre; lean in radians (positive = top leans toward +x).
-export function layoutBay(looks, bayIndex = 0) {
-  const inner = BAY.inner, pad = 0.012, gap = 0.003;
+// Packs a bay's two rows edge to edge, like a real library shelf: the bay's own books in their order (at most 5
+// on the upper row), then blank old volumes ("fillers": no titles, not interactive) up to the props, which keep
+// `propWidths[row]` at the far end. The lower row of every other bay runs right to left. The last filler leans
+// into whatever gap is left. x is the centre relative to the bay centre; lean in radians (+ = top toward +x).
+export function layoutBay(looks, bayIndex = 0, propWidths = [0.18, 0.18]) {
+  const inner = BAY.inner, pad = 0.01, gap = 0.002;
   const nTop = Math.min(5, Math.ceil(looks.length / 2));
   const rows = [looks.slice(0, nTop), looks.slice(nTop)];
-  const placed = [];
-  const free = [];
+  const placed = [], fillers = [], free = [];
   rows.forEach((row, r) => {
-    const right = r === 1 && bayIndex % 2 === 1;
-    const used = row.reduce((t, b) => t + b.thick, 0) + gap * Math.max(0, row.length - 1);
-    let x = right ? inner / 2 - pad - used : -inner / 2 + pad;
-    row.forEach((b, k) => {
-      const last = right ? k === 0 : k === row.length - 1;
-      placed.push({ id: b.id, row: r, x: round3(x + b.thick / 2), lean: 0, last });
-      x += b.thick + gap;
-    });
-    const start = right ? -inner / 2 + pad : -inner / 2 + pad + used;
-    const end = right ? inner / 2 - pad - used : inner / 2 - pad;
-    // Lean the outermost book into the free space when the space is wide enough for it and a prop.
-    const edge = placed.filter((p) => p.row === r && p.last)[0];
-    let s = start, e = end;
-    if (edge && end - start > 0.16) {
-      const look = row.find((b) => b.id === edge.id);
-      const a = 0.11 + (hashId(look.id) % 5) * 0.012; // 6.3°..9°
-      const shift = look.height * Math.sin(a);
-      edge.lean = right ? -a : a; // pivots on its outer bottom corner; x stays the upright position
-      if (right) e -= shift + 0.01; else s += shift + 0.01;
+    const dir = r === 1 && bayIndex % 2 === 1 ? -1 : 1; // +1: from the left edge rightward
+    const startEdge = -dir * (inner / 2 - pad);
+    const booksW = row.reduce((t, b) => t + b.thick + gap, 0);
+    const propW = Math.max(0, Math.min(propWidths[r] || 0, inner - 2 * pad - booksW)); // props shrink before books move
+    const limit = inner - 2 * pad - propW; // length the books and fillers may take
+    let used = 0;
+    const put = (thick) => { const c = startEdge + dir * (used + thick / 2); used += thick + gap; return round3(c); };
+    row.forEach((b) => placed.push({ id: b.id, row: r, x: put(b.thick), lean: 0 }));
+    // Fillers: deterministic sizes from the bay and row.
+    let k = 0;
+    while (true) {
+      const h = hashId(`filler-${bayIndex}-${r}-${k}`);
+      const thick = round3(0.03 + (h % 29) / 1000);
+      if (used + thick > limit - 0.004) break;
+      fillers.push({ id: `filler-${bayIndex}-${r}-${k}`, row: r, x: put(thick), thick, height: round3(0.2 + ((h >>> 5) % 80) / 1000), depth: round3(0.15 + ((h >>> 11) % 40) / 1000), tone: (h >>> 17) % 6, lean: 0 });
+      k++;
     }
-    free.push({ row: r, x0: round3(s), x1: round3(e) });
+    const left = limit - used;
+    const last = fillers.filter((f) => f.row === r).pop();
+    if (last && left > 0.012) last.lean = dir * Math.min(0.2, Math.asin(Math.min(1, (left - 0.004) / last.height)));
+    const propStart = startEdge + dir * (inner - 2 * pad - propW);
+    const propEnd = dir * (inner / 2 - pad);
+    free.push({ row: r, x0: round3(Math.min(propStart, propEnd)), x1: round3(Math.max(propStart, propEnd)) });
   });
-  return { placed, free };
+  return { placed, fillers, free };
 }
 
 /* ---------- Camera framing ---------- */

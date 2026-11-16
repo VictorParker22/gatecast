@@ -13,17 +13,20 @@ import { BokehPass } from 'three/addons/postprocessing/BokehPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import {
-  BAY, bayX, spanOf, bookLook, layoutBay, frameCamera, windowFor, windowX, PULL, pullFraction, pointerSpeed, releaseAction,
+  BAY, bayX, spanOf, frameWorld, bookLook, layoutBay, frameCamera, windowFor, windowX, PULL, pullFraction, pointerSpeed, releaseAction,
   springStep, springAtRest, renderScale, frameInterval,
 } from './model.js';
 import * as P from './textures.js';
 import * as sound from './sound.js';
 import { buildRoom } from './room.js';
+import { hashId } from '../librarymodel.js';
 
-const PAPER_TONE = 0x9c8e7c; // paper props sit back in the shadows instead of glowing
+const PAPER_TONE = 0x837666; // paper props sit back in the shadows instead of glowing
 const TILT = 0.17; // ~10°: a hovered or focused spine tips forward
-const READ_TILT = { y: -Math.PI / 2 + 0.34, x: 0.06, z: 0.05 };
-const OPEN_PITCH = -0.78; // the borrowed book is laid back so the stamp comes down from above
+// The pulled-out book at three-quarters: the spine turned toward you, the top tipped back so the page edges show.
+const READ_TILT = { y: -Math.PI / 2 + 0.58, x: 0.42, z: 0.12 };
+// The borrowed book, open: turned ~20° and tipped back ~22° toward the light, like a book held up to be stamped.
+const OPEN_PITCH = -0.38, OPEN_TURN = 0.34;
 
 export function loadImage(url, cors = false, timeout = 8000) {
   return new Promise((resolve) => {
@@ -156,18 +159,18 @@ export async function mount(opts) {
   const woodPBR = P.derivePBR(woodSrc, { size: high ? 512 : 256, strength: 2.6, rough: 0.58, roughGain: 0.35 });
   const woodMat = keep(new THREE.MeshStandardMaterial({
     map: tex(woodSrc, { repeat: true }), normalMap: tex(woodPBR.normal, { srgb: false, repeat: true }), roughnessMap: tex(woodPBR.rough, { srgb: false, repeat: true }),
-    roughness: 1, metalness: 0, color: woodImg ? 0xb59a85 : 0x9a8c84, normalScale: new THREE.Vector2(0.55, 0.55),
+    roughness: 1, metalness: 0, color: woodImg ? 0x6c5a4c : 0x6a5c54, normalScale: new THREE.Vector2(0.55, 0.55),
   }));
   const backCanvas = (() => {
     const w = 512, h = 680, c = P.makeCanvas(w, h), ctx = c.getContext('2d');
     ctx.drawImage(woodSrc, 0, 0, w, h);
-    ctx.fillStyle = 'rgba(10,6,3,0.35)'; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = 'rgba(10,6,3,0.5)'; ctx.fillRect(0, 0, w, h);
     ctx.globalCompositeOperation = 'multiply';
-    const yPx = (y) => h - (y / 0.86) * h;
+    const yPx = (y) => h - (y / BAY.header[0]) * h;
     ctx.drawImage(P.backPanelShade(w, h, [[yPx(BAY.floors[0] + BAY.clear), yPx(BAY.floors[0])], [yPx(BAY.floors[1] + BAY.clear), yPx(BAY.floors[1])]]), 0, 0);
     return c;
   })();
-  const backMat = keep(new THREE.MeshStandardMaterial({ map: tex(backCanvas), roughness: 0.85, metalness: 0, color: woodImg ? 0xb59a85 : 0xffffff }));
+  const backMat = keep(new THREE.MeshStandardMaterial({ map: tex(backCanvas), roughness: 0.85, metalness: 0, color: woodImg ? 0x6a584c : 0xbbbbbb }));
   const pagesSrc = pagesImg ? rotate90(toCanvas(pagesImg, 256)) : P.pagesCanvas(256); // stripes along u
   const pagesMat = keep(new THREE.MeshStandardMaterial({ map: tex(pagesSrc), roughness: 0.92 }));
   const curveTex = tex(P.spineCurveCanvas(), { srgb: false });
@@ -185,11 +188,11 @@ export async function mount(opts) {
   const darkWoodMat = keep(new THREE.MeshStandardMaterial({ color: 0x2a1a10, roughness: 0.55 }));
 
   /* ---------- Lights ---------- */
-  const hemi = new THREE.HemisphereLight(0x7d8fb8, 0x2a1a10, 0.5);
+  const hemi = new THREE.HemisphereLight(0x6d82b0, 0x1a1008, 0.26);
   scene.add(hemi);
-  const moon = new THREE.DirectionalLight(0x9fb6ff, 1.25);
-  moon.position.set(2.5, 3.5, -2.5); scene.add(moon); scene.add(moon.target);
-  const key = new THREE.SpotLight(0xffdcc0, 14, 0, 0.62, 0.75, 2);
+  const moon = new THREE.DirectionalLight(0x8fb0ff, 2.1); // the window: cool rim light on the right-hand edges
+  moon.position.set(3.4, 2.4, -0.6); scene.add(moon); scene.add(moon.target);
+  const key = new THREE.SpotLight(0xffd8b4, 6, 0, 0.62, 0.8, 2); // the lamps' warmth, from the left
   key.position.set(-1.1, 2.3, 2.1);
   scene.add(key); scene.add(key.target);
   if (high) {
@@ -199,7 +202,7 @@ export async function mount(opts) {
     key.shadow.camera.near = 1; key.shadow.camera.far = 6;
   }
   const bayLights = [0, 1, 2].map(() => {
-    const s = new THREE.SpotLight(0xffc488, 6.5, 0, 0.66, 0.9, 2);
+    const s = new THREE.SpotLight(0xffc98c, 9, 0, 0.42, 0.6, 2); // a picture light over each case: a warm pool on the plate and the upper row
     scene.add(s); scene.add(s.target);
     return s;
   });
@@ -283,6 +286,20 @@ export async function mount(opts) {
         m.castShadow = high; m.receiveShadow = high; g.add(m);
         yy += th;
       });
+      return yy;
+    },
+    rolledmap(g, cx, y, span, s) { // a rolled map tied with string, lying across the front
+      const grp = new THREE.Group();
+      const paper = keep(new THREE.MeshStandardMaterial({ map: tex(P.paintMap(s + 50, grains.paper, { w: 256, h: 128 })), roughness: 0.9, color: PAPER_TONE }));
+      const roll = new THREE.Mesh(keep(new THREE.CylinderGeometry(0.017, 0.017, 0.2, 20, 1, true)), keep(paper));
+      roll.material.side = THREE.DoubleSide;
+      const tie = new THREE.Mesh(keep(new THREE.TorusGeometry(0.0175, 0.0018, 6, 20)), keep(new THREE.MeshStandardMaterial({ color: 0x5a2a22, roughness: 0.8 })));
+      tie.rotation.x = Math.PI / 2; tie.position.y = 0.03;
+      grp.add(roll, tie);
+      grp.rotation.set(0, 0.25 + (s % 3) * 0.1, Math.PI / 2);
+      grp.position.set(cx, y + 0.017, -0.05);
+      grp.traverse((o) => { if (o.isMesh) { o.castShadow = high; o.receiveShadow = high; } });
+      g.add(grp);
     },
     magnifier(g, cx, y, span, s) {
       const grp = new THREE.Group();
@@ -292,9 +309,12 @@ export async function mount(opts) {
       handle.position.set(0, -0.098, 0);
       const ferrule = new THREE.Mesh(keep(new THREE.CylinderGeometry(0.008, 0.008, 0.016, 16)), brassMat);
       ferrule.position.set(0, -0.052, 0);
-      grp.add(ring, glass, handle, ferrule);
+      // A soft highlight on the glass, so it reads as a lens in a dark room.
+      const glint = new THREE.Mesh(keep(new THREE.CircleGeometry(0.03, 24, 0.6, 1.4)), keep(new THREE.MeshBasicMaterial({ color: 0xfff3dc, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false })));
+      glint.position.z = 0.0015;
+      grp.add(ring, glass, glint, handle, ferrule);
       grp.rotation.set(-Math.PI / 2 + 0.12, 0, 0.9 + (s % 2) * 0.4);
-      grp.position.set(cx, y + 0.012, -0.11);
+      grp.position.set(cx, y + 0.012, -0.06);
       grp.traverse((o) => { if (o.isMesh) { o.castShadow = high; o.receiveShadow = high; } });
       g.add(grp);
     },
@@ -324,6 +344,50 @@ export async function mount(opts) {
     },
   };
 
+  // Props per bay, by the shelf's object; the widths are the shelf length they need (the rest ride on top or in front).
+  const PROP_PLAN = {
+    lens: [['folders', 'magnifier'], ['ledgers']],
+    file: [['folders', 'magnifier'], ['ledgers', 'rolledmap']],
+    candle: [['map', 'candle'], ['folders']],
+    glass: [['ledgers', 'rolledmap'], ['map']],
+    flask: [['ledgers', 'magnifier'], ['folders']],
+    hat: [['map'], ['ledgers', 'rolledmap']],
+  };
+  const PROP_W = { folders: 0.17, map: 0.17, ledgers: 0.17, candle: 0.09 };
+  const slipMat = keep(new THREE.MeshStandardMaterial({ color: 0xcfc2a2, roughness: 0.95, side: THREE.DoubleSide }));
+
+  // Blank old volumes that fill each row: plain cloth, blind bands, no titles; not pickable, not in the page.
+  const FILLER_TONES = ['#3A2A1E', '#2A3326', '#2D3445', '#4A3A22', '#3B2230', '#1F1C19'];
+  const fillerMats = FILLER_TONES.map((col, k) => {
+    const c = P.makeCanvas(64, 384), ctx = c.getContext('2d');
+    ctx.fillStyle = col; ctx.fillRect(0, 0, 64, 384);
+    ctx.globalCompositeOperation = 'overlay'; ctx.drawImage(k % 2 ? grains.leather : grains.cloth, 0, 0, 64, 384);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    for (const y of k % 3 ? [40, 52, 330, 342] : [60, 300]) ctx.fillRect(4, y, 56, 4);
+    ctx.fillStyle = 'rgba(235,220,190,0.12)'; ctx.fillRect(0, 0, 64, 10); ctx.fillRect(0, 374, 64, 10);
+    const e = ctx.createLinearGradient(0, 0, 64, 0);
+    e.addColorStop(0, 'rgba(0,0,0,0.45)'); e.addColorStop(0.15, 'rgba(0,0,0,0)'); e.addColorStop(0.85, 'rgba(0,0,0,0)'); e.addColorStop(1, 'rgba(0,0,0,0.45)');
+    ctx.fillStyle = e; ctx.fillRect(0, 0, 64, 384);
+    const spine = keep(new THREE.MeshStandardMaterial({ map: tex(c), normalMap: curveTex, roughness: k % 2 ? 0.62 : 0.85 }));
+    const board = keep(new THREE.MeshStandardMaterial({ color: col, roughness: 0.8 }));
+    return [board, board, pagesMat, pagesMat, spine, pagesMat];
+  });
+  function makeFiller(f, g) {
+    const mesh = new THREE.Mesh(keep(new THREE.BoxGeometry(f.thick, f.height, f.depth)), fillerMats[f.tone]);
+    mesh.position.set(0, f.height / 2, -f.depth / 2);
+    mesh.castShadow = high; mesh.receiveShadow = high;
+    const slot = new THREE.Group(), holder = new THREE.Group();
+    const floorY = BAY.floors[f.row];
+    if (f.lean) {
+      const right = f.lean > 0;
+      slot.position.set(f.x + (right ? f.thick / 2 : -f.thick / 2), floorY, -0.014);
+      slot.rotation.z = -f.lean;
+      holder.position.x = right ? -f.thick / 2 : f.thick / 2;
+    } else slot.position.set(f.x, floorY, -0.014);
+    slot.add(holder); holder.add(mesh); g.add(slot);
+  }
+
   await yieldFrame();
   let seed = 1;
   for (const [i, shelf] of shelves.entries()) {
@@ -345,7 +409,7 @@ export async function mount(opts) {
     // The brass name plate, engraved with the shelf's name.
     const { worldW, worldH } = P.plateSize(shelf.name);
     const pl = P.paintPlate(shelf.name, worldW, worldH, { h: high ? 128 : 80, brass: brassImg });
-    const plateMat = keep(new THREE.MeshStandardMaterial({ map: tex(pl.map), roughnessMap: tex(pl.pbr, { srgb: false }), metalnessMap: tex(pl.pbr, { srgb: false }), roughness: 1, metalness: 1, envMapIntensity: 0.9, color: 0xa89a88 }));
+    const plateMat = keep(new THREE.MeshStandardMaterial({ map: tex(pl.map), roughnessMap: tex(pl.pbr, { srgb: false }), metalnessMap: tex(pl.pbr, { srgb: false }), roughness: 1, metalness: 1, envMapIntensity: 1.5, color: 0xd0c0a4 }));
     const plate = part(g, keep(new THREE.BoxGeometry(worldW, worldH, 0.004)), [brassMat, brassMat, brassMat, brassMat, plateMat, brassMat], 0, (BAY.header[0] + BAY.header[1]) / 2 + 0.004, 0.022);
     plate.castShadow = false;
     // A soft contact shadow where the case stands on the floor.
@@ -362,7 +426,9 @@ export async function mount(opts) {
     // Books.
     const list = data.books.filter((bk) => bk.shelf === shelf.id);
     const looks = list.map(bookLook);
-    const { placed, free } = layoutBay(looks, i);
+    const plan = PROP_PLAN[shelf.object] || [[], []];
+    const { placed, fillers, free } = layoutBay(looks, i, plan.map((row) => row.reduce((t, k) => t + (PROP_W[k] || 0), 0)));
+    for (const f of fillers) makeFiller(f, g);
     for (const [k, book] of list.entries()) {
       const look = looks[k];
       const pos = placed.find((p) => p.id === book.id);
@@ -371,7 +437,7 @@ export async function mount(opts) {
       bayRec.books.push(rec);
       if (k % 6 === 5) await yieldFrame();
     }
-    addProps(g, shelf, free, i);
+    addProps(g, plan, free, i);
     // Contact shadows: soft dark footprints under the books and along the back of each shelf.
     for (const row of [0, 1]) {
       const cw = 256, chh = 96, c = P.makeCanvas(cw, chh), ctx = c.getContext('2d');
@@ -380,11 +446,10 @@ export async function mount(opts) {
       back.addColorStop(0, 'rgba(0,0,0,0.75)'); back.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.fillStyle = back; ctx.fillRect(0, 0, cw, chh);
       ctx.filter = 'blur(3px)';
-      for (const p of placed.filter((q) => q.row === row)) {
-        const look = looks.find((l) => l.id === p.id);
-        ctx.fillStyle = 'rgba(0,0,0,0.7)';
-        ctx.fillRect(toX(p.x - look.thick / 2) - 2, toZ(-0.012) - 2, (look.thick / BAY.inner) * cw + 4, (look.depth / BAY.depth) * chh + 4);
-      }
+      const feet = [...placed.filter((q) => q.row === row).map((p) => { const l = looks.find((x) => x.id === p.id); return { x: p.x, t: l.thick, d: l.depth }; }),
+        ...fillers.filter((q) => q.row === row).map((q) => ({ x: q.x, t: q.thick, d: q.depth }))];
+      ctx.fillStyle = 'rgba(0,0,0,0.75)';
+      for (const p of feet) ctx.fillRect(toX(p.x - p.t / 2) - 2, toZ(-0.012) - 2, (p.t / BAY.inner) * cw + 4, (p.d / BAY.depth) * chh + 4);
       const decal = new THREE.Mesh(keep(new THREE.PlaneGeometry(BAY.inner, BAY.depth)), keep(new THREE.MeshBasicMaterial({ color: 0x000000, alphaMap: tex(c, { srgb: false }), transparent: true, depthWrite: false })));
       decal.rotation.x = -Math.PI / 2;
       decal.position.set(0, BAY.floors[row] + 0.0008, -BAY.depth / 2);
@@ -405,6 +470,12 @@ export async function mount(opts) {
     mesh.castShadow = high; mesh.receiveShadow = high;
     mesh.position.set(0, h / 2, -d / 2);
     mesh.userData.id = book.id;
+    // Some library copies have a paper slip left between the pages.
+    if (hashId(book.id) % 4 === 0) {
+      const slip = new THREE.Mesh(keep(new THREE.PlaneGeometry(Math.min(0.022, t * 0.5), 0.05)), slipMat);
+      slip.position.set(0, h / 2 + 0.012, d * 0.15); slip.rotation.z = ((hashId(book.id) >>> 3) % 5 - 2) * 0.05;
+      mesh.add(slip);
+    }
     const floorY = BAY.floors[pos.row];
     const slot = new THREE.Group(), holder = new THREE.Group(), slide = new THREE.Group(), tilt = new THREE.Group();
     const zFront = -0.012;
@@ -423,32 +494,39 @@ export async function mount(opts) {
     };
   }
 
-  function addProps(g, shelf, free, i) {
-    const kinds = {
-      lens: [['folders'], ['magnifier', 'note']],
-      file: [['folders', 'magnifier'], ['ledgers', 'note']],
-      candle: [['map', 'candle'], ['folders']],
-      glass: [['ledgers', 'note'], ['map']],
-      flask: [['magnifier', 'note'], ['folders']],
-      hat: [['map', 'note'], ['ledgers']],
-    }[shelf.object] || [['note'], ['note']];
-    kinds.forEach((list, row) => {
+  function addProps(g, plan, free, i) {
+    plan.forEach((list, row) => {
       const f = free.find((x) => x.row === row);
       if (!f) return;
       const y = BAY.floors[row];
       const span = f.x1 - f.x0;
-      list.forEach((kind, k) => {
-        const cx = f.x0 + span * (list.length === 1 ? 0.5 : k === 0 ? 0.36 : 0.78);
-        const fn = PROPS[kind];
-        if (fn) fn(g, cx, y, span / list.length, i * 10 + row * 3 + k);
+      const need = list.reduce((t, k) => t + (PROP_W[k] || 0), 0);
+      const scale = need ? Math.min(1, span / need) : 1;
+      let cursor = f.x0, top = y;
+      list.filter((k) => PROP_W[k]).forEach((kind, k) => {
+        const w = PROP_W[kind] * scale;
+        const r = PROPS[kind](g, cursor + w / 2, y, w, i * 10 + row * 3 + k);
+        if (kind === 'ledgers') top = r;
+        cursor += w;
       });
+      // Small things: on the ledgers if there are some, else on the shelf in front of the rest.
+      list.filter((k) => !PROP_W[k]).forEach((kind, k) => PROPS[kind](g, f.x0 + span * (0.45 + k * 0.1), top, span, i * 10 + row * 3 + 5 + k));
     });
-    // A note tucked under the books, hanging over the shelf edge (most bays).
+    // A note tucked under the books, hanging over the shelf edge.
     if (i % 3 !== 1) {
       const n = new THREE.Mesh(keep(new THREE.PlaneGeometry(0.075, 0.06)), noteMat(i * 7 + 3));
-      n.position.set(free[0].x0 + 0.03, BAY.floors[0] - 0.024, 0.016);
+      n.position.set(-BAY.inner / 2 + 0.12 + (i % 2) * 0.2, BAY.floors[0] - 0.024, 0.016);
       n.rotation.set(-0.15, 0, (i % 2 ? 1 : -1) * 0.12);
       g.add(n);
+    }
+    // A note pinned to the front of the right-hand post of the last case on each page.
+    if (i % 3 === 2) {
+      const n = new THREE.Mesh(keep(new THREE.PlaneGeometry(0.075, 0.1)), noteMat(i * 13 + 1));
+      n.position.set(BAY.width / 2 + 0.012, 0.6, 0.03);
+      n.rotation.set(0, -0.05, -0.1);
+      const pin = new THREE.Mesh(keep(new THREE.SphereGeometry(0.0045, 10, 8)), brassMat);
+      pin.position.set(BAY.width / 2 - 0.012, 0.64, 0.036);
+      g.add(n, pin);
     }
   }
 
@@ -517,7 +595,7 @@ export async function mount(opts) {
     }
     camera.fov = visible === 1 ? 32 : 28;
     camera.aspect = w / h;
-    const f = frameCamera({ canvasW: w, canvasH: h, rect, worldW: spanOf(visible) + 0.08, worldH: BAY.height + 0.03, fov: camera.fov });
+    const f = frameCamera({ canvasW: w, canvasH: h, rect, worldW: frameWorld(visible).w, worldH: frameWorld(visible).h, fov: camera.fov });
     view.perPx = f.perPx;
     view.dist = f.distance;
     frameInfo.shiftX = f.shiftX; frameInfo.shiftY = f.shiftY;
@@ -566,7 +644,7 @@ export async function mount(opts) {
     const off = view.visible === 1 ? [-1, 0, 1] : view.visible === 2 ? [-0.5, 0.5, 1.5] : [-1, 0, 1];
     bayLights.forEach((s, k) => {
       const x = cx + off[k] * BAY.pitch;
-      s.position.set(x, 1.15, 0.75); s.target.position.set(x, 0.42, -0.1);
+      s.position.set(x, 1.3, 0.62); s.target.position.set(x, 0.66, -0.1);
     });
     moon.target.position.set(cx, 0.4, 0);
     if (room) room.room.position.x = roomBaseX + (cx - roomBaseX) * 0.88;
@@ -879,14 +957,15 @@ export async function mount(opts) {
     const bottomPx = Math.min(view.h, bottomV - canvasRect.top);
     const availH = Math.max(160, bottomPx - topPx);
     const wide = view.w >= 1100;
-    const cxPx = view.w * (wide ? (mode === 'open' ? 0.45 : 0.42) : 0.5);
+    const cxPx = view.w * (wide ? (mode === 'open' ? 0.56 : 0.44) : 0.5);
     const cyPx = topPx + availH / 2;
     const { thick: t, height: h, depth: d } = b.look;
     // Fit the book's projected size into the space: height and width limits, whichever is tighter.
-    const maxH = Math.min(availH * 0.88, mode === 'open' ? 540 : 600);
-    const maxW = mode === 'open' ? Math.min(view.w * 0.9, 900) : Math.min(view.w * 0.82, 520);
-    const worldH = mode === 'open' ? h * Math.cos(OPEN_PITCH) + d * 0.15 : h;
-    const worldW = mode === 'open' ? 2 * d + 0.012 : d + t * 0.5;
+    const vh = window.innerHeight;
+    const maxH = Math.min(availH * 0.88, mode === 'open' ? vh * 0.55 : mode === 'cover' ? vh * 0.6 : 600);
+    const maxW = mode === 'open' ? Math.min(view.w * 0.9, 820) : Math.min(view.w * 0.82, 520);
+    const worldH = mode === 'open' ? h * Math.cos(OPEN_PITCH) + 0.02 : mode === 'cover' ? h * 1.05 : h;
+    const worldW = mode === 'open' ? (2 * d + 0.012) * Math.cos(OPEN_TURN) : d + t * 0.8;
     const tanH = Math.tan((camera.fov * Math.PI) / 360);
     const dist = Math.max((worldH * view.h) / (maxH * 2 * tanH), (worldW * view.h) / (maxW * 2 * tanH));
     const nx = (cxPx / view.w) * 2 - 1, ny = 1 - (cyPx / view.h) * 2;
@@ -897,9 +976,9 @@ export async function mount(opts) {
     if (mode === 'cover') q.setFromEuler(new THREE.Euler(READ_TILT.x, READ_TILT.y, READ_TILT.z, 'XYZ'));
     else if (mode === 'back') q.setFromEuler(new THREE.Euler(0, Math.PI / 2, 0, 'XYZ'));
     else {
-      q.setFromEuler(new THREE.Euler(OPEN_PITCH, -Math.PI / 2, 0, 'XYZ'));
-      // Centre the open spread: the book's own centre sits half a board right of it.
-      pos.add(new THREE.Vector3(d / 2, 0, 0));
+      q.setFromEuler(new THREE.Euler(OPEN_PITCH, -Math.PI / 2 + OPEN_TURN, 0, 'XYZ'));
+      // Centre the open spread (local z from -d/2 to 3d/2): the book's own centre sits half a board to one side.
+      pos.sub(new THREE.Vector3(0, 0, d / 2).applyQuaternion(q));
     }
     return { pos, q, dist };
   }
@@ -954,7 +1033,7 @@ export async function mount(opts) {
     scene.attach(b.mesh);
     b.mesh.castShadow = false;
     const pose = readingPose(b, 'cover');
-    readLight.position.copy(pose.pos).add(new THREE.Vector3(0.4, 0.3, 0.6));
+    readLight.position.copy(pose.pos).add(new THREE.Vector3(-0.3, 0.4, 0.55));
     gsap.to(readLight, { intensity: 1.6, duration: 0.8 });
     setFocusBlur(true, pose.dist);
     const cov = await Promise.race([coverP, wait(flick ? 120 : 260).then(() => null)]);
@@ -1039,18 +1118,28 @@ export async function mount(opts) {
     const at = r.pocketPainted.stampAt; // canvas px of the row to stamp
     const cw = r.pocketPainted.canvas.width, ch = r.pocketPainted.canvas.height;
     const { thick: t, height: h, depth: d } = b.look;
-    const local = new THREE.Vector3(t / 2 - 0.0001, h / 2 - (at.y / ch) * (h - 0.006), d / 2 - 0.002 - (at.x / cw) * (d - 0.004));
+    const local = new THREE.Vector3(r.block.geometry.parameters.width / 2 + 0.0002, (h - 0.006) / 2 - (at.y / ch) * (h - 0.006), (d - 0.004) / 2 - (at.x / cw) * (d - 0.004));
     r.rig.updateMatrixWorld(true);
     const contact = local.clone().applyMatrix4(r.block.matrixWorld);
     const normal = new THREE.Vector3(1, 0, 0).applyQuaternion(r.rig.quaternion).normalize();
-    stampObj.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
+    // The stamp swings in from the upper right, tilted like a hand bringing it over, and squares up above the slip.
+    const aligned = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
+    const tilted = aligned.clone().multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), 0.75));
     const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
-    const up = contact.clone().addScaledVector(normal, 0.3).addScaledVector(right, 0.16);
+    const camUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+    const up = contact.clone().addScaledVector(normal, 0.2).addScaledVector(right, 0.24).addScaledVector(camUp, 0.1);
     const hover = contact.clone().addScaledVector(normal, 0.05);
-    stampObj.position.copy(up);
+    const ctrl = up.clone().lerp(hover, 0.5).addScaledVector(normal, 0.08);
+    stampObj.position.copy(up); stampObj.quaternion.copy(tilted);
     scene.add(stampObj);
     on.stampPhase?.('air');
-    await new Promise((res) => gsap.to(stampObj.position, { x: hover.x, y: hover.y, z: hover.z, duration: 0.55, ease: 'power2.out', onUpdate: () => invalidate(50), onComplete: res }));
+    const sw = { t: 0 };
+    await new Promise((res) => gsap.to(sw, { t: 1, duration: 0.7, ease: 'power2.out', onUpdate: () => {
+      const t = sw.t, u = 1 - t;
+      stampObj.position.set(u * u * up.x + 2 * u * t * ctrl.x + t * t * hover.x, u * u * up.y + 2 * u * t * ctrl.y + t * t * hover.y, u * u * up.z + 2 * u * t * ctrl.z + t * t * hover.z);
+      stampObj.quaternion.slerpQuaternions(tilted, aligned, Math.min(1, t * 1.15));
+      invalidate(50);
+    }, onComplete: res }));
     on.stampPhase?.('hover');
     await wait(opts.stampPause || 160);
     await new Promise((res) => gsap.to(stampObj.position, { x: contact.x, y: contact.y, z: contact.z, duration: 0.13, ease: 'power3.in', onUpdate: () => invalidate(50), onComplete: res }));
@@ -1170,7 +1259,8 @@ export async function mount(opts) {
     visibleBooks: () => bays.slice(view.first, view.first + view.visible).flatMap((bay) => bay.books.map((b) => b.id)),
     faceRect(face = 'back') {
       if (!reading) return null;
-      const r = projectBox(reading.b.mesh, face);
+      if (face === 'leftpage' && !reading.rig) return null;
+      const r = face === 'leftpage' ? projectBox(reading.rig.hinge.children[0], 'back') : projectBox(reading.b.mesh, face);
       canvasRect = canvas.getBoundingClientRect();
       return { left: r.left + canvasRect.left, top: r.top + canvasRect.top, width: r.width, height: r.height };
     },
