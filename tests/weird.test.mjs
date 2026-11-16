@@ -372,6 +372,8 @@ test('weirdness: a deterministic score from the headline, address and feed label
 });
 
 test('isListicle: evergreen lists, quizzes and explainers', () => {
+  for (const t of ['Podcast: Exploring the Unexpected in Alberta', 'Check Out the Playlist for Our New Book']) assert.equal(weird.isListicle(t), true, t);
+  assert.equal(weird.isListicle('Police find spider monkey wandering loose in Minnesota'), false);
   for (const t of ["10 Old-Fashioned Words for Someone Who's Single", "Quiz: Can You Name Ohio's 7 Largest Cities?", '50 Funny Puns About Cheese',
     '4 American Mountain Towns to Visit', 'The Most Popular Fast-Food Chain the Year You Were Born', 'Why Do We Call It a Hat Trick?',
     'Things You Never Knew About Lighthouses']) assert.ok(weird.isListicle(t), t);
