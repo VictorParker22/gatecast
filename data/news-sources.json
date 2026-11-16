@@ -1,0 +1,34 @@
+{
+  "comment": "Outlets whose public RSS/Atom feeds feed the Today page's 'The brief' (lib/news.js). We show only the outlet's headline, its name, the time and a link to the story: never its description, opening paragraph or images. Prefer the States Newsroom outlet and the public-radio statehouse desk for each state (docs/content-sources.md, 'State politics by location'). Every feed below was fetched on the 'checked' date and returned valid RSS with items from the past week. The owner should review and approve this list before launch.",
+  "checked": "2026-11-16",
+  "sources": [
+    { "id": "nysfocus", "name": "New York Focus", "homepage": "https://nysfocus.com/", "feed": "https://nysfocus.com/feed.xml", "state": "NY" },
+    { "id": "cityandstateny", "name": "City & State New York", "homepage": "https://www.cityandstateny.com/", "feed": "https://www.cityandstateny.com/rss/all/", "state": "NY" },
+    { "id": "wamc-ny", "name": "WAMC", "homepage": "https://www.wamc.org/new-york-news", "feed": "https://www.wamc.org/new-york-news.rss", "state": "NY" },
+
+    { "id": "njmonitor", "name": "New Jersey Monitor", "homepage": "https://newjerseymonitor.com/", "feed": "https://newjerseymonitor.com/feed/", "state": "NJ" },
+    { "id": "njspotlight", "name": "NJ Spotlight News", "homepage": "https://www.njspotlightnews.org/", "feed": "https://www.njspotlightnews.org/feed/", "state": "NJ" },
+
+    { "id": "calmatters", "name": "CalMatters", "homepage": "https://calmatters.org/", "feed": "https://calmatters.org/feed/", "state": "CA" },
+    { "id": "kqed-politics", "name": "KQED", "homepage": "https://www.kqed.org/news", "feed": "https://ww2.kqed.org/news/category/politics/feed/", "state": "CA" },
+
+    { "id": "ohiocapitaljournal", "name": "Ohio Capital Journal", "homepage": "https://ohiocapitaljournal.com/", "feed": "https://ohiocapitaljournal.com/feed/", "state": "OH" },
+    { "id": "statenews-oh", "name": "Statehouse News Bureau", "homepage": "https://www.statenews.org/", "feed": "https://www.statenews.org/government-politics.rss", "state": "OH" },
+
+    { "id": "texastribune", "name": "The Texas Tribune", "homepage": "https://www.texastribune.org/", "feed": "https://feeds.texastribune.org/feeds/main/", "state": "TX" },
+    { "id": "kut-politics", "name": "KUT News", "homepage": "https://www.kut.org/politics", "feed": "https://www.kut.org/politics.rss", "state": "TX" },
+
+    { "id": "floridaphoenix", "name": "Florida Phoenix", "homepage": "https://floridaphoenix.com/", "feed": "https://floridaphoenix.com/feed/", "state": "FL" },
+    { "id": "wfsu-state", "name": "WFSU News", "homepage": "https://news.wfsu.org/state-news", "feed": "https://news.wfsu.org/state-news.rss", "state": "FL" },
+
+    { "id": "capitolnewsillinois", "name": "Capitol News Illinois", "homepage": "https://capitolnewsillinois.com/", "feed": "https://capitolnewsillinois.com/feed/", "state": "IL" },
+    { "id": "nprillinois-politics", "name": "NPR Illinois", "homepage": "https://www.nprillinois.org/politics", "feed": "https://www.nprillinois.org/politics.rss", "state": "IL" },
+
+    { "id": "pacapitalstar", "name": "Pennsylvania Capital-Star", "homepage": "https://penncapital-star.com/", "feed": "https://penncapital-star.com/feed/", "state": "PA" },
+    { "id": "spotlightpa", "name": "Spotlight PA", "homepage": "https://www.spotlightpa.org/", "feed": "https://www.spotlightpa.org/feeds/full.xml", "state": "PA" },
+
+    { "id": "yaleclimateconnections", "name": "Yale Climate Connections", "homepage": "https://yaleclimateconnections.org/", "feed": "https://yaleclimateconnections.org/feed/", "state": "national" },
+    { "id": "noaa", "name": "NOAA", "homepage": "https://www.noaa.gov/news", "feed": "https://www.noaa.gov/rss.xml", "state": "national" },
+    { "id": "simpleflying", "name": "Simple Flying", "homepage": "https://simpleflying.com/", "feed": "https://simpleflying.com/feed/", "state": "national" }
+  ]
+}

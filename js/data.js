@@ -110,6 +110,7 @@ export async function loadAlerts(a) {
     const json = await res.json();
     return (json.features || []).map((f) => f.properties).map((p) => ({
       event: p.event, severity: p.severity, headline: p.headline, ends: p.ends || p.expires,
+      area: p.areaDesc, onset: p.onset || p.effective,
     }));
   } catch { return []; }
 }

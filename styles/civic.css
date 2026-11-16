@@ -1,0 +1,54 @@
+/* "Your statehouse" and "Both sides" on the Today page (js/civic.js mounts them into a container).
+   Monochrome on purpose: colour on this site only ever means weather risk, so a party, a side or a result is a
+   word, never a hue. Bars are ink and grey, with a hatch for "no" so they read without colour. Tokens only. */
+
+.civic { display: grid; gap: var(--space-4); }
+.civic :is(h2, h3, h4, h5) { margin: 0; }
+.civic__block { display: grid; gap: var(--space-3); padding: var(--space-5); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-tile); min-width: 0; }
+.civic__eyebrow { font-size: var(--text-xs); font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-text-muted); }
+.civic__eyebrow + .civic__title { margin-top: calc(-1 * var(--space-2)); }
+.civic__title { font-family: var(--font-display); font-weight: 700; text-transform: uppercase; font-size: var(--text-xl); line-height: 1; letter-spacing: 0.01em; }
+.civic__note { font-size: var(--text-sm); color: var(--color-text-muted); max-width: 60ch; }
+.civic-meta { font-size: var(--text-sm); color: var(--color-text-muted); }
+.civic-list { display: grid; }
+.civic-item { display: grid; gap: var(--space-2); padding-block: var(--space-4); border-top: 1px solid var(--color-border); min-width: 0; }
+.civic-item:last-child { padding-bottom: 0; }
+.civic-links { display: flex; flex-wrap: wrap; gap: 0 var(--space-4); font-size: var(--text-sm); }
+.civic-links a, .civic .statement a, .topic__fact a { display: inline-flex; align-items: center; min-height: var(--tap-target); }
+
+/* One vote */
+.vote__head { font-size: var(--text-md); font-weight: 600; line-height: 1.35; }
+.vote__bill { font-size: var(--text-lg); margin-right: var(--space-1); }
+.vote__motion { overflow-wrap: anywhere; }
+.vote__result { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
+.vote__outcome { display: inline-flex; align-items: center; min-height: 1.75rem; padding: 0 var(--space-3); border-radius: var(--radius-pill); font-size: var(--text-sm); background: var(--color-accent); color: var(--color-on-accent); border: 1px solid var(--color-accent); }
+.vote__outcome--failed { background: transparent; color: var(--color-text); border-color: var(--color-control-border); }
+.vote__tally { font-size: var(--text-xl); line-height: 1; }
+.vote__other { font-size: var(--text-sm); color: var(--color-text-muted); }
+
+/* Party split: words first, a proportional bar beside them. */
+.split { display: grid; gap: var(--space-2); }
+.split__row { display: grid; gap: var(--space-1) var(--space-3); align-items: center; }
+@media (min-width: 40rem) { .split__row { grid-template-columns: minmax(15rem, auto) minmax(6rem, 1fr); } }
+.split__text { font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+.split__bar { display: flex; height: 0.75rem; border-radius: var(--radius-pill); background: var(--color-surface-sunken); overflow: hidden; }
+.split__yes, .split__no, .split__away { display: block; height: 100%; flex: none; }
+.split__yes { background: var(--color-text); }
+.split__no { background: repeating-linear-gradient(135deg, var(--color-text-muted) 0 2px, transparent 2px 5px); box-shadow: inset 0 0 0 1px var(--color-text-muted); }
+.split__away { background: var(--color-border); }
+.split-key { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); font-size: var(--text-xs); color: var(--color-text-muted); }
+.split-key__item { display: inline-flex; align-items: center; gap: var(--space-1); }
+.split-key__item > span { width: 1.25rem; height: 0.625rem; border-radius: var(--radius-pill); }
+
+/* Both sides */
+.topic__title { font-size: var(--text-lg); }
+.topic__fact { max-width: 70ch; }
+.statements { display: grid; gap: var(--space-3); margin-top: var(--space-2); }
+@media (min-width: 46rem) { .statements { grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); } }
+.statement { display: grid; gap: var(--space-2); align-content: start; padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); }
+.statement__side { font-size: var(--text-sm); color: var(--color-text-muted); }
+.statement__who { display: grid; }
+.statement__quote { margin: 0; padding-left: var(--space-3); border-left: 3px solid var(--color-text); }
+.statement__quote p { white-space: pre-line; }
+
+@media (max-width: 30rem) { .civic__block { padding: var(--space-4); } }
