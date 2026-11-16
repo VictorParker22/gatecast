@@ -18,7 +18,26 @@
   <link rel="stylesheet" href="styles/board.css">
   <link rel="stylesheet" href="styles/sky.css">
   <link rel="stylesheet" href="styles/motion.css">
-  <link rel="preload" href="data/airports.json" as="fetch" crossorigin>
+  <!-- The whole module graph, fetched in parallel instead of one import level at a time. -->
+  <link rel="modulepreload" href="js/weather.js">
+  <link rel="modulepreload" href="js/core.js">
+  <link rel="modulepreload" href="js/data.js">
+  <link rel="modulepreload" href="js/shell.js">
+  <link rel="modulepreload" href="js/boardcontent.js">
+  <link rel="modulepreload" href="js/ui.js">
+  <link rel="modulepreload" href="js/motion.js">
+  <link rel="modulepreload" href="js/sky.js">
+  <link rel="modulepreload" href="js/sky/shaders.js">
+  <link rel="modulepreload" href="js/sky/governor.js">
+  <link rel="preconnect" href="https://api.open-meteo.com" crossorigin>
+  <!-- A returning visitor's forecast starts as soon as data.js arrives; weather.js picks up the same request. -->
+  <script type="module" async>
+    import { loadWeather } from './js/data.js';
+    try {
+      const p = new URLSearchParams(location.search).has('r') ? null : JSON.parse(localStorage.getItem('gatecast:place'));
+      if (p && Number.isFinite(p.lat) && Number.isFinite(p.lon)) loadWeather(p.lat, p.lon).catch(() => {});
+    } catch {}
+  </script>
   <script type="module" src="js/weather.js"></script>
 </head>
 <body class="page-weather">

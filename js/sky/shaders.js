@@ -12,13 +12,33 @@
 // Every layer has a strength uniform. JavaScript blends those numbers between weather kinds, which is
 // how one kind of sky crossfades into another; a layer whose strength is zero is skipped entirely.
 // Colours are mixed in linear light (physically additive) and converted to sRGB only at the very end.
+//
+// Two variants are compiled from the same source (fragmentShader(lite)); js/sky/governor.js picks one per
+// quality tier. LITE uses three noise octaves instead of four (with the missing octave's average added back
+// so cloud cover is unchanged), the nearer rain layer only, the two larger snow layers, and steady stars.
+// The legibility ceiling (7) is the same in both, so text contrast holds at every tier.
+//
+// Time without jumps: nothing here multiplies a growing clock any more (the old 20-minute uTime wrap made
+// rain, snow and twinkle jump). JavaScript integrates every moving offset in double precision and wraps it
+// where the layer repeats exactly, so the uniforms stay small and precise:
+//   - rain and snow cells are numbered modulo WRAP_CELLS, so their scroll offsets wrap at WRAP_CELLS;
+//   - twinkle and sway frequencies are rounded to whole cycles per PHASE_S seconds, so they run on uPhase,
+//     a 0..1 clock that wraps every PHASE_S seconds.
+// Cloud drift is the one exception: making the noise tile would cost every pixel ~4% and change the cloud
+// pattern, so it wraps at DRIFT_WRAP instead. Drift moves 0.012-0.042 units a second, so that takes 27 to 95
+// hours of on-screen animation, and float precision there (~0.004 of the finest noise cell) is still fine.
 
 export const VERTEX_SHADER = `
 attribute vec2 aPos;
 void main() { gl_Position = vec4(aPos, 0.0, 1.0); }
 `;
 
-export const FRAGMENT_SHADER = `
+// Keep in step with js/sky.js, which wraps the offsets.
+export const DRIFT_WRAP = 4096;    // cloud drift wraps here (see above)
+export const WRAP_CELLS = 256;     // rain and snow cells are numbered modulo this
+export const PHASE_S = 600;        // uPhase wraps every PHASE_S seconds
+
+const FRAGMENT_SOURCE = `
 #ifdef GL_FRAGMENT_PRECISION_HIGH
 precision highp float;
 #else
@@ -27,8 +47,8 @@ precision mediump float;
 
 uniform vec2 uRes;        // canvas size in device pixels
 uniform float uUnit;      // device pixels per scene unit; one unit is 500 CSS pixels on every screen
-uniform float uTime;      // seconds of animation (wraps every 20 minutes)
-uniform float uDrift;     // how far the clouds have drifted; grows faster when it is windy
+uniform float uPhase;     // animation clock as a fraction of PHASE_S seconds (0..1, wraps without a jump)
+uniform vec2 uDrift;      // how far the far (x) and near (y) clouds have drifted (wrapped at DRIFT_WRAP)
 uniform vec3 uTop;        // atmosphere colour at the top of the canvas
 uniform vec3 uHorizon;    // atmosphere colour at the bottom
 uniform vec3 uCloudLit;   // colour of thin cloud
@@ -40,7 +60,19 @@ uniform float uStars;     // star strength
 uniform float uRain;      // rain density
 uniform float uSnow;      // snow density
 uniform float uFlash;     // lightning brightness right now (0 almost always)
-uniform vec2 uWind;       // x: how far rain and snow lean, y: extra lean during gusts
+uniform float uLean;      // how far rain and snow lean right now (wind plus slow gusts, worked out in JS)
+uniform vec2 uRainOff;    // vertical scroll of the two rain layers, in cells, wrapped at WRAP_CELLS
+uniform vec2 uSnowOff[3]; // scroll of the three snow layers, in cells, wrapped at WRAP_CELLS
+
+const float WRAP_CELLS = ${WRAP_CELLS.toFixed(1)};
+const float PHASE_CYCLES = ${(PHASE_S / (2 * Math.PI)).toFixed(6)};  // PHASE_S / 2pi: rad/s -> cycles per PHASE_S
+const float TAU = 6.2831853;
+
+// A sine that runs at about "rate" radians per second but completes a whole number of cycles every
+// PHASE_S seconds, so it is seamless when uPhase wraps.
+float wave(float rate, float offset) {
+  return sin(TAU * fract(uPhase * floor(rate * PHASE_CYCLES + 0.5)) + offset);
+}
 
 // Brightness ceiling, in relative luminance. White text (#e6eeff, the dimmer of the two text colours)
 // keeps at least 4.5:1 contrast on anything at or below CEILING. Above KNEE, brightness is eased
@@ -67,12 +99,20 @@ float noise(vec2 p) {
 }
 
 // Fractal noise ("fbm"): four layers of noise, each twice as detailed and half as strong as the last,
-// slightly rotated each time. This gives the billowy, self-similar look of cloud.
+// slightly rotated each time. This gives the billowy, self-similar look of cloud. LITE stops after three
+// and adds the fourth layer's average (0.5 x 0.0625) so the clouds cover the same amount of sky.
 const mat2 OCTAVE = mat2(1.6, 1.2, -1.2, 1.6);
+#ifdef LITE
+const int OCTAVES = 3;
+const float OCTAVE_REST = 0.03125;
+#else
+const int OCTAVES = 4;
+const float OCTAVE_REST = 0.0;
+#endif
 float fbm(vec2 p) {
-  float v = 0.0;
+  float v = OCTAVE_REST;
   float a = 0.5;
-  for (int i = 0; i < 4; i++) {
+  for (int i = 0; i < OCTAVES; i++) {
     v += a * noise(p);
     p = OCTAVE * p;
     a *= 0.5;
@@ -84,13 +124,14 @@ float fbm(vec2 p) {
 
 // One depth of rain. Space is cut into narrow, tall cells; some cells hold a streak whose bright head
 // leads and whose tail fades upward. Shearing x by y makes the streaks lean with the wind.
-float rainLayer(vec2 p, float scale, float speed, float seed, float lean) {
+// "scroll" is how far the layer has fallen, in cells (from uRainOff).
+float rainLayer(vec2 p, float scale, float scroll, float seed, float lean) {
   p.x += p.y * lean;
-  p.y += uTime * speed;
   vec2 q = p * vec2(scale, scale * 0.2);
+  q.y += scroll;
   float column = floor(q.x);
   q.y += hash(vec2(column, seed)) * 7.0;          // stagger the columns so drops do not line up
-  vec2 cell = vec2(column, floor(q.y));
+  vec2 cell = vec2(column, mod(floor(q.y), WRAP_CELLS));
   if (hash(cell + seed) > uRain) return 0.0;       // denser rain fills more cells
   float x = fract(q.x) - 0.5 - (hash(cell + seed + 4.7) - 0.5) * 0.6;
   float pixel = scale / uUnit;                     // one device pixel, measured in cell widths
@@ -100,15 +141,14 @@ float rainLayer(vec2 p, float scale, float speed, float seed, float lean) {
 }
 
 // One depth of snow: at most one soft flake per square cell, swaying from side to side as it falls.
-float snowLayer(vec2 p, float scale, float speed, float radius, float seed, float lean) {
-  p.y += uTime * speed;
-  p.x += uTime * speed * lean;
-  vec2 q = p * scale;
-  vec2 cell = floor(q);
+// "offset" is how far the layer has moved (down, and sideways with the wind), in cells (from uSnowOff).
+float snowLayer(vec2 p, float scale, vec2 offset, float radius, float seed) {
+  vec2 q = p * scale + offset;
+  vec2 cell = mod(floor(q), WRAP_CELLS);
   float r = hash(cell + seed);
   if (r > uSnow) return 0.0;
   vec2 centre = vec2(hash(cell + seed + 3.1), hash(cell + seed + 7.7)) * 0.4 - 0.2;
-  centre.x += 0.15 * sin(uTime * (0.5 + r) + r * 6.283);
+  centre.x += 0.15 * wave(0.5 + r, r * 6.283);
   float distPx = length(fract(q) - 0.5 - centre) / scale * uUnit;
   float size = radius * uUnit / 500.0;             // radius is given in CSS pixels
   return smoothstep(size, 0.0, distPx);
@@ -132,8 +172,11 @@ void main() {
   if (uMoon.z > 0.001) {
     vec2 m = (gl_FragCoord.xy - uMoon.xy) / uUnit;
     float d = length(m);
-    float disc = smoothstep(0.04, 0.035, d) * (0.8 + 0.2 * noise(m * 90.0));
-    col += uMoon.z * (vec3(0.5, 0.55, 0.68) * disc + vec3(0.03, 0.04, 0.08) * exp(-d * 7.0));
+    vec3 moon = vec3(0.03, 0.04, 0.08) * exp(-d * 7.0);
+    if (d < 0.04) {   // the mottling noise is only needed on the disc itself
+      moon += vec3(0.5, 0.55, 0.68) * smoothstep(0.04, 0.035, d) * (0.8 + 0.2 * noise(m * 90.0));
+    }
+    col += uMoon.z * moon;
   }
 
   // 3. Stars: one cell in fifteen holds a star; most are faint, a few brighter. They thin out
@@ -145,7 +188,11 @@ void main() {
     if (r < 0.065) {
       vec2 at = vec2(hash(cell + 1.3), hash(cell + 2.9)) * 0.6 + 0.2;
       float distPx = length(fract(q) - at) / 46.0 * uUnit;
-      float twinkle = 0.65 + 0.35 * sin(uTime * (0.8 + r * 30.0) + r * 400.0);
+#ifdef LITE
+      const float twinkle = 0.65;   // the average of the twinkle below
+#else
+      float twinkle = 0.65 + 0.35 * wave(0.8 + r * 30.0, r * 400.0);
+#endif
       float bright = pow(hash(cell + 5.1), 2.0) * 0.35 + 0.05;
       col += uStars * bright * twinkle * smoothstep(1.6, 0.4, distPx) * smoothstep(0.1, 0.6, uv.y);
     }
@@ -156,8 +203,8 @@ void main() {
   float cloud = 0.0;
   if (uCover > 0.001) {
     float lo = 0.7 - 0.5 * uCover;
-    float far = fbm(p * vec2(1.1, 3.4) + vec2(uDrift, 0.0));
-    float near = fbm(p * vec2(2.0, 4.8) + vec2(uDrift * 1.8 + 17.0, 5.0));
+    float far = fbm(p * vec2(1.1, 3.4) + vec2(uDrift.x, 0.0));
+    float near = fbm(p * vec2(2.0, 4.8) + vec2(uDrift.y + 17.0, 5.0));
     float a1 = smoothstep(lo, lo + 0.3, far);
     float a2 = smoothstep(lo + 0.08, lo + 0.36, near);
     float alpha = mix(0.35, 0.95, uCover);
@@ -169,17 +216,22 @@ void main() {
     col += uFlash * vec3(0.025, 0.028, 0.04) * (0.4 + cloud) * (0.4 + uv.y);
   }
 
-  // 6. Precipitation. Gusts make the lean sway a little, slowly.
-  float lean = uWind.x + uWind.y * (0.5 + 0.5 * sin(uTime * 0.6));
+  // 6. Precipitation (layer speeds live in js/sky.js, which scrolls uRainOff and uSnowOff).
   if (uRain > 0.001) {
-    float streaks = rainLayer(p, 70.0, 2.6, 0.0, lean) * 0.5
-                  + rainLayer(p, 44.0, 3.4, 11.0, lean) * 0.8;
+#ifdef LITE
+    float streaks = rainLayer(p, 44.0, uRainOff.y, 11.0, uLean) * 0.8;
+#else
+    float streaks = rainLayer(p, 70.0, uRainOff.x, 0.0, uLean) * 0.5
+                  + rainLayer(p, 44.0, uRainOff.y, 11.0, uLean) * 0.8;
+#endif
     col += vec3(0.07, 0.08, 0.1) * streaks;
   }
   if (uSnow > 0.001) {
-    float flakes = snowLayer(p, 20.0, 0.05, 2.0, 0.0, lean) * 0.45
-                 + snowLayer(p, 11.0, 0.08, 3.2, 21.0, lean) * 0.7
-                 + snowLayer(p, 6.0, 0.12, 5.0, 42.0, lean);
+    float flakes = snowLayer(p, 11.0, uSnowOff[1], 3.2, 21.0) * 0.7
+                 + snowLayer(p, 6.0, uSnowOff[2], 5.0, 42.0);
+#ifndef LITE
+    flakes += snowLayer(p, 20.0, uSnowOff[0], 2.0, 0.0) * 0.45;
+#endif
     col = mix(col, vec3(0.6, 0.68, 0.86), flakes * 0.75);
   }
 
@@ -195,3 +247,9 @@ void main() {
   gl_FragColor = vec4(srgb, 1.0);
 }
 `;
+
+// The fragment shader source: the full look, or (lite = true) the cheaper variant.
+export function fragmentShader(lite = false) {
+  return (lite ? '#define LITE\n' : '') + FRAGMENT_SOURCE;
+}
+export const FRAGMENT_SHADER = fragmentShader(false);

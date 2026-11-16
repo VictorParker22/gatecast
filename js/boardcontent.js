@@ -25,31 +25,349 @@ export function skyOf(code, day) {
   return day ? 'day' : 'night';
 }
 
-/* ---------- Headline: one or two short sentences that answer "what is it doing, and when does it change?" ---------- */
+/* ---------- Headline: what the weather is doing, when it changes, and the one thing to do ---------- */
+// Voice rules live in docs/design-system.md ("Voice"). Thresholds are °C, km/h and mm; f prints every number.
 
-// f: { time(ms) -> "14:00", temp(c) -> "8°", speed(kmh) -> "40 km/h" }
-export function headline(wx, f) {
-  const hours = wx.hours.slice(0, 24), now = wx.now;
-  const wetNow = (now.precip ?? 0) > 0 || falls(now);
-  let first;
-  if (wetNow) {
-    const dry = hours.slice(1).find((h) => !falls(h) && (h.precip ?? 0) === 0);
-    first = dry ? `${kindOf(now)} until about ${f.time(dry.t)}.` : `${kindOf(now)} on and off for the next 24 hours.`;
-  } else {
-    const wet = hours.slice(1).find((h) => falls(h) && (h.pop ?? 0) >= 40);
-    if (wet) first = `Dry until about ${f.time(wet.t)}, then ${kindOf(wet).toLowerCase()}.`;
-    else if (now.code === 45 || now.code === 48) first = 'Foggy for now, and dry.';
-    else if (now.code === 3) first = 'Cloudy but dry for the next 24 hours.';
-    else first = now.day ? 'Bright and dry all day.' : 'Clear and dry tonight.';
+const FOG = (c) => c === 45 || c === 48;
+const FREEZING = (c) => c === 56 || c === 57 || c === 66 || c === 67;
+const HEAVY = (h) => h.code === 65 || h.code === 82 || h.code === 75 || h.code === 86 || h.code === 67 || (h.precip ?? 0) >= 4;
+// An hour counts as wet when the model shows rain or snow with at least a 30% chance (or no chance given),
+// or when the chance alone is 60% or more and some precipitation is forecast.
+const wetHour = (h) => (falls(h) ? h.pop == null || h.pop >= 30 : h.pop != null && h.pop >= 60 && (h.precip ?? 0) > 0);
+function kindOfHour(h) {
+  const c = h.code;
+  if (c >= 95) return 'storm';
+  if (FREEZING(c)) return 'ice';
+  if (isSnow(c) || (!falls(h) && (h.snow ?? 0) > 0)) return 'snow';
+  if (c >= 51 && c <= 55) return 'drizzle';
+  if (c >= 80 && c <= 82) return 'showers';
+  return 'rain';
+}
+const RANK = ['drizzle', 'showers', 'rain', 'snow', 'ice', 'storm'];
+const NOUN = { storm: 'thunderstorms', ice: 'freezing rain', snow: 'snow', mix: 'rain and snow', rain: 'rain', showers: 'showers', drizzle: 'drizzle' };
+const BRIEF = { storm: 'a thunderstorm', ice: 'freezing rain', snow: 'a snow shower', mix: 'a wintry shower', rain: 'a shower', showers: 'a shower', drizzle: 'a little drizzle' };
+const cap = (s) => s[0].toUpperCase() + s.slice(1);
+
+// A run of wet hours from index s, allowing one dry hour inside it. Returns the facts about that run.
+function spell(H, s, forced = false) {
+  let e = s;
+  while (e < H.length) {
+    if (wetHour(H[e]) || (forced && e === s)) { e++; continue; }
+    if (e + 1 < H.length && wetHour(H[e + 1])) { e += 2; continue; }
+    break;
   }
-  const temps = hours.map((h) => h.temp), min = Math.min(...temps), max = Math.max(...temps);
-  const gust = Math.max(...hours.map((h) => h.gust ?? 0));
-  let second = '';
-  if (gust >= 55) second = `Gusts up to ${f.speed(gust)}.`;
-  else if (min <= 0 && now.temp > 0) second = `Frost by ${f.time(hours.find((h) => h.temp <= 0).t)}.`;
-  else if (now.temp - min >= 8) second = `Much cooler later, down to ${f.temp(min)}.`;
-  else if (max - now.temp >= 6) second = `Warming up to ${f.temp(max)}.`;
-  return second ? `${first} ${second}` : first;
+  const run = H.slice(s, Math.max(e, s + 1));
+  const kinds = new Set(run.filter((h) => wetHour(h) || falls(h)).map(kindOfHour));
+  let kind = [...kinds].sort((a, b) => RANK.indexOf(b) - RANK.indexOf(a))[0] || 'rain';
+  if (kind === 'snow' && (kinds.has('rain') || kinds.has('showers') || kinds.has('drizzle'))) kind = 'mix';
+  const pops = run.map((h) => h.pop).filter((p) => p != null);
+  const pop = pops.length ? Math.max(...pops) : null;
+  const snowCm = run.reduce((a, h) => a + (h.snow ?? 0), 0);
+  return {
+    s, e, kind, pop, len: e - s, open: e >= H.length,
+    heavy: run.some(HEAVY) || snowCm >= 5,
+    sure: pop == null ? 'likely' : pop >= 70 ? 'sure' : pop >= 50 ? 'likely' : 'chance',
+    gust: Math.max(0, ...run.map((h) => h.gust ?? 0)),
+  };
+}
+
+// Time words relative to now, in the place's own time zone. Clock times for the next six hours,
+// the names people use for parts of the day after that.
+function clockOf(wx, f) {
+  const nowT = wx.now.t, tz = wx.tz;
+  const nowHr = localHour(nowT, tz), today = dayNumber(dayKey(nowT, tz));
+  return (ms) => {
+    const ahead = (ms - nowT) / HOUR;
+    if (ahead <= 1) return { soon: true, at: 'within the hour', from: 'within the hour', until: 'for a few more minutes', by: 'within the hour' };
+    if (ahead <= 6) { const t = f.time(ms); return { clock: true, at: `around ${t}`, from: `from about ${t}`, after: `after ${t}`, until: `until about ${t}`, by: `by about ${t}` }; }
+    const hr = localHour(ms, tz), d = dayNumber(dayKey(ms, tz)) - today;
+    let part;
+    if (d <= 0) part = hr < 12 ? 'this morning' : hr < 17 ? 'this afternoon' : hr < 21 ? 'this evening' : 'tonight';
+    else part = hr < 5 ? 'overnight' : hr < 12 ? 'tomorrow morning' : hr < 17 ? 'tomorrow afternoon' : 'tomorrow evening';
+    if (d <= 0 && nowHr < 5 && hr < 5) part = 'later tonight';
+    const morning = part === 'overnight' || (part === 'tomorrow morning' && nowHr >= 12);
+    return {
+      part, at: part, from: part, after: part,
+      until: part === 'overnight' ? 'until the early hours' : `until ${part}`,
+      by: morning ? 'by morning' : part,
+    };
+  };
+}
+
+// The sky in words. Never "sunny" at night.
+function skyClass(code) { return FOG(code) ? 'fog' : code >= 3 ? 'cloud' : code === 2 ? 'partly' : 'clear'; }
+function skyWord(cls, day) {
+  if (cls === 'fog') return 'foggy';
+  if (cls === 'cloud') return 'cloudy';
+  if (cls === 'partly') return day ? 'sun and cloud' : 'partly cloudy';
+  return day ? 'sunny' : 'clear';
+}
+
+function readForecast(wx, f) {
+  const now = wx.now, tz = wx.tz;
+  // With no hourly forecast at all, the current hour stands in, so the sentence is about now only.
+  const H = wx.hours?.length ? wx.hours.slice(0, 24) : [{ ...now }];
+  const when = clockOf(wx, f);
+  const hr = localHour(now.t, tz);
+  const night = !now.day;
+  const feels = now.feels ?? now.temp;
+  const next = (n) => H.slice(1, n + 1);
+  const temps12 = next(12).map((h) => h.temp).filter((t) => t != null);
+  const low12 = temps12.length ? Math.min(...temps12) : now.temp;
+  const lowAt = H.find((h, i) => i > 0 && i <= 12 && h.temp === low12);
+  const dayHours = next(12).filter((h) => h.day ?? now.day);
+  const high = dayHours.length ? Math.max(now.temp, ...dayHours.map((h) => h.temp)) : now.temp;
+  const highAt = H.find((h) => (h.day ?? now.day) && h.temp === high);
+  const gustPeak = Math.max(now.gust ?? 0, ...next(12).map((h) => h.gust ?? 0));
+  const uv = wx.days?.[0]?.uv ?? 0;
+
+  // Rain, snow or storms falling now, and the run they belong to.
+  const wetNow = falls(now) || (now.precip ?? 0) > 0;
+  let cur = null, later = null;
+  if (wetNow) {
+    cur = spell(H, 0, true);
+    if (falls(now)) cur.kind = cur.kind === 'mix' ? 'mix' : RANK.indexOf(kindOfHour(now)) > RANK.indexOf(cur.kind) ? kindOfHour(now) : cur.kind;
+    cur.sure = 'sure';
+    if (HEAVY(now)) cur.heavy = true;
+  }
+  // The next run of rain or snow worth mentioning: a likely one within 24 hours, or a possible one within 12.
+  for (let i = cur ? cur.e : 1; i < H.length; i++) {
+    if (!wetHour(H[i])) continue;
+    const sp = spell(H, i);
+    if (sp.sure !== 'chance' || i <= 12) { later = sp; break; }
+    i = sp.e;
+  }
+
+  // Ice: freezing rain in the next 12 hours, or wet ground followed by a freeze within 6 hours of it.
+  let ice = next(12).some((h) => FREEZING(h.code) && wetHour(h)) || FREEZING(now.code);
+  for (const sp of [cur, later]) {
+    if (!sp || ice || sp.sure === 'chance' || sp.kind === 'snow') continue;
+    const after = H.slice(sp.s, Math.min(H.length, sp.e + 6));
+    if (after.some((h) => h.temp <= 0)) ice = true;
+  }
+  if ((cur?.kind === 'ice') || (later?.kind === 'ice' && later.sure !== 'chance' && later.s <= 12)) ice = true;
+
+  // How many separate likely spells: three or more in a day reads as "on and off".
+  let spells = 0;
+  for (let i = 0; i < H.length; i++) {
+    if (!(wetHour(H[i]) || (i === 0 && wetNow))) continue;
+    const sp = spell(H, i, i === 0 && wetNow);
+    if (sp.sure !== 'chance' || i === 0) spells++;
+    i = sp.e;
+  }
+  const refreeze = ice && !next(12).some((h) => FREEZING(h.code)) && !FREEZING(now.code);
+
+  const frostAt = now.temp > 0 ? H.find((h, i) => i > 0 && i <= 18 && h.temp <= 0) : null;
+
+  // Temperature band for ordinary dry weather, so a clothing action is only given with its reason.
+  // By day it is judged on the best the day gets (the daytime peak); in the evening and at night,
+  // on the coming overnight low. Bands in °C, from the warm end:
+  //   30 and up   hot / very hot (own leads and actions)
+  //   16 to 29    pleasant when the sky is fair and the wind light; otherwise unremarkable
+  //   12 to 15    unremarkable: nothing to plan around (a jacket at 14° is not news)
+  //    6 to 11    cool: say the number, suggest a jacket
+  //    5 or less  cold: say the number, suggest a warm coat
+  // Feels-like -5 to -14 (hat and gloves) and -15 or below (bitter) are decided earlier, from feels-like.
+  const evening = night || hr >= 18;
+  const low8s = H.slice(0, 9).map((h) => h.temp).filter((t) => t != null);
+  const low8 = low8s.length ? Math.min(...low8s) : now.temp;
+  const gauge = evening ? low8 : high;
+  const band = gauge <= 5 ? 'cold' : gauge < 12 ? 'cool' : gauge < 16 || gauge >= 30 ? 'plain' : 'mild';
+  return { band, gauge, evening, spells, refreeze, now, H, when, hr, night, feels, low12, lowAt, high, highAt, gustPeak, uv, cur, later, ice, frostAt, wx, f, tz };
+}
+
+/* The lead: what the weather is doing and when that changes. */
+function leadOf(r) {
+  const { now, H, when, f, cur, later } = r;
+  const noun = (sp) => (sp.heavy && (sp.kind === 'rain' || sp.kind === 'showers' || sp.kind === 'snow') ? `heavy ${NOUN[sp.kind]}` : NOUN[sp.kind]);
+
+  if (cur) {
+    const N = cap(noun(cur));
+    if (cur.open || r.spells >= 3) {
+      const steady = H.every((h, i) => i === 0 || wetHour(h));
+      const span = r.hr >= 5 && r.hr < 15 ? (steady ? 'all day and into tonight' : 'all day') : r.hr >= 15 && r.hr < 21 ? 'through tonight' : 'through the night and into tomorrow';
+      return steady ? `${N} ${span}.` : `${N} on and off ${span}.`;
+    }
+    const end = when(H[cur.e].t);
+    const next = later && later.sure !== 'chance' ? later : null;
+    const again = next && (next.kind === cur.kind ? `again ${when(H[next.s].t).at}` : `${noun(next)} ${when(H[next.s].t).at}`);
+    if (end.soon) return next ? `${N} stopping within the hour, ${next.kind === cur.kind ? 'more' : noun(next)} ${when(H[next.s].t).at}.` : `${N} stopping within the hour.`;
+    if (next) return `${N} ${end.until}, then ${again}.`;
+    const after = r.refreeze ? ', then freezing' : '';
+    if ((H[cur.e].t - now.t) / HOUR <= 3) return `${N} easing off ${end.by}${after}.`;
+    return `${N} ${end.until}, then ${r.refreeze ? 'freezing' : 'dry'}.`;
+  }
+
+  if (later && r.spells >= 3) {
+    const w = when(H[later.s].t);
+    return `Dry ${w.until}, then ${NOUN[later.kind === 'rain' ? 'showers' : later.kind]} on and off.`;
+  }
+  if (later) {
+    const w = when(H[later.s].t), n = noun(later);
+    if (w.soon) {
+      if (later.sure === 'sure') return `${cap(later.len <= 2 ? BRIEF[later.kind] : n)} starting within the hour.`;
+      if (later.sure === 'likely') return `${cap(later.len <= 2 ? BRIEF[later.kind] : n)} likely within the hour.`;
+      return `A chance of ${later.len <= 2 ? BRIEF[later.kind] : n} within the hour.`;
+    }
+    if (later.len <= 2) {
+      return later.sure === 'chance' ? `Dry, with a chance of ${BRIEF[later.kind]} ${w.at}.` : `Dry, apart from ${BRIEF[later.kind]} ${w.at}.`;
+    }
+    if (later.sure === 'chance') return `Dry, with a chance of ${n} ${w.after}.`;
+    const steady = later.len >= 6 && (later.kind === 'rain' || later.kind === 'snow') && !later.heavy ? `steady ${n}` : n;
+    return later.sure === 'sure' ? `Dry ${w.until}, then ${steady}.` : `Dry ${w.until}, then ${steady} likely.`;
+  }
+
+  // Dry for the next day. Fog first, then extremes, then wind, frost and big swings, then the plain sky.
+  const day = !r.night;
+  if (FOG(now.code)) {
+    const k = H.findIndex((h, i) => i > 0 && !FOG(h.code) && !(H[i + 1] && FOG(H[i + 1].code)));
+    if (k < 0) return r.hr >= 17 || r.hr < 5 ? 'Foggy through the night.' : 'Foggy all day.';
+    const w = when(H[k].t);
+    return w.soon ? 'Fog lifting within the hour.' : `Fog lifting ${w.by}.`;
+  }
+  const cls = skyClass(now.code);
+  const sky = cap(skyWord(cls, day));
+  if (day && r.high >= 35) return `${sky} and very hot, up to ${f.temp(r.high)}.`;
+  if (r.feels <= -15) return now.feels != null ? `${sky} and bitterly cold, feels like ${f.temp(now.feels)}.` : `${sky} and bitterly cold.`;
+  if (r.gustPeak >= 60) return `${sky} and ${r.gustPeak >= 80 ? 'very windy' : 'windy'}, gusts to ${f.speed(r.gustPeak)}.`;
+  if (day && r.high >= 30) return `${sky} and hot, up to ${f.temp(r.high)}.`;
+  if (r.frostAt) {
+    const w = when(r.frostAt.t);
+    return r.hr >= 17 || r.hr < 5 ? `${sky} and cold tonight, frost ${w.by}.` : `${sky} today, frost ${w.by}.`;
+  }
+  const span = r.hr < 5 ? (day ? 'through the night' : 'for the rest of the night') : r.hr < 12 ? 'all day' : r.hr < 17 ? 'this afternoon' : r.hr < 21 ? 'this evening' : 'tonight';
+  if (r.feels <= -5) return now.feels != null && now.feels < now.temp - 2 ? `${sky} and cold, feels like ${f.temp(now.feels)}.` : `${sky} and cold ${span}.`;
+  if (now.temp - r.low12 >= 8 && r.lowAt) return `${sky} for now, much colder ${when(r.lowAt.t).at}.`;
+  if (day && r.high - now.temp >= 6 && r.highAt) return `${sky}, warming to ${f.temp(r.high)} ${when(r.highAt.t).at}.`;
+
+  // Cool or cold for the season of day: the number is the news, and it explains the clothing action.
+  if (day && now.temp <= 0 && r.hr < 11) return `${sky} and frosty this morning.`;
+  if (r.band === 'cool' || r.band === 'cold') {
+    const word = r.band === 'cool' ? 'cool' : 'cold';
+    const join = cls === 'clear' || cls === 'partly' ? 'but' : 'and';
+    if (r.evening) return `${cap(skyWord(cls, false))} and ${word} ${r.hr < 5 ? 'until dawn' : 'tonight'}, down to ${f.temp(r.gauge)}.`;
+    if (r.band === 'cold' && now.feels != null && now.feels <= now.temp - 3) return `${sky} ${join} ${word}, feels like ${f.temp(now.feels)}.`;
+    return `${sky} ${join} ${word}, ${f.temp(r.gauge)} at best.`;
+  }
+
+  // The sky changing: clear turning cloudy, or cloud breaking up, for at least three hours in a row.
+  for (let i = 2; i <= 12 && i + 2 < H.length; i++) {
+    const run = H.slice(i, i + 3).map((h) => skyClass(h.code));
+    if (run.some((c) => c !== run[0]) || run[0] === cls || run[0] === 'partly' || cls === 'partly') continue;
+    const w = when(H[i].t);
+    if (run[0] === 'cloud') return `${sky}, clouding over ${w.at}.`;
+    if (run[0] === 'clear') return `${sky}, clearing ${w.at}.`;
+  }
+
+  if (r.night || r.hr >= 18) {
+    // Evening and night visits: tonight's sky and tomorrow's, read from tomorrow's daylight hours.
+    const today = dayNumber(dayKey(now.t, r.tz));
+    const tmr = H.filter((h) => dayNumber(dayKey(h.t, r.tz)) === today + (r.hr < 5 ? 0 : 1) && localHour(h.t, r.tz) >= 9 && localHour(h.t, r.tz) <= 15);
+    const nightSky = skyWord(cls, false);
+    if (tmr.length) {
+      const counts = {};
+      for (const h of tmr) counts[skyClass(h.code)] = (counts[skyClass(h.code)] || 0) + 1;
+      const top = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0];
+      const tw = skyWord(top, true);
+      if (r.hr < 5) return `${cap(nightSky)} until dawn, then ${tw}.`;
+      return tw === nightSky ? `${cap(nightSky)} tonight and tomorrow.` : `${cap(nightSky)} tonight, ${tw} tomorrow.`;
+    }
+    return r.hr < 5 ? `${cap(nightSky)} and dry for the rest of the night.` : `${cap(nightSky)} and dry tonight.`;
+  }
+  return cls === 'cloud' ? `${sky} but dry ${span}.` : `${sky} ${span}.`;
+}
+
+/* The action: the single most useful thing to do, danger first. */
+function actionOf(r) {
+  const { now, H, cur, later } = r;
+  const vary = (list) => list[dayNumber(dayKey(now.t, r.tz)) % list.length];
+  const soonest = cur || (later && later.s <= 12 ? later : null);
+  const storm = [cur, later].find((sp) => sp && sp.kind === 'storm' && sp.s <= 12);
+  if (storm) {
+    if (storm === cur) return 'Stay indoors until it passes.';
+    return storm.sure === 'chance' ? 'Have an indoor backup plan.' : 'Plan to be indoors by then.';
+  }
+  if (r.ice) return 'Watch for ice on paths and roads.';
+  const snow = [cur, later].find((sp) => sp && (sp.kind === 'snow' || sp.kind === 'mix') && sp.s <= 12);
+  if (snow) {
+    if (snow.sure === 'chance') return 'Allow extra time, just in case.';
+    return snow.heavy ? 'Travel only if you need to.' : 'Leave extra time for travel.';
+  }
+  if (r.gustPeak >= 80) return 'Tie down anything loose outside.';
+  if (!r.night && r.high >= 35) return 'Keep to the shade and drink water often.';
+  if (r.feels <= -15) return 'Cover your face and hands outside.';
+
+  if (cur && r.spells < 3) {
+    const left = (H[Math.min(cur.e, H.length - 1)].t - now.t) / HOUR;
+    if (!cur.open && left <= 1) return 'Give it a few minutes.';
+    if (!cur.open && left <= 2) return 'Wait it out if you can.';
+  }
+  if (soonest) {
+    const startT = H[soonest.s].t;
+    const lateOnly = soonest !== cur && H.slice(soonest.s, soonest.e).every((h) => localHour(h.t, r.tz) < 5);
+    if (soonest.sure === 'chance') return 'Pack an umbrella, just in case.';
+    if (lateOnly) return "Take an umbrella if you're out late.";
+    if (soonest.gust >= 50) return 'Wear a hood: too windy for an umbrella.';
+    if (soonest.heavy) return 'Take a proper raincoat.';
+    if (soonest.kind === 'drizzle') return 'A hood or light jacket will do.';
+    if (soonest !== cur && dayKey(startT, r.tz) !== dayKey(now.t, r.tz) && (r.night || r.hr >= 18)) return 'Pack an umbrella for tomorrow.';
+    return 'Take an umbrella.';
+  }
+  if (later) return dayKey(H[later.s].t, r.tz) === dayKey(now.t, r.tz) ? 'Pack an umbrella for later.' : 'Pack an umbrella for tomorrow.';
+
+  if (r.frostAt) {
+    const fh = localHour(r.frostAt.t, r.tz);
+    if (fh >= 9 && fh < 17) return 'Watch for icy patches later.';
+    return r.night || r.hr >= 17 ? 'Cover the windshield before bed.' : 'Cover the windshield this evening.';
+  }
+  if (now.temp <= 0 && !r.night && r.hr >= 5 && r.hr < 10) return 'Leave time to clear the windshield.';
+  if (now.temp - r.low12 >= 8) return 'Bring a warm layer for later.';
+  if (r.feels <= -5) return 'Wear a hat and gloves.';
+  if (!r.night && r.high >= 30) return 'Drink water and find shade at midday.';
+  if (!r.night && r.hr < 16 && r.uv >= 8) return 'Wear sunscreen and find shade at midday.';
+  if (!r.night && r.hr < 16 && r.uv >= 6) return "Wear sunscreen if you're out at midday.";
+  if (r.gustPeak >= 55) return 'A windproof layer will help.';
+  if (FOG(now.code)) return 'If you drive, use low beams.';
+
+  // Clothing only for the cool and cold bands, whose leads always carry the number.
+  if (r.band === 'cold') return r.evening ? 'Wear a warm coat if you go out.' : 'Wear a warm coat.';
+  if (r.band === 'cool') return r.evening ? 'Take a jacket if you go out.' : 'Bring a jacket.';
+  const calm = r.gustPeak < 40;
+  const fine = skyClass(now.code) === 'clear' || skyClass(now.code) === 'partly';
+  if (!r.evening && calm && fine && r.band === 'mild' && r.hr < 17) return vary(['A good day to be outside.', 'A good day for a long walk.', 'Worth getting outside today.']);
+  if (r.hr >= 17 && r.hr < 22 && calm && now.temp >= 15 && now.temp <= 26) return 'A good evening to sit outside.';
+  // The calm default, worded for the time of day so it never becomes the new filler.
+  if (r.hr >= 5 && r.hr < 12) return 'Nothing to plan around today.';
+  if (r.hr >= 12 && r.hr < 17) return 'No need to change your plans.';
+  if (r.hr >= 17 && r.hr < 22) return 'An easy evening, nothing to plan around.';
+  return 'Nothing to plan around tonight.';
+}
+
+// f: { time(ms) -> a local clock string whose format varies ("14:00", "2 pm", "noon", "midnight"; never parsed,
+//       only inserted after "around", "about", "after" or "by about"), temp(c) -> "8°", speed(kmh) -> "40 km/h" }
+export function headlineParts(wx, f) {
+  const r = readForecast(wx, f);
+  let lead = leadOf(r);
+  const action = actionOf(r);
+  // A danger-level action must be explained by the lead it follows: add the reason to the lead,
+  // or, when that would make the sentence too long, let the danger be the lead.
+  const words = (x) => x.split(/\s+/).length;
+  const sky = cap(skyWord(skyClass(wx.now.code), !!wx.now.day));
+  const reason = action === 'Tie down anything loose outside.' && !lead.includes('gust') ? [`gusts to ${f.speed(r.gustPeak)}`, `${sky} and very windy, gusts to ${f.speed(r.gustPeak)}.`]
+    : action === 'Cover your face and hands outside.' && !lead.includes('cold') ? [wx.now.feels != null ? `feels like ${f.temp(wx.now.feels)}` : 'bitterly cold', wx.now.feels != null ? `Bitterly cold, feels like ${f.temp(wx.now.feels)}.` : 'Bitterly cold.']
+      : action === 'Keep to the shade and drink water often.' && !lead.includes('hot') ? [`very hot, up to ${f.temp(r.high)}`, `${sky} and very hot, up to ${f.temp(r.high)}.`]
+        : action === 'Watch for ice on paths and roads.' && !/freez|frost|then/.test(lead) ? ['then freezing', lead]
+          : null;
+  if (reason) {
+    const joined = lead.replace(/\.$/, `, ${reason[0]}.`);
+    lead = words(`${joined} ${action}`) <= 16 ? joined : reason[1];
+  }
+  return { lead, action };
+}
+
+export function headline(wx, f) {
+  const { lead, action } = headlineParts(wx, f);
+  return action ? `${lead} ${action}` : lead;
 }
 
 /* ---------- Parts of the day ---------- */
@@ -106,7 +424,7 @@ export function makeQuiz(wx, placeName, f) {
     return {
       key, kind, question: `Will ${placeName} get rain or snow in the next 24 hours?`,
       options: ['Yes, it is likely', 'No, it stays dry'], correct: wet ? 0 : 1,
-      explain: wet ? `${kindOf(wet)} is likely around ${f.time(wet.t)} (${wet.pop}% chance that hour).` : 'No hour in the next 24 has more than an even chance of rain or snow.',
+      explain: wet ? `${kindOf(wet)} ${kindOf(wet) === 'Thunderstorms' ? 'are' : 'is'} likely around ${f.time(wet.t)} (${wet.pop}% chance that hour).` : 'Every hour in the next 24 has less than an even chance of rain or snow.',
     };
   }
   const sunset = wx.days[0].sunset;
@@ -139,14 +457,17 @@ export function season(lat, date = new Date()) {
 const NWS = { label: 'National Weather Service', url: 'https://www.weather.gov/safety/' };
 const READY = { label: 'Ready.gov', url: 'https://www.ready.gov/' };
 
+// The same honest-doubt words the headline uses: a 70% hour is "very likely", 50% "likely", less "possible".
+const odds = (pop) => (pop >= 70 ? 'very likely' : pop >= 50 ? 'likely' : 'possible');
+
 // One practical tip chosen by what the forecast is about to do.
 export function tipFor(wx, f) {
   const hours = wx.hours.slice(0, 24);
   const first = (test) => hours.find(test);
   const snow = first((h) => isSnow(h.code) && (h.pop ?? 0) >= 40);
-  if (snow) return { title: 'Snow is on the way', text: `Snow is likely around ${f.time(snow.t)}. Charge your phone, top up the washer fluid, and put a blanket and a scraper in the car before it starts.`, source: READY };
+  if (snow) return { title: 'Snow is on the way', text: `Snow is ${odds(snow.pop)} around ${f.time(snow.t)}. Charge your phone, top up the washer fluid, and put a blanket and a scraper in the car before it starts.`, source: READY };
   const storm = first((h) => h.code >= 95);
-  if (storm) return { title: 'Thunderstorms later', text: `Storms are possible around ${f.time(storm.t)}. When you hear thunder, go indoors and stay there until 30 minutes after the last rumble.`, source: NWS };
+  if (storm) return { title: 'Thunderstorms later', text: `Thunderstorms are ${storm.pop == null ? 'possible' : odds(storm.pop)} around ${f.time(storm.t)}. When you hear thunder, go indoors and stay there until 30 minutes after the last rumble.`, source: NWS };
   const frost = first((h) => h.temp <= 0);
   if (frost) return { title: 'Frost tonight', text: `It reaches freezing around ${f.time(frost.t)}. Lay a towel or a sheet of cardboard over the windshield this evening and lift it off in the morning. Never pour hot water on frozen glass: it can crack.`, source: NWS };
   const gusty = hours.reduce((a, b) => ((b.gust ?? 0) > (a.gust ?? 0) ? b : a));

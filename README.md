@@ -28,14 +28,16 @@ node --test tests/*.mjs tests/*.cjs
 |---|---|
 | `index.html`, `js/weather.js`, `styles/board.css` | Weather home: sky header, the board and its boxes, shelf, options panel |
 | `js/sky.js`, `js/sky/shaders.js`, `styles/sky.css` | WebGL animated sky behind the header, with a flat-colour fallback |
+| `js/sky/governor.js` | Decides the sky's quality level from measured frame times (pure, unit-tested) |
 | `js/motion.js`, `styles/motion.css` | Animation and micro-interactions for the board |
 | `js/boardcontent.js` | Headline sentence, parts of the day, daily question, tips, season checklists, city comparison (pure, unit-tested) |
 | `flights.html`, `js/flights.js` | Flight tracking and airport view |
 | `trip.html`, `js/trip.js` | Connection checker |
-| `js/shell.js` | Shared storage, unit and theme preferences, settings popover |
+| `js/shell.js` | Shared storage; unit, clock (12 or 24 hour) and theme preferences; settings popover |
 | `js/core.js` | Time zones, flight-time estimates, risk scoring, trip verdict (pure, unit-tested) |
 | `js/data.js` | Airport and city search, forecasts, alerts, flight and live-data clients |
-| `js/view.js` | Icons, units, route map, hourly strip |
+| `js/ui.js` | Icons, units and chips shared by every page |
+| `js/view.js` | Route map and hourly strip for the flights and connections pages (re-exports `js/ui.js`) |
 | `styles/tokens.css`, `styles/app.css` | Design tokens and components |
 | `lib/live.js` | Server-side lookups: airport observations, FAA status, flight route and position, nearby aircraft |
 | `api/*.js` | Vercel functions wrapping `lib/live.js` |
@@ -44,6 +46,7 @@ node --test tests/*.mjs tests/*.cjs
 | `vendor/leaflet/` | Leaflet 1.9.4 (BSD-2-Clause), used only for the radar map |
 | `vendor/fonts/` | Inter and Space Grotesk (SIL Open Font License), self-hosted |
 | `data/airports.json` | 7,769 airports with IATA codes, time zones and a size rank |
+| `supabase/migrations/` | Database for the "Both sides" review queue (not yet read by the site); see `docs/content-sources.md` |
 | `docs/` | Design system, user research plan, research report |
 
 ## Data sources and limits

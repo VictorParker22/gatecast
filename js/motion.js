@@ -68,15 +68,18 @@ export function morph(change, items = () => document.querySelectorAll('[data-til
 
 let entered = false;
 // Plays once per page load, when the first forecast arrives: a short staggered arrival (CSS, keyed on
-// the .motion-enter class) and the big temperature counting up to its value.
-export function enter(root = document.documentElement) {
+// the .motion-enter class) and, when countUp() says so (the page allows it once a day), the big
+// temperature counting up to its value. Otherwise the temperature is readable at once: it skips the fade.
+export function enter(root = document.documentElement, { countUp: shouldCount = () => true } = {}) {
   if (entered) return;
   entered = true;
   if (reduced()) return;
   root.classList.add('motion-enter');
   setTimeout(() => root.classList.remove('motion-enter'), 1000);
   const temp = document.querySelector('.hero-wx__temp');
-  if (temp) countUp(temp);
+  if (!temp) return;
+  if (shouldCount()) countUp(temp);
+  else for (const a of temp.closest('.hero-wx__now')?.getAnimations() ?? []) a.finish();
 }
 
 function countUp(el, duration = 480) {

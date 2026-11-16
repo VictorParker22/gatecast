@@ -33,8 +33,19 @@ export function utcToLocalInput(utcMs, tz) {
   return new Date(utcMs + tzOffset(tz, utcMs)).toISOString().slice(0, 16);
 }
 
+// Clock style for fmtTime: '24' ("15:30", the default) or '12' ("3:30 pm"). Set by shell.js from the
+// visitor's preference; kept here as plain state so this module stays free of DOM and storage.
+let clock = '24';
+export function setClock(c) { clock = c === '12' ? '12' : '24'; }
+export const getClock = () => clock;
+
+// Display only: nothing should parse what this returns.
 export function fmtTime(utcMs, tz) {
-  return new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(utcMs);
+  if (clock === '24') return new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(utcMs);
+  // The way people write it: "3 pm", "3:30 pm", "12 am" (no ":00" on the hour, lower-case, plain space).
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit', hourCycle: 'h12' })
+    .formatToParts(utcMs).map((x) => [x.type, x.value]));
+  return `${p.hour}${p.minute === '00' ? '' : `:${p.minute}`} ${p.dayPeriod.toLowerCase()}`;
 }
 export function fmtDay(utcMs, tz) {
   return new Intl.DateTimeFormat('en-GB', { timeZone: tz, weekday: 'short', day: 'numeric', month: 'short' }).format(utcMs);

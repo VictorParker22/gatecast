@@ -1,11 +1,11 @@
 // Weather home: a sky header with the one-sentence answer, and below it a board of boxes the visitor
 // can resize, reorder, hide and keep on a shelf. The arrangement is saved on the device.
 import { describeCode, assessWindow, fmtTime, fmtDay, fmtZone, HOUR, LEVEL_LABEL } from './core.js';
-import { headline, dayparts, makeQuiz, season, tipFor, CHECKLISTS, CHECKLIST_SOURCE, pickCities, compareLine, dayKey, dayNumber, skyOf } from './boardcontent.js';
+import { headlineParts, dayparts, makeQuiz, season, tipFor, CHECKLISTS, CHECKLIST_SOURCE, pickCities, compareLine, dayKey, dayNumber, skyOf } from './boardcontent.js';
 import { loadAirports, searchPlaces, nearestAirports, loadWeather, loadForecasts, loadAlerts, loadCities } from './data.js';
 import { $, store, prefs, initSettings } from './shell.js';
 import { initSky, setSky } from './sky.js';
-import { esc, weatherIcon, riskIcon, chip, units, compass } from './view.js';
+import { esc, weatherIcon, riskIcon, chip, units, compass } from './ui.js';
 import { morph as motionMorph, flip, enter, react, landOnShelf, lift } from './motion.js';
 
 const POPULAR = [
@@ -74,6 +74,7 @@ function setPlace(p) {
   const saved = [p, ...store.get('gatecast:places', []).filter((x) => x.name !== p.name || x.region !== p.region)].slice(0, 4);
   store.set('gatecast:places', saved);
   renderSaved();
+  window.scrollTo(0, 0); // the answer for the new place is at the top of the page
   show();
 }
 function renderSaved() {
@@ -97,10 +98,14 @@ function locate(quiet = false) {
   if (!('geolocation' in navigator)) return locateError('This browser cannot share a location. Search for a city instead.');
   const buttons = [$('#locate'), $('#locate-big')];
   buttons.forEach((b) => { b.disabled = true; });
-  navigator.geolocation.getCurrentPosition((pos) => {
-    buttons.forEach((b) => { b.disabled = false; });
+  // The airport list names the spot; fetch it while the browser works out the position.
+  const airportsReady = loadAirports().catch(() => {});
+  navigator.geolocation.getCurrentPosition(async (pos) => {
     // Two decimals is about a kilometre: enough for a forecast, and no more precise than needed.
     const lat = +pos.coords.latitude.toFixed(2), lon = +pos.coords.longitude.toFixed(2);
+    loadWeather(lat, lon).catch(() => {}); // the forecast downloads while the list finishes (show() reuses it)
+    await airportsReady;
+    buttons.forEach((b) => { b.disabled = false; });
     const near = nearestAirports(lat, lon, 1)[0];
     setPlace({
       name: near && near.km < 150 ? (near.airport.city || near.airport.name) : 'Your location',
@@ -186,7 +191,9 @@ async function show() {
     current = { place: mine, wx, alerts: [], airports: null, there: null };
     renderHero();
     buildBoard();
-    enter(); // first forecast of this visit: a short staggered arrival (once per page load)
+    // First forecast of this visit: a short staggered arrival (once per page load). The temperature
+    // counts up only on the first visit of the day; a returning visitor reads it at once.
+    enter(document.documentElement, { countUp: firstCountToday });
     enrich(current);
   } catch (err) {
     if (place !== mine) return;
@@ -199,25 +206,43 @@ async function show() {
   }
 }
 
+// Fills in what the forecast does not need to wait for. Each part paints as soon as it arrives; the airport
+// list (large) is fetched only here and for "Use my location", never before the forecast is on screen.
 async function enrich(mine) {
   const p = mine.place;
-  // Large airports within 150 km first, then the nearest with any airline service.
-  const large = nearestAirports(p.lat, p.lon, 3, 2).filter((x) => x.km < 150);
-  const others = nearestAirports(p.lat, p.lon, 3, 1).filter((x) => x.km < 300 && !large.some((l) => l.airport.code === x.airport.code));
-  const near = [...large, ...others].slice(0, 3);
   const cities = pickCities(p, dayNumber(dayKey(Date.now(), mine.wx.tz)));
-  const [alerts, fc, there] = await Promise.all([
-    loadAlerts({ lat: p.lat, lon: p.lon, country: p.country || (near[0] && near[0].airport.country) }),
-    near.length ? loadForecasts(near.map((x) => x.airport)).catch(() => null) : null,
-    loadCities(cities),
-  ]);
-  if (current !== mine) return;
-  mine.alerts = alerts;
-  const now = Date.now();
-  mine.airports = near.map((x) => ({ ...x, risk: assessWindow(fc ? fc.forecasts.get(x.airport.code) || [] : [], now, now + 3 * HOUR) }));
-  mine.there = there || [];
-  $('#alerts').innerHTML = alerts.map((al) => `<p class="live live--alert">${riskIcon('elevated')}<span><b>${esc(al.event)}</b>${al.ends ? ` until ${fmtTime(Date.parse(al.ends), mine.wx.tz)} ${esc(fmtDay(Date.parse(al.ends), mine.wx.tz))}` : ''}. ${esc(al.headline || '')} <small>National Weather Service</small></span></p>`).join('');
-  paint('fly'); paint('there');
+  const near = loadAirports().then(() => {
+    // Large airports within 150 km first, then the nearest with any airline service.
+    const large = nearestAirports(p.lat, p.lon, 3, 2).filter((x) => x.km < 150);
+    const others = nearestAirports(p.lat, p.lon, 3, 1).filter((x) => x.km < 300 && !large.some((l) => l.airport.code === x.airport.code));
+    return [...large, ...others].slice(0, 3);
+  }, () => []);
+  const alerts = (p.country ? Promise.resolve(p.country) : near.then((n) => n[0] && n[0].airport.country))
+    .then((country) => loadAlerts({ lat: p.lat, lon: p.lon, country }))
+    .then((list) => { if (current === mine) { mine.alerts = list; renderAlerts(); } });
+  const there = loadCities(cities).then((list) => { if (current === mine) { mine.there = list || []; paint('there'); } });
+  const fly = near.then(async (list) => {
+    const fc = list.length ? await loadForecasts(list.map((x) => x.airport)).catch(() => null) : null;
+    if (current !== mine) return;
+    const now = Date.now();
+    mine.airports = list.map((x) => ({ ...x, risk: assessWindow(fc ? fc.forecasts.get(x.airport.code) || [] : [], now, now + 3 * HOUR) }));
+    paint('fly');
+  });
+  await Promise.all([alerts, there, fly]);
+}
+
+function renderAlerts() {
+  const { alerts, wx } = current;
+  $('#alerts').innerHTML = alerts.map((al) => `<p class="live live--alert">${riskIcon('elevated')}<span><b>${esc(al.event)}</b>${al.ends ? ` until ${fmtTime(Date.parse(al.ends), wx.tz)} ${esc(fmtDay(Date.parse(al.ends), wx.tz))}` : ''}. ${esc(al.headline || '')} <small>National Weather Service</small></span></p>`).join('');
+}
+
+// The hero temperature counts up on the first forecast of the day on this device, then never again that day.
+// Without storage there is no way to know, so the number is simply shown.
+function firstCountToday() {
+  const d = new Date(), key = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+  if (store.get('gatecast:counted', '') === key) return false;
+  store.set('gatecast:counted', key);
+  return store.get('gatecast:counted', '') === key;
 }
 
 /* ---------- Formatting for the current place and units ---------- */
@@ -226,7 +251,9 @@ function fmt() {
   const u = units(prefs), tz = current.wx.tz;
   return {
     u, tz,
-    time: (ms) => fmtTime(ms, tz),
+    // Prose says "noon" and "midnight"; narrow column labels use the plain clock.
+    time: (ms) => { const t = fmtTime(ms, tz); return t === '12 pm' ? 'noon' : t === '12 am' ? 'midnight' : t; },
+    clock: (ms) => fmtTime(ms, tz),
     temp: u.temp,
     tempNumber: (c) => Math.round(prefs.temp === 'f' ? c * 9 / 5 + 32 : c),
     speed: u.speed,
@@ -247,6 +274,7 @@ function renderHero() {
     wind: now.wind, gust: now.gust, precip: Math.max(now.precip ?? 0, ...hrs.map((h) => h.precip ?? 0)),
     temp: now.temp, now: Date.now(), sunrise: today.sunrise, sunset: today.sunset,
   });
+  const said = headlineParts(wx, f);
   hero.hidden = false;
   hero.innerHTML = `
     <div class="hero-wx__main">
@@ -256,8 +284,8 @@ function renderHero() {
         <p class="hero-wx__temp">${f.temp(now.temp)}</p>
         <div class="hero-wx__cond">${weatherIcon(now.code, now.day, 'wx--hero')}<p>${esc(describeCode(now.code).text)}</p></div>
       </div>
-      <h1>${esc(headline(wx, f))}</h1>
-      <p class="hero-wx__meta"><span class="nw">Feels like ${f.temp(now.feels)}</span> · <span class="nw">High ${f.temp(today.max)}</span> · <span class="nw">Low ${f.temp(today.min)}</span> · <span class="nw">Wind ${f.speed(now.wind)} ${compass(now.dir)}</span></p>
+      <h1>${esc(said.lead)} <span class="hero-wx__action">${esc(said.action)}</span></h1>
+      <p class="hero-wx__meta"><span class="nw">Feels like ${f.temp(now.feels)}</span> · <span class="nw">Wind ${f.speed(now.wind)} ${compass(now.dir)}</span>${(now.gust ?? 0) >= 40 ? ` · <span class="nw">Gusts ${f.speed(now.gust)}</span>` : ''}</p>
     </div>
     <ul class="hero-wx__parts" aria-label="The day ahead">
       ${dayparts(wx).map((part) => `<li><span>${part.name}</span>${weatherIcon(part.code, part.day)}<b>${f.temp(part.temp)}</b><span>${esc(part.text)}</span></li>`).join('')}
@@ -386,7 +414,7 @@ const BODY = {
     const hours = wx.hours.slice(0, n);
     const cols = hours.map((h, i) => {
       const sr = `${f.time(h.t)}: ${describeCode(h.code).text}, ${f.temp(h.temp)}, ${h.pop ?? 0}% chance of rain or snow`;
-      return `<li${i === 0 ? ' class="is-now"' : ''} title="${esc(sr)}"><span class="hcol__time">${i === 0 ? 'Now' : f.time(h.t)}</span><b>${f.temp(h.temp)}</b>${weatherIcon(h.code, h.day)}<span class="hcol__pop"><i style="--v:${h.pop ?? 0}"></i>${h.pop ?? 0}%</span><span class="sr-only">${esc(sr)}</span></li>`;
+      return `<li${i === 0 ? ' class="is-now"' : ''} title="${esc(sr)}"><span class="hcol__time">${i === 0 ? 'Now' : f.clock(h.t)}</span><b>${f.temp(h.temp)}</b>${weatherIcon(h.code, h.day)}<span class="hcol__pop"><i style="--v:${h.pop ?? 0}"></i>${h.pop ?? 0}%</span><span class="sr-only">${esc(sr)}</span></li>`;
     }).join('');
     let curve = '';
     if (size === 'l') {
@@ -687,7 +715,7 @@ function watchRadar() {
   if (!el) return;
   radarObserver = new IntersectionObserver((entries) => {
     if (entries.some((x) => x.isIntersecting)) { radarObserver.disconnect(); startRadar(el).catch(() => { el.innerHTML = '<p class="radar__placeholder">Radar is unavailable right now.</p>'; }); }
-  }, { rootMargin: '200px' });
+  }, { rootMargin: '400px' });
   radarObserver.observe(el);
 }
 function loadLeaflet() {
@@ -722,7 +750,7 @@ async function startRadar(el) {
   };
   slider.max = frames.length - 1; slider.disabled = false; play.disabled = false;
   showFrame(frames.length - 1);
-  radar = { map, timer: null };
+  radar = { map, timer: null, relabel: () => { if (shown >= 0) label.textContent = fmtTime(frames[shown].time * 1000, mine.wx.tz); } };
   const stop = () => { clearInterval(radar.timer); radar.timer = null; play.textContent = 'Play last 2 hours'; };
   slider.oninput = () => { stop(); showFrame(+slider.value); };
   play.onclick = () => {
@@ -740,12 +768,13 @@ function rerender() {
   if (!current) return;
   renderHero();
   IDS.forEach(paint);
+  renderAlerts(); // alert end times follow the clock setting
+  radar?.relabel(); // so does the radar frame time
 }
 
 async function start() {
   initSettings(rerender);
   initSky($('#sky-canvas'));
-  await loadAirports().catch(() => {});
   renderSaved();
   if (place) return show();
   // If location was already allowed on an earlier visit, use it without asking again.

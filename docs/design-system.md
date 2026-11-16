@@ -202,6 +202,20 @@ Plain titled surface for a block of content (hourly, days, radar, nearby aircraf
 - **Progressive disclosure.** Verdict, then per-airport summary, then hourly strip, then raw observation and the method note.
 - **Errors say what to do.** Each error names the field or the next step ("Pick a departure time from now up to 16 days out").
 
+## Voice
+
+Gatecast talks like a friend who knows the weather: someone who has read the forecast for you and tells you, in one breath, what is happening and what to do about it. The home headline (`headline()` in `js/boardcontent.js`) is the purest form of the voice, and every tip, question and comparison should sound like the same person wrote it.
+
+1. **Say what is happening, then when it changes.** Lead with the weather and the moment it turns ("Dry until about 3 pm, then rain."). Then one short action. Two sentences, 6 to 14 words, never more than 18.
+2. **One action, the most useful one.** Danger comes first (thunder, ice, snow, damaging gusts, extreme heat or cold), then rain gear, layers, sun, a nudge to enjoy a good day, and a calm "Nothing to plan around today." when nothing matters.
+3. **Doubt in one word.** Use the chance of rain or snow to pick the phrasing: "then rain" (70% or more), "then rain likely" (50 to 69%), "a chance of rain" (30 to 49%). Never round a maybe up to a certainty, and never explain the number in the headline.
+4. **Only what the data says.** No causes, fronts or systems we cannot see. If the lead does not explain the action, the action changes or the lead gains the reason ("gusts to 95 km/h").
+5. **Time the way people say it.** Clock times for the next six hours ("around 3 pm"), then "this evening", "tonight", "overnight", "by morning", "tomorrow afternoon", in the place's own time zone. Insert the formatted time; never assume its format.
+6. **True to the hour.** No "sunny" at night. A one- or two-hour shower is "a shower", hours of rain are "steady rain", and three or more spells in a day are "on and off".
+7. **Plain words, calm tone.** No exclamation marks, emoji or jargon ("precipitation", "convective"), and no "expect". Contractions are fine ("if you're out late"). Kind, never bossy or cute: "Wait it out if you can.", not "Stay inside!".
+8. **Numbers only when they matter.** The big temperature is already on screen. A number earns a place in the sentence only when it is the news: a heat peak, a feels-like in deep cold, a gust speed.
+9. **Same input, same words.** Copy is deterministic. Any variety is keyed to the data or the date, never to chance, so a refresh never changes the sentence.
+
 ## Do and don't
 
 | Do | Don't |

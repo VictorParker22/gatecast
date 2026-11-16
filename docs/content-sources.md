@@ -4,6 +4,16 @@ Where each content row can get its material, what it costs, and what could go wr
 
 **How far to trust this:** the research was done from search results, not by opening the vendors' own pages (they were unreachable from the build environment). Prices and licence terms below need checking on the primary pages before any money or launch decision. Legal points need a media lawyer.
 
+## Decision (16 November 2026)
+
+The owner asked for the call that gives the site the best chance of success. It is:
+
+1. **"Caught on camera" is dropped from the home page.** A feed ranked by most-viewed police footage earns clicks at the cost of trust, and trust is the only reason people return to a forecast. It also carries the highest legal and advertiser risk of any row and needs the most human review. The moderation policy in `docs/moderation-policy.md` stays on file in case it returns later as its own opt-in page.
+2. **"Both sides" leads the content work.** It is the most original idea here, it fits a site whose promise is telling people the truth plainly, and its sources are free public records.
+3. **Every content box must pass one test:** it can finish the sentence "because of your weather, your place or your day". Tips, checklists, food and trips qualify when they are weather-led.
+4. **Review:** the owner is the first reviewer. Nothing political is published without approval. The review queue lives in a small database (Supabase).
+5. **Keys needed:** an api.data.gov key (free) for the Congressional Record. A YouTube key is not needed.
+
 ## Recommendation at a glance
 
 | Row | Use | Cost | Biggest catch |
@@ -63,6 +73,23 @@ Where each content row can get its material, what it costs, and what could go wr
 - The Congressional Record runs about a day behind.
 - There is no maintained feed of members' press releases any more, so collecting those is ours to build.
 - For state-level politics there is no equivalent record. State "both sides" would rely on statements quoted by the curated outlets above, which is weaker; start with national topics that matter locally.
+
+**Where it is stored: the review queue**
+
+The database is a Supabase project. Its definition is in `supabase/migrations/`. Nothing on the site reads it yet.
+
+- `topics`: one neutral fact with its source link, a place (`US` or a state code) and a status of draft, published or rejected.
+- `statements`: the quotes attached to a topic, each with a side, speaker, date and source link.
+- `reviewers`: who may publish. The owner adds a row in the Supabase SQL editor after signing in once; it cannot be changed through the API.
+
+Rules the database enforces, whichever key is used:
+
+- Visitors can read published topics and their statements, and nothing else.
+- Only a reviewer can publish a topic, or change, withdraw or delete a published one. The collection pipeline's secret key can write, edit and delete drafts but cannot touch anything published and cannot name a reviewer.
+- A topic cannot be published without a statement from each side, and its statements cannot be added to, edited or removed while it is published. To correct one, set the topic back to draft, edit, and publish again.
+- Every publish, withdrawal and deletion of a published topic is logged with who did it.
+
+Tested on 16 Nov 2026 with placeholder rows, since deleted: as an anonymous visitor over the public API, and inside the database as a signed-in non-reviewer, a reviewer and a pipeline-style request. Not yet tested with a real signed-in reviewer account or the real secret key.
 
 **Runner-up:** licensing AllSides or Ad Fontes. Both rate news outlets as left, centre or right, which is a different thing from showing what each party said. AllSides needs a written licence for commercial use and publishes no price; Ad Fontes lists $3,600 a year for research use and quotes commercial use. Ground News has no public API.
 

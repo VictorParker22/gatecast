@@ -14,13 +14,19 @@ const TYPES = {
   '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2', '.md': 'text/markdown; charset=utf-8',
 };
 const PUBLIC = ['index.html', 'flights.html', 'trip.html', 'styles', 'js', 'data', 'vendor'];
+// File names carry no content hash, so pages, scripts and styles are always revalidated (a cheap 304):
+// a long cache could pair a new weather.js with an old core.js. Only files whose staleness is harmless
+// get a short freshness window: the airport list, and the vendored fonts and map library. Same as vercel.json.
+const cacheControl = (top) => (top === 'data' ? 'public, max-age=3600, stale-while-revalidate=86400'
+  : top === 'vendor' ? 'public, max-age=86400, stale-while-revalidate=604800'
+    : 'public, max-age=0, must-revalidate');
 
 const { api, parseFaa } = require('./lib/live.js');
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
-  const send = (status, body, type) => {
-    res.writeHead(status, { 'Content-Type': type, 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'strict-origin-when-cross-origin' });
+  const send = (status, body, type, extra = {}) => {
+    res.writeHead(status, { 'Content-Type': type, 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'strict-origin-when-cross-origin', ...extra });
     res.end(body);
   };
   if (req.method !== 'GET' && req.method !== 'HEAD') return send(405, 'Method not allowed', 'text/plain');
@@ -34,9 +40,16 @@ const server = http.createServer(async (req, res) => {
   const file = path.join(ROOT, rel);
   const top = rel.split(path.sep)[0];
   if (!file.startsWith(ROOT + path.sep) || !PUBLIC.includes(top)) return send(404, 'Not found', 'text/plain');
-  fs.readFile(file, (err, data) => {
-    if (err) return send(404, 'Not found', 'text/plain');
-    send(200, data, TYPES[path.extname(file)] || 'application/octet-stream');
+  fs.stat(file, (err, st) => {
+    if (err || !st.isFile()) return send(404, 'Not found', 'text/plain');
+    const type = TYPES[path.extname(file)] || 'application/octet-stream';
+    const etag = `W/"${st.size.toString(16)}-${Math.floor(st.mtimeMs).toString(16)}"`;
+    const headers = { 'Cache-Control': cacheControl(top), ETag: etag, 'Last-Modified': st.mtime.toUTCString() };
+    if (req.headers['if-none-match'] === etag) return send(304, undefined, type, headers);
+    fs.readFile(file, (err2, data) => {
+      if (err2) return send(404, 'Not found', 'text/plain');
+      send(200, data, type, headers);
+    });
   });
 });
 
