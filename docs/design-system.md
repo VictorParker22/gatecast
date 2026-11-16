@@ -118,6 +118,29 @@ Current observation ("Right now: …") with the raw METAR behind a disclosure, a
 
 The top of the weather page is one flat colour chosen by the current conditions (`--sky-day`, `--sky-night`, `--sky-cloud`, `--sky-rain`, `--sky-snow`, `--sky-storm`), each dark enough for white text. It holds the navigation, the location bar, the place and time, a very large temperature, one headline sentence that says what the weather is doing and when it changes, and the four parts of the day ahead. It is the only part of the page the visitor cannot move.
 
+### Animated sky (`js/sky.js`, `js/sky/shaders.js`, `styles/sky.css`)
+
+A WebGL canvas behind the sky header draws the weather: a sun glow that follows the time between sunrise and sunset with drifting high cloud by day, stars and a moon at night, layered overcast, rain whose density follows the forecast and whose slant follows the wind, drifting snow, and storm cloud with rare, soft brightening.
+
+- The shader caps brightness so white text keeps at least 4.5:1 contrast everywhere.
+- If WebGL is missing or fails, the canvas stays invisible and the flat sky colour shows.
+- With reduced motion it draws one still frame per change, with no lightning.
+- It renders at no more than 1.5 device pixels per CSS pixel and pauses when the tab is hidden or the sky is scrolled out of view.
+
+### Motion (`styles/motion.css`, `js/motion.js`)
+
+All motion lives in its own layer so it can be tuned or removed without touching layout.
+
+| Moment | What moves |
+|---|---|
+| First forecast | Place, temperature (counts up), sentence, day parts, then the board arrive in sequence in under about 700ms. It does not replay on unit changes. |
+| Dragging a box | A copy lifts under the pointer with a slight tilt and shadow, its place becomes a dashed slot, the others glide aside, and it settles on release. Over the shelf it shrinks into the new shortcut. |
+| Resizing a box | The box grows or shrinks while its contents cross-fade. |
+| Options panel | The glass rises, scales and sharpens; on phones it comes up from the bottom. Exits are faster than entrances. |
+| Quiz answer | The right option pops; a wrong pick shakes once. Ticks and crosses still carry the meaning. |
+
+Everything becomes an instant change under `prefers-reduced-motion`, and only transform, opacity and (sparingly) filter are animated.
+
 ### Board and boxes (`.board`, `.tile`)
 
 Everything below the sky is a box on a six-column grid. Each box has three sizes: small (2 columns), medium (3) and large (6); two-column and one-column layouts apply on tablets and phones. A bigger box shows more: more hours, more days, more stats, more cities, more checklist items.
@@ -138,11 +161,11 @@ A native modal `<dialog>` styled as frosted glass: a translucent surface with a 
 
 ### Shelf (`.shelf`)
 
-A frosted bar pinned to the bottom of the screen holding shortcuts to the boxes the visitor has kept. Selecting one scrolls to that box and outlines it briefly.
+A compact frosted pill pinned to the bottom of the screen holding shortcuts to the boxes the visitor has kept. Selecting one scrolls to that box and outlines it briefly.
 
 ### Pedestal (`.pedestal`)
 
-A card that overlaps the sky and introduces the board: a one-line explanation, the visitor's day streak, shelf count and questions answered, and the reset and show-hidden controls.
+A quiet line inside the sky, under the forecast, that introduces the board: a one-line explanation, the visitor's day streak, shelf count and questions answered, and the reset and show-hidden controls. It is deliberately not a card, so it does not compete with the forecast.
 
 ### Quick question (`.quiz__*`)
 

@@ -27,6 +27,8 @@ node --test tests/*.mjs tests/*.cjs
 | Path | What it does |
 |---|---|
 | `index.html`, `js/weather.js`, `styles/board.css` | Weather home: sky header, the board and its boxes, shelf, options panel |
+| `js/sky.js`, `js/sky/shaders.js`, `styles/sky.css` | WebGL animated sky behind the header, with a flat-colour fallback |
+| `js/motion.js`, `styles/motion.css` | Animation and micro-interactions for the board |
 | `js/boardcontent.js` | Headline sentence, parts of the day, daily question, tips, season checklists, city comparison (pure, unit-tested) |
 | `flights.html`, `js/flights.js` | Flight tracking and airport view |
 | `trip.html`, `js/trip.js` | Connection checker |

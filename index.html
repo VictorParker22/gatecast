@@ -16,6 +16,8 @@
   <link rel="stylesheet" href="styles/tokens.css">
   <link rel="stylesheet" href="styles/app.css">
   <link rel="stylesheet" href="styles/board.css">
+  <link rel="stylesheet" href="styles/sky.css">
+  <link rel="stylesheet" href="styles/motion.css">
   <link rel="preload" href="data/airports.json" as="fetch" crossorigin>
   <script type="module" src="js/weather.js"></script>
 </head>
@@ -23,6 +25,7 @@
   <a class="skip-link" href="#main">Skip to content</a>
 
   <div class="sky sky--day" id="sky">
+    <canvas class="sky__canvas" id="sky-canvas" aria-hidden="true"></canvas>
     <header class="site-header">
       <a class="brand" href="./" aria-label="Gatecast home">
         <svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8"/><path d="M7 20h18M10 14a6 6 0 0 1 12 0"/></svg>
@@ -82,18 +85,11 @@
     </section>
 
     <section id="hero" class="hero-wx" aria-live="polite" hidden></section>
-  </div>
-
-  <div id="settings" class="settings" popover aria-labelledby="settings-title"></div>
-
-  <main id="main">
-    <div id="alerts"></div>
-    <div id="status" aria-live="polite"></div>
 
     <section class="pedestal" id="pedestal" aria-labelledby="pedestal-title" hidden>
-      <div>
+      <div class="pedestal__intro">
         <h2 id="pedestal-title">Your board</h2>
-        <p>Make a box bigger to read more. Drag it by its grip to move it, or onto the shelf to keep it close. It is saved on this device.</p>
+        <p>Make a box bigger to read more, drag it by its grip to move it, or drop it on the shelf to keep it close. Saved on this device.</p>
       </div>
       <ul class="pedestal__stats" id="stats"></ul>
       <div class="pedestal__actions">
@@ -101,6 +97,13 @@
         <button type="button" class="btn btn--ghost" id="reset-board">Reset my board</button>
       </div>
     </section>
+  </div>
+
+  <div id="settings" class="settings" popover aria-labelledby="settings-title"></div>
+
+  <main id="main">
+    <div id="alerts"></div>
+    <div id="status" aria-live="polite"></div>
 
     <div class="board" id="board" hidden></div>
     <p class="sr-only" id="announce" aria-live="polite"></p>
