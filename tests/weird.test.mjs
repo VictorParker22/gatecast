@@ -83,13 +83,19 @@ test('/api/weird answer: contract shape, picks first, then newest; held items ne
   assert.equal(new Set(out.items.map((x) => x.id)).size, out.items.length);
   const titles = out.items.map((x) => x.title);
 
-  // Picks first (seeded ones that pass every rule), newest first.
+  // Picks first (seeded ones that pass every rule), strongest first, because the first pick leads the front
+  // page: the editor's rating, then a story with a picture, then the strangest, then the newest.
   const picks = out.items.filter((x) => x.pick);
   assert.equal(picks.length, 11);
   assert.deepEqual(out.items.slice(0, 11).map((x) => x.pick), Array(11).fill(true));
-  assert.equal(titles[0], 'Calif. coast battered by monster waves as El Nino strengthens grip');
-  assert.equal(titles[10], 'Fox interrupts professional soccer game in Turkey');
-  for (let i = 1; i < 11; i++) assert.ok(Date.parse(out.items[i - 1].published) >= Date.parse(out.items[i].published));
+  assert.notEqual(titles[0], 'Calif. coast battered by monster waves as El Nino strengthens grip', 'a weather pick with no picture never leads');
+  assert.ok(picks[0].image, 'the lead pick has a picture when any pick does');
+  const rank = (x) => [x.rating || 0, x.image ? 1 : 0, weird.weirdness(x), Date.parse(x.published)];
+  for (let i = 1; i < 11; i++) {
+    const [a, b] = [rank(picks[i - 1]), rank(picks[i])];
+    const firstDiff = a.findIndex((v, k) => v !== b[k]);
+    assert.ok(firstDiff === -1 || a[firstDiff] > b[firstDiff], `pick ${i} is out of order`);
+  }
   assert.ok(picks.every((x) => x.rating === null && x.note === null && x.outlet === 'UPI' && x.outletUrl === 'https://www.upi.com/Odd_News/'));
   // Seeded picks that trip a hold rule are not shown: the 13-year-old (children) and "rescued from" (animal welfare).
   assert.ok(!titles.some((t) => /13-year-old cowgirl|parakeet rescued/.test(t)));
