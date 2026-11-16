@@ -40,7 +40,16 @@ const server = http.createServer(async (req, res) => {
     catch (err) { return send(502, JSON.stringify({ error: 'upstream unavailable' }), TYPES['.json']); }
   }
   if (url.pathname === '/api/book-covers') {
-    try { const out = await books.coversFor(); return send(200, JSON.stringify(out), TYPES['.json'], { 'Cache-Control': books.cacheControlFor(out) }); }
+    try {
+      const only = url.searchParams.get('only');
+      if (only !== null) {
+        const parsed = books.parseOnly(only);
+        if (parsed.error) return send(400, JSON.stringify({ error: parsed.error }), TYPES['.json'], { 'Cache-Control': 'no-store' });
+        return send(200, JSON.stringify(await books.coversOnly(parsed.ids)), TYPES['.json'], { 'Cache-Control': 'no-store' });
+      }
+      const out = await books.coversFor();
+      return send(200, JSON.stringify(out), TYPES['.json'], { 'Cache-Control': books.cacheControlFor(out) });
+    }
     catch (err) { return send(502, JSON.stringify({ error: 'upstream unavailable' }), TYPES['.json'], { 'Cache-Control': 'no-store' }); }
   }
   if (url.pathname === '/api/weird') {

@@ -4,7 +4,7 @@
 import { initSettings, store } from './shell.js';
 import {
   BOOKSHOP_AFFILIATE, BOOKSHOP_DISCLOSURE, authorLine, surname, filterView, statusText, pickRandom, spineStyle, balancedRows,
-  bookBox, flightStart, parseHash, buildHash, stampCard, stampDate, worldcatUrl, bookshopUrl, openLibraryUrl, coverUrl,
+  bookBox, flightStart, parseHash, buildHash, stampCard, stampDate, worldcatUrl, bookshopUrl, openLibraryUrl, coverUrl, coverFor, needsCoverApi,
 } from './librarymodel.js';
 
 initSettings();
@@ -231,7 +231,7 @@ function fillBook(book) {
   const shelf = shelfOf(book.shelf);
   const idx = state.data.shelves.indexOf(shelf) + 1;
   const st = spineStyle(book);
-  const cover = state.covers[book.id] || null;
+  const cover = coverFor(book, state.covers);
   $('bk-name').textContent = `${book.title}, by ${authorLine(book.authors)}`;
   // Stand-in cover, in the spine's colours and type.
   const standin = $('bk-standin');
@@ -435,7 +435,10 @@ function pullOut(id, { fly = false } = {}) {
 
 /* ---------- Start ---------- */
 
+// Books with a baked cover never call the API; the rest may ask once (cached at the edge) and otherwise
+// show their stand-in.
 async function loadCovers() {
+  if (!needsCoverApi(state.data.books)) return;
   try {
     const res = await fetch('/api/book-covers');
     if (!res.ok) return;

@@ -224,7 +224,19 @@ export function bookshopUrl(book, affiliate = BOOKSHOP_AFFILIATE) {
   return affiliate ? base + '&a_aid=' + encodeURIComponent(affiliate) : base;
 }
 
-// A record the server confirmed (title and author matched) wins; an unverified ID is never linked as if it
+// The cover to show: one baked into data/books.json (checked by a person, no API call) wins; otherwise whatever
+// /api/book-covers found for this book, if anything. Same shape either way: { coverId, olKey, year }.
+export function coverFor(book, apiCovers = {}) {
+  const c = book && book.cover;
+  if (c && Number.isInteger(c.id) && c.id > 0) return { coverId: c.id, olKey: c.olKey || null, year: c.year ?? null, baked: true };
+  const r = apiCovers && book ? apiCovers[book.id] : null;
+  return r && typeof r === 'object' ? r : null;
+}
+
+// Do any books still need the cover API? (Only those with no baked cover may ask.)
+export const needsCoverApi = (books) => books.some((b) => !(b.cover && Number.isInteger(b.cover.id) && b.cover.id > 0));
+
+// A record that was matched (baked into the data, or confirmed by the server: title and author matched) wins; an unverified ID is never linked as if it
 // were certain, so until then the link is an Open Library search for the title and author.
 export function openLibraryUrl(book, cover) {
   if (cover && typeof cover.olKey === 'string' && /^\/works\/OL\d+W$/.test(cover.olKey)) return 'https://openlibrary.org' + cover.olKey;
@@ -254,6 +266,12 @@ export function validate(data) {
     if (!b.description || b.description.split(/(?<=[a-z0-9)”’][.?!])\s+(?=[A-Z“])/).length > 2) errors.push(`${where}: description must be one or two sentences`);
     if (!Array.isArray(b.tags) || !b.tags.length) errors.push(`${where}: tags missing`);
     if (b.olVerified !== false && b.olVerified !== true) errors.push(`${where}: olVerified missing`);
+    if (b.cover !== undefined) {
+      const c = b.cover;
+      if (!c || !Number.isInteger(c.id) || c.id <= 0) errors.push(`${where}: cover.id must be a positive integer`);
+      else if (c.olKey !== null && !/^\/works\/OL\d+W$/.test(c.olKey || '')) errors.push(`${where}: cover.olKey must be /works/OL…W or null`);
+      else if (!/^\d{4}-\d{2}-\d{2}$/.test(c.checked || '')) errors.push(`${where}: cover.checked must be a date`);
+    }
   }
   return errors;
 }

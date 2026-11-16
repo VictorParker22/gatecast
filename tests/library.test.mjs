@@ -227,10 +227,14 @@ const FIXTURES = {
     { key: '/works/OL1W', title: 'Zodiac', author_name: ['Neal Stephenson'], cover_i: 42, first_publish_year: 1988, edition_count: 30 },
     { key: '/works/OL2W', title: 'Zodiac Unmasked', author_name: ['Robert Graysmith'], cover_i: 43, first_publish_year: 2002, edition_count: 5 },
   ] },
+  'Midnight in the Garden of Good and Evil': { numFound: 1, start: 0, docs: [
+    { key: '/works/OL3524935W', title: 'Midnight in the Garden of Good and Evil', author_name: ['John Berendt'], cover_i: 8231883, first_publish_year: 1785, edition_count: 40 },
+  ] },
   'Fordlândia': { numFound: 1, start: 0, docs: [
     { key: '/works/OL5W', title: 'Fordlandia: The Rise and Fall of Henry Ford’s Forgotten Jungle City', author_name: ['Greg Grandin'], first_publish_year: 2009, edition_count: 9 },
   ] },
 };
+const pick = (o) => o && { coverId: o.coverId, olKey: o.olKey, year: o.year };
 const json = (body, status = 200) => ({ ok: status >= 200 && status < 300, status, json: async () => body });
 function fakeClock() {
   let t = Date.UTC(2026, 10, 16, 12);
@@ -239,10 +243,15 @@ function fakeClock() {
 
 test('pickMatch accepts only a matching title and author surname', () => {
   const book = byId('in-cold-blood');
-  assert.deepEqual(books.pickMatch(book, FIXTURES['In Cold Blood'].docs), { coverId: 8231432, olKey: '/works/OL1992198W', year: 1965 });
+  assert.deepEqual(books.pickMatch(book, FIXTURES['In Cold Blood'].docs), { coverId: 8231432, olKey: '/works/OL1992198W', year: 1965, title: 'In Cold Blood', authorName: ['Truman Capote'], yearMismatch: false });
   assert.equal(books.pickMatch(byId('zodiac'), FIXTURES.Zodiac.docs), null, 'Stephenson is the wrong author; Zodiac Unmasked the wrong title');
-  assert.deepEqual(books.pickMatch(byId('homicide'), FIXTURES['Homicide: A Year on the Killing Streets'].docs), { coverId: 6543210, olKey: '/works/OL2157541W', year: 1991 });
-  assert.deepEqual(books.pickMatch(byId('fordlandia'), FIXTURES['Fordlândia'].docs), { coverId: null, olKey: '/works/OL5W', year: 2009 });
+  assert.deepEqual(pick(books.pickMatch(byId('homicide'), FIXTURES['Homicide: A Year on the Killing Streets'].docs)), { coverId: 6543210, olKey: '/works/OL2157541W', year: 1991 });
+  assert.deepEqual(pick(books.pickMatch(byId('fordlandia'), FIXTURES['Fordlândia'].docs)), { coverId: null, olKey: '/works/OL5W', year: 2009 });
+  // A year far from ours keeps the cover but is flagged for a person to check (Open Library said 1785 for this one).
+  const odd = books.pickMatch(byId('midnight-in-the-garden-of-good-and-evil'), FIXTURES['Midnight in the Garden of Good and Evil'].docs);
+  assert.equal(odd.coverId, 8231883);
+  assert.equal(odd.yearMismatch, true);
+  assert.equal(books.pickMatch(byId('in-cold-blood'), FIXTURES['In Cold Blood'].docs).yearMismatch, false, '1965 vs 1966 is within a year');
   assert.equal(books.pickMatch(book, [{ key: 'x', title: 'In Cold Blood', author_name: ['Truman Capote'], cover_i: -3 }]).coverId, null);
   assert.equal(books.normTitle('The Bermuda Triangle Mystery—Solved'), books.normTitle('The Bermuda Triangle mystery--solved'));
   assert.equal(books.normTitle('I’ll Be Gone in the Dark'), 'ill be gone in the dark');
@@ -273,7 +282,7 @@ test('coversFor: one request a second, sequential, identified without an email, 
     assert.equal(c.url.searchParams.get('fields'), 'key,title,author_name,cover_i,first_publish_year,edition_count');
   }
   assert.equal(calls[0].url.searchParams.get('author'), 'Truman Capote');
-  assert.deepEqual(out.covers, {
+  assert.deepEqual(Object.fromEntries(Object.entries(out.covers).map(([k, v]) => [k, pick(v)])), {
     'in-cold-blood': { coverId: 8231432, olKey: '/works/OL1992198W', year: 1965 },
     homicide: { coverId: 6543210, olKey: '/works/OL2157541W', year: 1991 },
     zodiac: null,
@@ -334,4 +343,97 @@ test('coversFor: the time budget limits how many books one call looks up', async
   assert.ok(n >= 7 && n <= 9, `looked up ${n}`);
   assert.equal(out.pending, 20 - n);
   books.resetForTests();
+});
+
+test('coversFor skips books whose cover is already baked into the data', async () => {
+  books.resetForTests();
+  const clock = fakeClock();
+  const baked = { ...byId('in-cold-blood'), cover: { id: 228066, olKey: '/works/OL1992198W', year: 1965, checked: '2026-11-16' } };
+  const urls = [];
+  const out = await books.coversFor({ fetchImpl: async (u) => { urls.push(new URL(u).searchParams.get('title')); return json({ docs: [] }); }, now: clock.now, sleep: clock.sleep, books: [baked, byId('homicide')], budgetMs: 60000 });
+  assert.deepEqual(urls, ['Homicide: A Year on the Killing Streets']);
+  assert.deepEqual(Object.keys(out.covers), ['homicide']);
+  books.resetForTests();
+});
+
+/* ---------- ?only= (resolve a few books now, for baking) ---------- */
+
+test('parseOnly: 1 to 6 ids, de-duplicated', () => {
+  assert.deepEqual(books.parseOnly('zodiac, stiff,zodiac'), { ids: ['zodiac', 'stiff'] });
+  assert.match(books.parseOnly('').error, /at least one/);
+  assert.match(books.parseOnly('a,b,c,d,e,f,g').error, /at most 6/);
+});
+
+test('coversOnly: looks up exactly those books, one a second, no cache, with match details and errors', async () => {
+  books.resetForTests();
+  const clock = fakeClock();
+  const calls = [];
+  const fetchImpl = async (url, opts) => { calls.push({ at: clock.now(), ua: opts.headers['User-Agent'], title: new URL(url).searchParams.get('title') }); return json(FIXTURES[new URL(url).searchParams.get('title')] || { docs: [] }); };
+  const ids = ['in-cold-blood', 'midnight-in-the-garden-of-good-and-evil', 'zodiac', 'no-such-book'];
+  const out = await books.coversOnly(ids, { fetchImpl, now: clock.now, sleep: clock.sleep });
+  assert.equal(calls.length, 3);
+  for (let i = 1; i < calls.length; i++) assert.ok(calls[i].at - calls[i - 1].at >= 1000);
+  assert.ok(calls.every((c) => !c.ua.includes('@')));
+  assert.deepEqual(out.covers['in-cold-blood'], { coverId: 8231432, olKey: '/works/OL1992198W', year: 1965, title: 'In Cold Blood', authorName: ['Truman Capote'], yearMismatch: false });
+  assert.equal(out.covers['midnight-in-the-garden-of-good-and-evil'].yearMismatch, true);
+  assert.equal(out.covers.zodiac, null);
+  assert.deepEqual(out.errors, { 'no-such-book': 'unknown book id' });
+  // Asking again looks them up again: no shared cache.
+  await books.coversOnly(['in-cold-blood'], { fetchImpl, now: clock.now, sleep: clock.sleep });
+  assert.equal(calls.length, 4);
+  // A refusal stops the run and says why for every book not tried.
+  const r = await books.coversOnly(['zodiac', 'stiff', 'gulp'], { fetchImpl: async () => json({}, 429), now: clock.now, sleep: clock.sleep });
+  assert.deepEqual(r.covers, {});
+  assert.deepEqual(r.errors, { zodiac: 'status 429', stiff: 'not tried (stopped after status 429)', gulp: 'not tried (stopped after status 429)' });
+  const n = await books.coversOnly(['zodiac'], { fetchImpl: async () => { throw new Error('reset'); }, now: clock.now, sleep: clock.sleep });
+  assert.deepEqual(n.errors, { zodiac: 'network' });
+  books.resetForTests();
+});
+
+/* ---------- Baking covers into data/books.json ---------- */
+
+const bakeTool = require('../scripts/bake-covers.cjs');
+
+test('bake-covers: writes cover only for real matches, skips year mismatches unless accepted, leaves the rest', () => {
+  const d = structuredClone(data);
+  const results = bakeTool.collect([
+    { covers: { 'in-cold-blood': { coverId: 228066, olKey: '/works/OL1992198W', year: 1965, title: 'In Cold Blood', authorName: ['Truman Capote'], yearMismatch: false }, zodiac: null }, errors: { stiff: 'status 429' } },
+    [{ covers: { 'midnight-in-the-garden-of-good-and-evil': { coverId: 8231883, olKey: '/works/OL3524935W', year: 1785, yearMismatch: true }, fordlandia: { coverId: null, olKey: '/works/OL5W', year: 2009 }, 'not-a-book': { coverId: 1 } } }],
+  ]);
+  const out = bakeTool.bake(d, results, { date: '2026-11-16' });
+  assert.deepEqual(out.baked, ['in-cold-blood']);
+  assert.deepEqual(d.books.find((b) => b.id === 'in-cold-blood').cover, { id: 228066, olKey: '/works/OL1992198W', year: 1965, checked: '2026-11-16' });
+  for (const id of ['zodiac', 'midnight-in-the-garden-of-good-and-evil', 'fordlandia', 'stiff']) assert.equal(d.books.find((b) => b.id === id).cover, undefined, id);
+  assert.deepEqual(out.skipped.map((s) => s.id).sort(), ['fordlandia', 'midnight-in-the-garden-of-good-and-evil', 'not-a-book', 'zodiac']);
+  assert.match(out.skipped.find((s) => s.id === 'midnight-in-the-garden-of-good-and-evil').why, /1785/);
+  bakeTool.bake(d, results, { date: '2026-11-16', acceptMismatch: true });
+  assert.equal(d.books.find((b) => b.id === 'midnight-in-the-garden-of-good-and-evil').cover.id, 8231883);
+  assert.deepEqual(validate(d), []);
+  assert.throws(() => bakeTool.bake(d, results, { date: 'today' }));
+});
+
+test('bake-covers: the file keeps its layout, so a bake changes only the baked books', () => {
+  const raw = readFileSync(new URL('../data/books.json', import.meta.url), 'utf8');
+  assert.equal(bakeTool.formatBooks(JSON.parse(raw)), raw, 'data/books.json is in the bake layout');
+  const d = JSON.parse(raw);
+  bakeTool.bake(d, { stiff: { coverId: 12, olKey: '/works/OL7986135W', year: 2003 } }, { date: '2026-11-16' });
+  const after = bakeTool.formatBooks(d).split('\n'), before = raw.split('\n');
+  assert.equal(after.length - before.length, 1, 'one new line');
+  const i = after.findIndex((l, k) => l !== before[k]);
+  assert.equal(after[i], before[i] + ',', 'the line before gains a comma');
+  assert.equal(after[i + 1], '      "cover": { "id": 12, "olKey": "/works/OL7986135W", "year": 2003, "checked": "2026-11-16" }');
+  assert.deepEqual(after.slice(i + 2), before.slice(i + 1), 'nothing else changes');
+});
+
+test('coverFor: a baked cover wins and needs no API; otherwise the API result, if any', async () => {
+  const { coverFor, needsCoverApi } = await import('../js/librarymodel.js');
+  const plain = byId('zodiac');
+  const baked = { ...plain, cover: { id: 99, olKey: '/works/OL2728912W', year: 1986, checked: '2026-11-16' } };
+  assert.deepEqual(coverFor(baked, { zodiac: { coverId: 5, olKey: '/works/OL1W' } }), { coverId: 99, olKey: '/works/OL2728912W', year: 1986, baked: true });
+  assert.deepEqual(coverFor(plain, { zodiac: { coverId: 5, olKey: '/works/OL1W' } }), { coverId: 5, olKey: '/works/OL1W' });
+  assert.equal(coverFor(plain, {}), null);
+  assert.equal(openLibraryUrl(baked, coverFor(baked)), 'https://openlibrary.org/works/OL2728912W');
+  assert.equal(coverUrl(coverFor(baked)), 'https://covers.openlibrary.org/b/id/99-M.jpg');
+  assert.equal(needsCoverApi([baked]), false);
+  assert.equal(needsCoverApi([baked, plain]), true);
 });
