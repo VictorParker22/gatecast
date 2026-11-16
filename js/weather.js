@@ -74,6 +74,7 @@ function setPlace(p) {
   const saved = [p, ...store.get('gatecast:places', []).filter((x) => x.name !== p.name || x.region !== p.region)].slice(0, 4);
   store.set('gatecast:places', saved);
   renderSaved();
+  window.scrollTo(0, 0); // the answer for the new place is at the top of the page
   show();
 }
 function renderSaved() {
