@@ -4,6 +4,16 @@ Where each content row can get its material, what it costs, and what could go wr
 
 **How far to trust this:** the research was done from search results, not by opening the vendors' own pages (they were unreachable from the build environment). Prices and licence terms below need checking on the primary pages before any money or launch decision. Legal points need a media lawyer.
 
+## Decision (16 November 2026)
+
+The owner asked for the call that gives the site the best chance of success. It is:
+
+1. **"Caught on camera" is dropped from the home page.** A feed ranked by most-viewed police footage earns clicks at the cost of trust, and trust is the only reason people return to a forecast. It also carries the highest legal and advertiser risk of any row and needs the most human review. The moderation policy in `docs/moderation-policy.md` stays on file in case it returns later as its own opt-in page.
+2. **"Both sides" leads the content work.** It is the most original idea here, it fits a site whose promise is telling people the truth plainly, and its sources are free public records.
+3. **Every content box must pass one test:** it can finish the sentence "because of your weather, your place or your day". Tips, checklists, food and trips qualify when they are weather-led.
+4. **Review:** the owner is the first reviewer. Nothing political is published without approval. The review queue lives in a small database (Supabase).
+5. **Keys needed:** an api.data.gov key (free) for the Congressional Record. A YouTube key is not needed.
+
 ## Recommendation at a glance
 
 | Row | Use | Cost | Biggest catch |
