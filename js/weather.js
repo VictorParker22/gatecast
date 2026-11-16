@@ -3,7 +3,7 @@
 // and the rain radar. Pure wording and rules live in js/today.js and js/boardcontent.js.
 import { planTrip, assessTrip, assessWindow, describeCode, fmtTime, fmtDay, fmtZone, HOUR, LEVEL_LABEL } from './core.js';
 import { headlineParts, dayKey, skyOf } from './boardcontent.js';
-import { upcomingTrip, mightBeSoon, tripQuery, commute, carry, airSun, flightsNear, nextHours, stateOf, isUS, relTime, cleanHeadlines, alertItems, airportSignal, US_STATES } from './today.js';
+import { upcomingTrip, mightBeSoon, tripQuery, commute, carry, airSun, flightsNear, nextHours, stateOf, isUS, relTime, cleanHeadlines, arrangeHeadlines, monogram, tileTone, alertItems, airportSignal, US_STATES } from './today.js';
 import { loadAirports, airport, searchPlaces, nearestAirports, loadWeather, loadForecasts, loadAlerts } from './data.js';
 import { $, store, prefs, initSettings } from './shell.js';
 import { initSky, setSky } from './sky.js';
@@ -517,13 +517,57 @@ function signalItem(s) {
     <p class="wxnews__foot"><span>Gatecast forecast check</span><a href="flights.html?airport=${s.code}">Flights at ${s.code}</a></p>
   </li>`;
 }
-function headlineItem(x, now) {
+// Headlines as a news module: a lead story, compact rows beside it, cards under both (arrangeHeadlines).
+// Pictures are the publisher's own link-preview image, hotlinked from their site and credited. The headline is
+// the one link a keyboard or screen reader meets; the picture repeats that link for the mouse and touch only
+// (out of the tab order, hidden from assistive tech), so its alt is empty instead of reading the headline twice.
+const tile = (outlet) => {
+  const mono = monogram(outlet);
+  return `<span class="tile tile--${tileTone(outlet)}"><span class="tile__mono">${esc(mono)}</span>${mono === outlet ? '' : `<span class="tile__name">${esc(outlet)}</span>`}</span>`;
+};
+function storyMedia(x, kind) {
+  const [rw, rh] = kind === 'row' ? [4, 3] : [16, 9];
+  const im = x.image;
+  const inner = im
+    ? `<img src="${esc(im.url)}" alt="" width="${im.width || rw * 100}" height="${im.height || rh * 100}" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-outlet="${esc(x.outlet)}"><span class="head__credit">Image: ${esc(x.outlet)}</span>`
+    : tile(x.outlet);
+  return `<a class="head__media${im ? '' : ' head__media--none'}" href="${esc(x.url)}" rel="noopener" tabindex="-1" aria-hidden="true">${inner}</a>`;
+}
+function headlineItem(x, now, kind, extra = '') {
   const ms = Date.parse(x.published);
   const full = new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: state.wx?.tz }).format(ms);
-  return `<li class="head">
-    <a class="head__link" href="${esc(x.url)}" rel="noopener">${esc(x.title)}</a>
-    <p class="head__meta"><span class="head__outlet">${esc(x.outlet)}</span><time datetime="${esc(x.published)}" title="${esc(full)}">${esc(relTime(ms, now))}</time></p>
+  return `<li class="head head--${kind}"${extra}>
+    ${storyMedia(x, kind)}
+    <div class="head__body">
+      <a class="head__link" href="${esc(x.url)}" rel="noopener">${esc(x.title)}</a>
+      <p class="head__meta"><span class="head__outlet">${esc(x.outlet)}</span><time datetime="${esc(x.published)}" title="${esc(full)}">${esc(relTime(ms, now))}</time></p>
+    </div>
   </li>`;
+}
+function headlinesHtml(items, now) {
+  const { lead, rows, cards } = arrangeHeadlines(items);
+  if (!lead) return '';
+  // The lead spans as many grid rows as there are compact rows beside it; cards share their row evenly.
+  const span = cards.length ? Math.max(3, Math.round(12 / cards.length)) : 3;
+  return headlineItem(lead, now, rows.length ? 'lead' : 'solo', ` style="--rows: ${Math.max(1, rows.length)}"`)
+    + rows.map((x) => headlineItem(x, now, 'row')).join('')
+    + cards.map((x) => headlineItem(x, now, 'card', ` style="--span: ${span}"`)).join('');
+}
+// A picture that fails to load (blocked, gone, hotlinking refused) or turns out to be a pixel becomes the
+// outlet's tile, never a broken-image icon. error and load do not bubble, so they are caught on the way down.
+function noPicture(img) {
+  const box = img.closest('.head__media');
+  if (!box || box.classList.contains('head__media--none')) return;
+  box.classList.add('head__media--none');
+  box.innerHTML = tile(img.dataset.outlet || '');
+}
+const newsList = $('#brief-news-list');
+if (newsList) {
+  newsList.addEventListener('error', (e) => { if (e.target instanceof HTMLImageElement) noPicture(e.target); }, true);
+  newsList.addEventListener('load', (e) => {
+    const img = e.target;
+    if (img instanceof HTMLImageElement && img.naturalWidth < 80 && img.naturalHeight < 80) noPicture(img);
+  }, true);
 }
 
 let civicFor = null;
@@ -544,8 +588,10 @@ function renderBrief() {
   $('#brief-news').hidden = !showNews;
   if (showNews) {
     $('#brief-news-title').textContent = n.state ? `Headlines in ${US_STATES[n.state]}` : 'Weather and travel headlines';
-    $('#brief-news-list').innerHTML = n.items.map((x) => headlineItem(x, now)).join('');
-    $('#brief-news-source').textContent = `Headlines from ${n.state ? 'local' : 'weather and aviation'} newsrooms. We link to their reporting; we don’t copy it.`;
+    $('#brief-news-list').innerHTML = headlinesHtml(n.items, now);
+    const pictures = n.items.some((x) => x.image);
+    $('#brief-news-source').textContent = `Headlines from ${n.state ? 'local' : 'weather and aviation'} newsrooms. We link to their reporting; we don’t copy it.`
+      + (pictures ? ' Pictures are each outlet’s own preview image and load from its site.' : '');
   }
   // Statehouse votes and Both sides: js/civic.js, US places with a known state only. It reveals itself when it
   // has something to show; if the module is missing or fails, the block stays hidden and nothing else breaks.

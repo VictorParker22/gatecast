@@ -258,10 +258,60 @@ export function relTime(when, now = Date.now()) {
 }
 
 // Headlines from /api/news, re-checked on this side: an https link, a title and a date, or the item is left out.
+// Each keeps its preview image only if that passes cleanImage too; otherwise image is null.
 export function cleanHeadlines(json) {
   const items = Array.isArray(json?.items) ? json.items : [];
   return items.filter((x) => x && typeof x.title === 'string' && x.title.trim() && typeof x.outlet === 'string'
-    && /^https:\/\//.test(x.url || '') && Number.isFinite(Date.parse(x.published))).slice(0, 8);
+    && /^https:\/\//.test(x.url || '') && Number.isFinite(Date.parse(x.published))).slice(0, 8)
+    .map((x) => ({ ...x, image: cleanImage(x.image) }));
+}
+
+// A publisher's preview image as the page will hotlink it: { url, width?, height? } or null. https only (never
+// data: or javascript:), no SVG, no address literal; a declared size is kept only when both sides are sensible.
+export function cleanImage(img) {
+  const url = typeof img?.url === 'string' ? img.url.trim() : '';
+  let u;
+  try { u = new URL(url); } catch { return null; }
+  if (u.protocol !== 'https:' || u.username || u.password || !u.hostname.includes('.') || /^[\d.]+$|^\[/.test(u.hostname)) return null;
+  if (/\.svgz?$/i.test(u.pathname) || url.length > 2048) return null;
+  const w = Math.round(Number(img.width)), h = Math.round(Number(img.height));
+  if (w > 0 && h > 0 && (w < 80 || h < 80)) return null; // a pixel or an icon, not a photo
+  return w >= 80 && h >= 80 && w <= 20000 && h <= 20000 ? { url: u.href, width: w, height: h } : { url: u.href };
+}
+
+// The outlet's name as a monogram for the tile shown when a story has no image: "New York Focus" -> "NYF",
+// "NPR Illinois" -> "NPR", "City & State New York" -> "CSNY". At most four characters.
+const SMALL_WORDS = new Set(['the', 'of', 'and', 'a', 'an', 'for', 'on', 'in', 'at']);
+export function monogram(name) {
+  const words = String(name || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').split(/[^A-Za-z0-9]+/).filter(Boolean);
+  const kept = words.filter((w) => !(SMALL_WORDS.has(w.toLowerCase()) && words.length > 1));
+  const list = kept.length ? kept : words;
+  if (!list.length) return '';
+  // A leading call sign or acronym (KQED, WAMC, NPR) is the outlet's own monogram.
+  if (/^[A-Z0-9]{3,5}$/.test(list[0])) return list[0].slice(0, 4);
+  // One word: its capitals when it has several ("CalMatters" -> "CM"), else its first letter.
+  if (list.length === 1) { const caps = list[0].replace(/[^A-Z0-9]/g, ''); return (caps.length > 1 ? caps : list[0][0].toUpperCase()).slice(0, 4); }
+  const acr = (w) => (/^[A-Z0-9]{2,4}$/.test(w) ? w : w[0].toUpperCase());
+  return list.map(acr).join('').slice(0, 4);
+}
+
+// Whether an outlet's fallback tile is ink or concrete: fixed per outlet, so its tiles always match.
+export function tileTone(name) {
+  let h = 0;
+  for (const c of String(name || '')) h = (h * 31 + c.codePointAt(0)) >>> 0;
+  return h % 2 ? 'concrete' : 'ink';
+}
+
+// How the brief lays out its headlines (newest first in, order kept): the lead is the newest story with an
+// image (or the newest story when none has one); up to three more sit beside it as compact rows, and the rest
+// become cards under both. Four or fewer after the lead all go beside it, so a card row is never a lone card.
+export function arrangeHeadlines(items) {
+  const list = Array.isArray(items) ? items.filter(Boolean) : [];
+  if (!list.length) return { lead: null, rows: [], cards: [] };
+  const lead = list.find((x) => x.image) || list[0];
+  const rest = list.filter((x) => x !== lead);
+  const nRows = rest.length <= 4 ? rest.length : 3;
+  return { lead, rows: rest.slice(0, nRows), cards: rest.slice(nRows) };
 }
 
 const SEVERITY = { Extreme: 3, Severe: 2, Moderate: 1, Minor: 0, Unknown: 0 };

@@ -265,27 +265,92 @@
 .wxnews__foot { margin-top: auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 var(--space-3); padding-top: var(--space-1); font-size: var(--text-sm); color: var(--color-text-muted); }
 .wxnews__foot a { display: inline-flex; align-items: center; min-height: var(--tap-target); font-weight: 700; color: var(--color-text); text-underline-offset: 0.2em; }
 
-/* Headlines: monochrome tiles, newest first. The outlet's headline links out; the meta line names the outlet. */
-.heads { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 16.5rem), 1fr)); gap: var(--space-3); }
-.head {
-  display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4) var(--space-5); min-width: 0;
-  border-radius: var(--radius-lg); background: var(--color-surface); border: 1px solid var(--color-border); box-shadow: var(--shadow-tile);
+/* Headlines: a news module. A lead story with a 16:9 picture, compact rows with small 4:3 pictures beside it, then
+   cards with the picture above the headline. Pictures are the outlets' own link-preview images (hotlinked and
+   credited); the UI around them stays monochrome. A story without one gets its outlet's monogram tile. */
+.heads { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: var(--space-5) var(--space-6); align-items: start; }
+.head { position: relative; display: grid; gap: var(--space-3); min-width: 0; align-content: start; }
+.head--lead { grid-column: 1 / span 7; grid-row: span var(--rows, 3); }
+.head--solo { grid-column: 1 / -1; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: var(--space-6); align-items: start; }
+.head--row { grid-column: 8 / -1; grid-template-columns: 8.5rem minmax(0, 1fr); gap: var(--space-4); align-items: start; padding-top: var(--space-4); border-top: 1px solid var(--color-border); }
+.head--row:nth-child(2) { padding-top: 0; border-top: 0; }
+.head--card { grid-column: span var(--span, 3); padding-top: var(--space-5); border-top: 2px solid var(--color-text); }
+
+.head__media {
+  position: relative; display: block; overflow: hidden; aspect-ratio: 16 / 9; border-radius: var(--radius-md);
+  background: var(--color-surface-sunken); container-type: inline-size; color: inherit; text-decoration: none;
 }
+.head--row .head__media { aspect-ratio: 4 / 3; border-radius: 12px; }
+.head__media img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform var(--duration-base) var(--ease-out); }
+.head:hover .head__media img { transform: scale(1.03); }
+.head--row:hover .head__media img { transform: none; }
+/* The credit sits on the picture's corner on a dark chip, so it reads on any photo. */
+.head__credit {
+  position: absolute; left: var(--space-2); bottom: var(--space-2); max-width: calc(100% - var(--space-4));
+  padding: 2px 8px; border-radius: var(--radius-pill); background: rgb(9 11 16 / 0.74); color: #fff;
+  font-size: 0.6875rem; font-weight: 600; line-height: 1.5; letter-spacing: 0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.head--row .head__credit { position: static; display: block; max-width: none; margin-top: 4px; padding: 0; background: none; color: var(--color-text-muted); white-space: normal; font-weight: 500; overflow: visible; text-overflow: clip; border-radius: 0; }
+.head--row .head__media:not(.head__media--none) { overflow: visible; aspect-ratio: auto; background: none; }
+.head--row .head__media:not(.head__media--none) img { aspect-ratio: 4 / 3; height: auto; border-radius: 12px; background: var(--color-surface-sunken); }
+
+/* No picture: the outlet's monogram in signage type on ink or concrete, with its name along the foot. */
+.tile {
+  position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: space-between; padding: 7cqi 7cqi 6cqi;
+  background: var(--tile-bg) repeating-linear-gradient(135deg, transparent 0 14px, var(--tile-line) 14px 15px);
+  color: var(--tile-fg); font-family: var(--font-display); text-transform: uppercase;
+}
+.tile:not(:has(.tile__name)) { justify-content: center; }
+.tile--ink { --tile-bg: var(--color-ink-surface); --tile-fg: var(--color-on-ink); --tile-line: rgb(255 255 255 / 0.05); }
+.tile--concrete { --tile-bg: var(--color-surface-sunken); --tile-fg: var(--color-text); --tile-line: light-dark(rgb(17 20 24 / 0.05), rgb(255 255 255 / 0.04)); }
+.tile__mono { font-size: 2.5rem; font-size: 26cqi; font-weight: 700; line-height: 0.85; letter-spacing: 0.01em; }
+.tile__name { font-size: 0.8125rem; font-size: max(0.75rem, 4.2cqi); font-weight: 600; letter-spacing: 0.06em; line-height: 1.1; padding-top: 4cqi; border-top: 2px solid currentColor; }
+.head--row .tile { padding: 8cqi; justify-content: center; }
+.head--row .tile__mono { font-size: 34cqi; }
+.head--row .tile__name { display: none; }
+
+.head__body { display: grid; gap: var(--space-2); min-width: 0; align-content: start; }
 .head__link {
-  display: block; min-height: var(--tap-target); font-size: 1.0625rem; font-weight: 600; line-height: 1.35; letter-spacing: -0.005em;
+  display: block; font-size: 1.0625rem; font-weight: 650; line-height: 1.3; letter-spacing: -0.005em;
   color: var(--color-text); text-decoration: none; text-wrap: pretty; overflow-wrap: break-word;
 }
-.head__link:hover { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 0.18em; }
-.head__meta { margin-top: auto; display: grid; gap: 2px; font-size: var(--text-sm); line-height: 1.35; color: var(--color-text-muted); }
+/* The headline's link area covers the text block, at least a full tap target tall. */
+.head__link { min-height: var(--tap-target); }
+.head--lead .head__link, .head--solo .head__link { font-size: clamp(1.5rem, 1.1rem + 1.2vw, 2.125rem); font-weight: 700; line-height: 1.15; letter-spacing: -0.015em; }
+.head--row .head__link { font-size: 1rem; min-height: 0; }
+.head:hover .head__link { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 0.18em; }
+.head__meta { display: flex; flex-wrap: wrap; gap: 0 var(--space-2); font-size: var(--text-sm); line-height: 1.35; color: var(--color-text-muted); }
+.head__meta time::before { content: "·"; margin-right: var(--space-2); }
 .head__outlet { font-weight: 700; color: var(--color-text); }
+.head--lead .head__meta, .head--solo .head__meta { font-size: 0.9375rem; }
 .brief__civic:empty { display: none; }
-/* On a phone the headlines read as one list on one surface, not eight tall cards. */
+
+@media (prefers-reduced-motion: reduce) {
+  .head__media img { transition: none; }
+  .head:hover .head__media img { transform: none; }
+}
+
+/* Tablet: the lead across the top, everything else as compact rows in two columns. */
+@media (max-width: 60rem) {
+  .heads { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4) var(--space-5); }
+  .head--lead, .head--solo { grid-column: 1 / -1; grid-row: auto; grid-template-columns: none; gap: var(--space-3); margin-bottom: var(--space-2); }
+  .head--row, .head--card { grid-column: auto; grid-template-columns: 7.5rem minmax(0, 1fr); gap: var(--space-4); align-items: start; padding-top: var(--space-4); border-top: 1px solid var(--color-border); }
+  .head--row:nth-child(2) { padding-top: var(--space-4); border-top: 1px solid var(--color-border); }
+  .head--card .head__media { aspect-ratio: 4 / 3; border-radius: 12px; }
+  .head--card .head__link { font-size: 1rem; min-height: 0; }
+  .head--card .head__credit { position: static; display: block; max-width: none; margin-top: 4px; padding: 0; background: none; color: var(--color-text-muted); white-space: normal; font-weight: 500; overflow: visible; text-overflow: clip; border-radius: 0; }
+  .head--card .head__media:not(.head__media--none) { overflow: visible; aspect-ratio: auto; background: none; }
+  .head--card .head__media:not(.head__media--none) img { aspect-ratio: 4 / 3; height: auto; border-radius: 12px; background: var(--color-surface-sunken); }
+  .head--card .tile { padding: 8cqi; justify-content: center; }
+  .head--card .tile__mono { font-size: 34cqi; }
+  .head--card .tile__name { display: none; }
+  .head--card:hover .head__media img { transform: none; }
+}
+/* Phone: one column; the lead full width, then the list with small pictures on the left. */
 @media (max-width: 40rem) {
-  .heads { gap: 0; border-radius: var(--radius-lg); background: var(--color-surface); border: 1px solid var(--color-border); box-shadow: var(--shadow-tile); overflow: hidden; }
-  .head { gap: var(--space-2); border: 0; border-radius: 0; box-shadow: none; background: none; }
-  .head + .head { border-top: 1px solid var(--color-border); }
-  .head__link { padding-block: var(--space-1); }
-  .head__meta { display: flex; flex-wrap: wrap; gap: 0 var(--space-2); }
+  .heads { grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
+  .head--row, .head--card { grid-template-columns: 6.5rem minmax(0, 1fr); gap: var(--space-3); }
+  .head--lead .head__link, .head--solo .head__link { font-size: 1.5rem; }
 }
 
 @media (max-width: 30rem) {
@@ -293,7 +358,7 @@
   .now { padding: var(--space-4); }
   .now__temp { font-size: 4.5rem; }
   .mean, .page-today .panel { padding: var(--space-4); }
-  .wxnews, .head { padding: var(--space-4); }
+  .wxnews { padding: var(--space-4); }
   .brief { margin-top: var(--space-6); gap: var(--space-5); }
   .radar-panel__label { padding: var(--space-4) var(--space-4) var(--space-3); }
   .radar-panel .radar { min-height: 18rem; }

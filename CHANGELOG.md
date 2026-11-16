@@ -13,9 +13,13 @@ Gatecast has no tagged releases yet. `package.json` has said `1.0.0` since the f
 - `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, `.editorconfig` and `.nvmrc`.
 - `docs/redesign.md`: the design direction being explored for the next version of the site.
 - `dev` and `ci` npm scripts, and description, repository, homepage and bugs fields in `package.json`.
+- Preview images in "The brief" headlines (owner decision, 16 Nov 2026): each story shows the publisher's own link-preview picture, from its feed (`media:content`, `media:thumbnail`, image enclosures) or else the article page's `og:image` / `twitter:image`, read from the page's `<head>` only (256 KB, 4 s, the outlet's own site, cached six hours). Pictures are hotlinked from the publisher, credited "Image: <outlet>", linked to the story, sent without a referrer, and replaced by the outlet's monogram tile if they fail. `/api/news` items carry `image: { url, width?, height? } | null`.
+- A per-outlet `"images"` switch in `data/news-sources.json` (all `true`); `false` turns pictures off for that outlet, and its pages are never fetched.
 
 ### Changed
 
+- "Headlines in <state>" on Today is now a news module instead of a grid of text tiles: a lead story with a 16:9 picture, three compact rows beside it and cards below; one column with small left pictures on a phone. Weather news keeps its risk-coloured text cards.
+- `docs/content-sources.md`: the image rule now records the owner's exception for hotlinked, credited preview images, its reasons and its residual risks.
 - Today (home) rebuilt: the trip verdict, the weather or a first-visit welcome leads over the animated sky; "what today means" cards, 10 days and radar below. The board, shelf, streaks, daily quiz, city comparison and season checklist were removed.
 - Trips rebuilt: verdict first, then a journey strip with each airport's hours on the ground, then stop cards; the form folds away once a trip is shown.
 - Flights rebuilt: the number you typed leads, a "Live" label, one progress line, and "Both ends look calm" when nothing is wrong.
