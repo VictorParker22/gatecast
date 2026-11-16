@@ -6,21 +6,24 @@
 @font-face { font-family: "Barlow Condensed"; font-style: normal; font-display: swap; font-weight: 700; src: url("../vendor/fonts/barlow-condensed-latin-700-normal.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
 @font-face { font-family: "Barlow Condensed"; font-style: normal; font-display: swap; font-weight: 700; src: url("../vendor/fonts/barlow-condensed-latin-ext-700-normal.woff2") format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
 
-/* Gatecast design tokens: "a departure board for weather".
-   The interface is monochrome (ink, concrete and paper); colour only ever means risk.
-   Three layers: raw values -> semantic tokens -> component styles (app.css).
-   Components must only reference semantic tokens. See docs/design-system.md. */
+@font-face { font-family: "Barlow Condensed"; font-style: normal; font-display: swap; font-weight: 800; src: url("../vendor/fonts/barlow-condensed-latin-800-normal.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+/* Newsprint display faces (latin only; anything outside latin falls back to the serif / monospace in the stack). */
+@font-face { font-family: "Alfa Slab One"; font-style: normal; font-display: swap; font-weight: 400; src: url("../vendor/fonts/alfa-slab-one-latin-400-normal.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "VT323"; font-style: normal; font-display: swap; font-weight: 400; src: url("../vendor/fonts/vt323-latin-400-normal.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+
+/* Gatecast design tokens: a late-90s newsprint front page, modern underneath.
+   Paper, ink and three loud print inks (cobalt, sun, lime) for decoration; risk keeps its own three colours
+   (teal / amber / rose), and those appear only in rounded risk chips and risk panels, always with a word and a shape.
+   Three layers: raw values -> semantic tokens -> component styles (app.css). See docs/design-system.md. */
 
 :root {
   color-scheme: light dark;
 
   /* ---- Raw palette (never use directly in components) ---- */
-  /* Paper and concrete (light theme). */
   --paper-50: #ffffff;
   --paper-100: #ecebe6;
   --paper-200: #e0dfd9;
   --paper-300: #d6d4cc;
-  /* Ink (dark theme and light-theme text). */
   --ink-950: #07090d;
   --ink-900: #111418;
   --ink-800: #1b1f25;
@@ -28,7 +31,7 @@
   --ink-600: #4f545b;
   --ink-300: #a9b0ba;
   --ink-100: #e9edf5;
-  /* Risk hues: the only colours in the interface. */
+  /* Risk hues: reserved for risk. The decorative palette below contains no red, amber/orange or teal. */
   --teal-700: #0b6b5f;
   --teal-300: #5fd3c0;
   --amber-700: #8f4e00;
@@ -36,23 +39,60 @@
   --rose-700: #a81c48;
   --rose-300: #ff8aa8;
 
-  /* ---- Semantic colour ---- */
-  --color-bg: light-dark(var(--paper-100), var(--ink-950));
-  --color-surface: light-dark(var(--paper-50), var(--ink-900));
-  --color-surface-sunken: light-dark(var(--paper-200), var(--ink-800));
-  --color-border: light-dark(var(--paper-300), var(--ink-700));
-  --color-text: light-dark(var(--ink-900), var(--ink-100));
-  --color-text-muted: light-dark(var(--ink-600), var(--ink-300));
-  /* Calm: how a low-risk / nothing-to-report state reads (quiet grey text plus the tick shape). */
-  --color-calm: var(--color-text-muted);
-  /* The accent is ink in light and white in dark: primary buttons, links, focus rings, current-page marks. Never a hue. */
-  --color-accent: light-dark(var(--ink-900), var(--paper-50));
-  --color-on-accent: light-dark(var(--paper-50), var(--ink-950));
-  --color-map-land: light-dark(var(--paper-300), #2f343c);
-  --color-map-sea: light-dark(var(--paper-200), #0c0f14);
+  /* ---- Newsprint (np): the decorative system. Light = the day edition, dark = the night edition. ---- */
+  --np-paper: light-dark(#F3EEE2, #1B1813);      /* the page */
+  --np-card: light-dark(#FFFDF7, #26221B);       /* paper cards */
+  --np-sunken: light-dark(#E9E1CE, #322C23);     /* image slots, tracks */
+  --np-ink: light-dark(#15120E, #F3EEE2);        /* headlines, borders, rules */
+  --np-text: light-dark(#3B362E, #E4DCCB);       /* body copy */
+  --np-muted: light-dark(#4A443A, #CEC4B1);      /* meta lines (4.5:1+ on paper and card) */
+  --np-rule: light-dark(#8C8475, #6E6658);       /* dashed separators, decorative only */
+  --np-cobalt: light-dark(#1C36C7, #93A2FF);     /* fill with --np-on-cobalt, or text on paper */
+  --np-on-cobalt: light-dark(#FFFFFF, #15120E);
+  --np-sun: #FFD23F;                             /* fill only, always with --np-on-sun */
+  --np-on-sun: #15120E;
+  --np-lime: #C8F03C;                            /* fill only, always with --np-on-lime */
+  --np-on-lime: #15120E;
+  --np-night: light-dark(#15120E, #0D0B08);      /* always-dark bands: edition strip, ticker, night boxes */
+  --np-on-night: #FFFFFF;
+  --np-on-night-muted: #E6E9EE;
+  --np-shadow-ink: light-dark(#15120E, #000000);
+  --np-border: 2px solid var(--np-ink);
+  --np-shadow: 4px 4px 0 var(--np-shadow-ink);
+  --np-shadow-lg: 6px 6px 0 var(--np-shadow-ink);
+  --np-shadow-hover: 8px 8px 0 var(--np-shadow-ink);
+  /* Bevel: the raised 90s button edge (light top-left, dark bottom-right). Pressed swaps them. */
+  --np-bevel: inset 2px 2px 0 rgb(255 255 255 / 0.6), inset -2px -2px 0 rgb(0 0 0 / 0.22);
+  --np-bevel-in: inset -2px -2px 0 rgb(255 255 255 / 0.4), inset 2px 2px 0 rgb(0 0 0 / 0.25);
+  /* Print texture: faint horizontal press lines, decorative only. */
+  --np-print: repeating-linear-gradient(0deg, light-dark(rgb(21 18 14 / 0.028), rgb(255 255 255 / 0.02)) 0 1px, transparent 1px 3px);
+  --np-halftone: radial-gradient(light-dark(rgb(21 18 14 / 0.2), rgb(255 255 255 / 0.12)) 1.1px, transparent 1.7px);
+  --np-halftone-lite: radial-gradient(light-dark(rgb(21 18 14 / 0.1), rgb(255 255 255 / 0.06)) 1px, transparent 1.6px);
+  /* Card tints behind a category's typographic fallback (no picture). */
+  --np-tint-people: light-dark(#DCE1F6, #262B45);
+  --np-tint-animals: light-dark(#F2E6B9, #3A3320);
+  --np-tint-laws: light-dark(#E4DED0, #34302A);
+  --np-tint-records: light-dark(#E3F0BE, #2D3520);
+  --np-tint-unexplained: light-dark(#D9D4CA, #2E2B27);
+  --np-tint-weather: light-dark(#D6DEF0, #242C3C);
+  --np-tint-other: light-dark(#E9DFC4, #353024);
 
-  /* Sky colours on the weather page: the fallback behind the animated sky (not UI colour).
-     One flat colour per condition, each dark enough for white text at 4.5:1. */
+  /* ---- Semantic colour (mapped onto the newsprint system) ---- */
+  --color-bg: var(--np-paper);
+  --color-surface: var(--np-card);
+  --color-surface-sunken: var(--np-sunken);
+  --color-border: light-dark(#C9C2B2, #4A443A);   /* hairlines inside cards; outer edges use --np-border */
+  --color-text: var(--np-ink);
+  --color-text-muted: var(--np-muted);
+  --color-calm: var(--color-text-muted);
+  /* Primary buttons, current marks: ink. Links hover and focus in cobalt. */
+  --color-accent: var(--np-ink);
+  --color-on-accent: var(--np-paper);
+  --color-focus: var(--np-cobalt);
+  --color-map-land: light-dark(#D9D1BE, #3A342B);
+  --color-map-sea: light-dark(#E9E1CE, #15130F);
+
+  /* Sky colours inside the weather box: the fallback behind the animated sky. Each holds white text at 4.5:1. */
   --sky-day: #1d5fd6;
   --sky-night: #141b3a;
   --sky-cloud: #5a6b82;
@@ -61,33 +101,32 @@
   --sky-storm: #272c42;
   --color-on-sky: #ffffff;
   --color-on-sky-muted: #e6eeff;
-  /* Glass: only ever over the animated sky. */
   --glass-bg: rgba(9, 11, 16, 0.42);
-  --glass-border: rgba(255, 255, 255, 0.16);
+  --glass-border: rgba(255, 255, 255, 0.22);
   --glass-blur: 22px;
-  /* Emphasis on the sky and on ink (legacy name): white in both themes, ink text on it. */
   --color-sun: #ffffff;
   --color-on-sun: #111418;
-  /* Ink panel ("Get ready", primary sheet action). In dark it lifts off the near-black page. */
-  --color-ink-surface: light-dark(var(--ink-900), #252a31);
+  --color-ink-surface: var(--np-night);
   --color-on-ink: #ffffff;
-  --color-on-ink-muted: #c3c8cf;
-  /* Non-text control edges (inputs, toggles): at least 3:1 on bg and surface. */
-  --color-control-border: light-dark(#7e838a, #6e757f);
-  /* "In the air" and other live states: monochrome; the pulsing dot carries the meaning. */
+  --color-on-ink-muted: #d6d0c4;
+  --color-control-border: var(--np-ink);
   --color-live: var(--color-text);
 
-  /* Risk scale: three levels, always paired with an icon shape and a text label.
-     Teal / amber / rose stays distinguishable under red-green colour blindness. */
+  /* Risk scale: three levels, always paired with an icon shape and a text label. */
   --risk-low: light-dark(var(--teal-700), var(--teal-300));
   --risk-elevated: light-dark(var(--amber-700), var(--amber-300));
   --risk-high: light-dark(var(--rose-700), var(--rose-300));
 
   /* ---- Typography ---- */
-  /* Inter for sentences; Barlow Condensed (600/700) for signage: codes, times, big numbers, the verdict. */
+  /* Inter for sentences; Barlow Condensed for signage; Alfa Slab One for big headlines only; VT323 (17px+) for
+     pixel type: datelines, meta, the ticker, window title bars. */
   --font-sans: "Inter Variable", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   --font-display: "Barlow Condensed", "Inter Variable", "Arial Narrow", system-ui, sans-serif;
   --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  --font-slab: "Alfa Slab One", Rockwell, Georgia, serif;
+  --font-pixel: "VT323", ui-monospace, "Cascadia Mono", Menlo, monospace;
+  --font-sign: var(--font-display);
+  --font-body: var(--font-sans);
   --text-xs: 0.75rem;
   --text-sm: 0.875rem;
   --text-md: 1rem;
@@ -96,62 +135,66 @@
   --text-2xl: clamp(2rem, 1.2rem + 3.6vw, 3.5rem);
   --leading-tight: 1.15;
   --leading-body: 1.5;
-  /* Letter-spacing for uppercase signage (labels, codes, the wordmark). */
   --tracking-caps: 0.06em;
 
-  /* ---- Spacing (4px base) ---- */
-  --space-1: 0.25rem;
-  --space-2: 0.5rem;
-  --space-3: 0.75rem;
-  --space-4: 1rem;
-  --space-5: 1.5rem;
-  --space-6: 2rem;
-  --space-7: 3rem;
+  /* ---- Spacing (4px base, 8px rhythm) ---- */
+  --space-1: 0.25rem;  /* 4 */
+  --space-2: 0.5rem;   /* 8 */
+  --space-3: 0.75rem;  /* 12 */
+  --space-4: 1rem;     /* 16 */
+  --space-5: 1.5rem;   /* 24 */
+  --space-6: 2rem;     /* 32 */
+  --space-7: 3rem;     /* 48 */
+  --space-8: 4rem;     /* 64 */
+  --space-9: 6rem;     /* 96 */
+  /* Page frame, measured from the boards: 1280px of content, 24px gutters (16px on phones). */
+  --gutter: clamp(1rem, 0.762rem + 0.976vw, 1.5rem);
+  --page-max: 80rem;
+  --frame: min(100% - 2 * var(--gutter), var(--page-max));
 
   /* ---- Shape, elevation, motion ---- */
-  --radius-sm: 6px;
-  --radius-md: 16px;
-  --radius-lg: 20px;
-  --radius-xl: 28px;
+  /* Square print corners; only risk chips stay round (--radius-pill). */
+  --radius-sm: 2px;
+  --radius-md: 2px;
+  --radius-lg: 3px;
+  --radius-xl: 3px;
   --radius-pill: 999px;
-  --shadow-1: 0 1px 2px light-dark(rgb(17 20 24 / 0.06), rgb(0 0 0 / 0.4));
-  --shadow-2: 0 8px 28px light-dark(rgb(17 20 24 / 0.12), rgb(0 0 0 / 0.55));
-  /* Resting box: a soft lift in light, a faint top edge light in dark where shadows vanish. */
-  --shadow-tile: inset 0 1px 0 light-dark(rgb(255 255 255 / 0), rgb(255 255 255 / 0.04)), 0 1px 2px light-dark(rgb(17 20 24 / 0.05), rgb(0 0 0 / 0.3)), 0 4px 16px light-dark(rgb(17 20 24 / 0.04), rgb(0 0 0 / 0.25));
-  --duration-fast: 120ms;
-  --duration-base: 240ms;
+  --shadow-1: var(--np-shadow);
+  --shadow-2: var(--np-shadow-lg);
+  --shadow-tile: var(--np-shadow);
+  --duration-fast: 80ms;
+  --duration-base: 150ms;
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
   --tap-target: 44px;
-  --page-max: 72rem;
 
-  /* User override of the colour scheme: the inline script in each page
-     writes the stored choice into the <meta>, and these map it back to CSS. */
   &:has(> head > meta[name="color-scheme"][content="dark"]) { color-scheme: dark; }
   &:has(> head > meta[name="color-scheme"][content="light"]) { color-scheme: light; }
 }
 
-/* Browsers without light-dark(): follow the system preference with plain values. */
+/* Browsers without light-dark(): the day edition, or the night edition with a dark system preference. */
 @supports not (color: light-dark(#000, #fff)) {
   :root {
-    --color-bg: #ecebe6; --color-surface: #ffffff; --color-surface-sunken: #e0dfd9;
-    --color-border: #d6d4cc; --color-text: #111418; --color-text-muted: #4f545b;
-    --color-accent: #111418; --color-on-accent: #ffffff;
-    --color-map-land: #d6d4cc; --color-map-sea: #e0dfd9;
+    --np-paper: #F3EEE2; --np-card: #FFFDF7; --np-sunken: #E9E1CE; --np-ink: #15120E; --np-text: #3B362E; --np-muted: #4A443A;
+    --np-rule: #8C8475; --np-cobalt: #1C36C7; --np-on-cobalt: #FFFFFF; --np-night: #15120E; --np-shadow-ink: #15120E;
+    --color-border: #C9C2B2; --color-map-land: #D9D1BE; --color-map-sea: #E9E1CE;
     --risk-low: #0b6b5f; --risk-elevated: #8f4e00; --risk-high: #a81c48;
-    --shadow-1: 0 1px 2px rgb(17 20 24 / 0.06); --shadow-2: 0 8px 28px rgb(17 20 24 / 0.12);
-    --shadow-tile: 0 1px 2px rgb(17 20 24 / 0.05), 0 4px 16px rgb(17 20 24 / 0.04);
-    --color-ink-surface: #111418; --color-control-border: #7e838a;
+    --np-print: repeating-linear-gradient(0deg, rgb(21 18 14 / 0.028) 0 1px, transparent 1px 3px);
+    --np-halftone: radial-gradient(rgb(21 18 14 / 0.2) 1.1px, transparent 1.7px);
+    --np-halftone-lite: radial-gradient(rgb(21 18 14 / 0.1) 1px, transparent 1.6px);
+    --np-tint-people: #DCE1F6; --np-tint-animals: #F2E6B9; --np-tint-laws: #E4DED0; --np-tint-records: #E3F0BE;
+    --np-tint-unexplained: #D9D4CA; --np-tint-weather: #D6DEF0; --np-tint-other: #E9DFC4;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --color-bg: #07090d; --color-surface: #111418; --color-surface-sunken: #1b1f25;
-      --color-border: #2a2f37; --color-text: #e9edf5; --color-text-muted: #a9b0ba;
-      --color-accent: #ffffff; --color-on-accent: #07090d;
-      --color-map-land: #2f343c; --color-map-sea: #0c0f14;
+      --np-paper: #1B1813; --np-card: #26221B; --np-sunken: #322C23; --np-ink: #F3EEE2; --np-text: #E4DCCB; --np-muted: #CEC4B1;
+      --np-rule: #6E6658; --np-cobalt: #93A2FF; --np-on-cobalt: #15120E; --np-night: #0D0B08; --np-shadow-ink: #000000;
+      --color-border: #4A443A; --color-map-land: #3A342B; --color-map-sea: #15130F;
       --risk-low: #5fd3c0; --risk-elevated: #f2b450; --risk-high: #ff8aa8;
-      --shadow-1: 0 1px 2px rgb(0 0 0 / 0.4); --shadow-2: 0 8px 28px rgb(0 0 0 / 0.55);
-      --shadow-tile: inset 0 1px 0 rgb(255 255 255 / 0.04), 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 16px rgb(0 0 0 / 0.25);
-      --color-ink-surface: #252a31; --color-control-border: #6e757f;
+      --np-print: repeating-linear-gradient(0deg, rgb(255 255 255 / 0.02) 0 1px, transparent 1px 3px);
+      --np-halftone: radial-gradient(rgb(255 255 255 / 0.12) 1.1px, transparent 1.7px);
+      --np-halftone-lite: radial-gradient(rgb(255 255 255 / 0.06) 1px, transparent 1.6px);
+      --np-tint-people: #262B45; --np-tint-animals: #3A3320; --np-tint-laws: #34302A; --np-tint-records: #2D3520;
+      --np-tint-unexplained: #2E2B27; --np-tint-weather: #242C3C; --np-tint-other: #353024;
     }
   }
 }

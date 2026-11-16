@@ -7,41 +7,45 @@
   <script>
     try { document.querySelector('meta[name="color-scheme"]').content = localStorage.getItem("color-scheme") ?? "light dark"; } catch (e) {}
     if (new URLSearchParams(location.search).has('r')) location.replace('trip.html' + location.search);
-    // Which hero to hold for: a returning visitor never sees the first-visit welcome flash before the forecast.
+    // Before any script runs: a returning visitor never sees the first-visit prompt flash before the forecast,
+    // and a saved trip in the next few days starts the airport list early.
     try {
-      var gcStart = localStorage.getItem('gatecast:place') ? 'place' : 'first', gcNow = Date.now();
-      if ((JSON.parse(localStorage.getItem('gatecast:recent')) || []).some(function (t) { var ms = Date.parse(t && t.t); return ms > gcNow - 1728e5 && ms < gcNow + 3456e5; })) gcStart = 'trip';
-      document.documentElement.dataset.start = gcStart;
+      document.documentElement.dataset.start = localStorage.getItem('gatecast:place') ? 'place' : 'first';
+      var gcNow = Date.now();
+      if ((JSON.parse(localStorage.getItem('gatecast:recent')) || []).some(function (t) { var ms = Date.parse(t && t.t); return ms > gcNow - 1728e5 && ms < gcNow + 3456e5; })) document.documentElement.dataset.trip = 'soon';
     } catch (e) {}
   </script>
-  <title>Gatecast — weather and the news worth knowing</title>
-  <meta name="description" content="Weather and the news worth knowing, with flight and trip checks: the forecast and what it means where you are, headlines from newsrooms near you, and a plain answer on whether the weather threatens your trip.">
+  <title>Gatecast — weird news from real outlets, and the weather</title>
+  <meta name="description" content="Weird news from real outlets, with a link to every original, plus the weather where you are, told plainly. A late-90s front page with a library for the curious and quick weather checks for your flights.">
   <!-- Search and share basics. Copy lives here and in how.html; the share image is rendered from docs/og/og-template.html. -->
   <link rel="canonical" href="https://gatecast.vercel.app/">
-  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ecebe6">
-  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#07090d">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#F3EEE2">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1B1813">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Gatecast">
-  <meta property="og:title" content="Gatecast — weather and the news worth knowing">
-  <meta property="og:description" content="Weather and the news worth knowing, with flight and trip checks: the forecast and what it means where you are, headlines from newsrooms near you, and a plain answer on whether the weather threatens your trip.">
+  <meta property="og:title" content="Gatecast — weird news from real outlets, and the weather">
+  <meta property="og:description" content="Weird news from real outlets, with a link to every original, plus the weather where you are, told plainly. A late-90s front page with a library for the curious and quick weather checks for your flights.">
   <meta property="og:url" content="https://gatecast.vercel.app/">
   <meta property="og:image" content="https://gatecast.vercel.app/vendor/og/gatecast-og.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="Gatecast: weather and the news worth knowing, with flight and trip checks.">
+  <meta property="og:image:alt" content="Gatecast: weird news from real outlets, and the weather.">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Gatecast — weather and the news worth knowing">
-  <meta name="twitter:description" content="Weather and the news worth knowing, with flight and trip checks: the forecast and what it means where you are, headlines from newsrooms near you, and a plain answer on whether the weather threatens your trip.">
+  <meta name="twitter:title" content="Gatecast — weird news from real outlets, and the weather">
+  <meta name="twitter:description" content="Weird news from real outlets, with a link to every original, plus the weather where you are, told plainly. A late-90s front page with a library for the curious and quick weather checks for your flights.">
   <meta name="twitter:image" content="https://gatecast.vercel.app/vendor/og/gatecast-og.png">
   <script type="application/ld+json">
   {"@context": "https://schema.org", "@graph": [
-    {"@type": "WebSite", "@id": "https://gatecast.vercel.app/#website", "url": "https://gatecast.vercel.app/", "name": "Gatecast", "description": "Weather and the news worth knowing, with flight and trip checks.", "inLanguage": "en", "publisher": {"@id": "https://gatecast.vercel.app/#organization"}},
+    {"@type": "WebSite", "@id": "https://gatecast.vercel.app/#website", "url": "https://gatecast.vercel.app/", "name": "Gatecast", "description": "Weird news from real outlets, with a link to every original, plus the weather where you are.", "inLanguage": "en", "publisher": {"@id": "https://gatecast.vercel.app/#organization"}},
     {"@type": "Organization", "@id": "https://gatecast.vercel.app/#organization", "name": "Gatecast", "url": "https://gatecast.vercel.app/", "sameAs": ["https://github.com/VictorParker22/gatecast"]}
   ]}
   </script>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23111418'/%3E%3Cpath d='M9 25V14a7 7 0 0 1 14 0v11M16 18v7' stroke='%23fff' stroke-width='2.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <!-- The first screen: the slab masthead, pixel datelines, Inter and the 800 signage of the tabs. -->
+  <link rel="preload" href="vendor/fonts/alfa-slab-one-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="vendor/fonts/vt323-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="vendor/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="preload" href="vendor/fonts/barlow-condensed-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="vendor/fonts/barlow-condensed-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="styles/tokens.css">
   <link rel="stylesheet" href="styles/app.css">
   <link rel="stylesheet" href="styles/home.css">
@@ -50,6 +54,8 @@
   <link rel="stylesheet" href="styles/motion.css">
   <!-- The whole module graph, fetched in parallel instead of one import level at a time. -->
   <link rel="modulepreload" href="js/weather.js">
+  <link rel="modulepreload" href="js/front.js">
+  <link rel="modulepreload" href="js/frontmodel.js">
   <link rel="modulepreload" href="js/today.js">
   <link rel="modulepreload" href="js/changes.js">
   <link rel="modulepreload" href="js/riskwords.js">
@@ -72,142 +78,300 @@
       const shared = new URLSearchParams(location.search).has('r');
       const p = shared ? null : JSON.parse(localStorage.getItem('gatecast:place'));
       if (p && Number.isFinite(p.lat) && Number.isFinite(p.lon)) loadWeather(p.lat, p.lon).catch(() => {});
-      if (!shared && document.documentElement.dataset.start === 'trip') loadAirports().catch(() => {});
+      if (!shared && document.documentElement.dataset.trip === 'soon') loadAirports().catch(() => {});
     } catch {}
   </script>
   <script type="module" src="js/weather.js"></script>
+  <script type="module" src="js/front.js"></script>
 </head>
-<body class="page-today">
+<body class="page-front">
   <a class="skip-link" href="#main">Skip to content</a>
 
-  <div class="sky sky--day" id="sky">
-    <canvas class="sky__canvas" id="sky-canvas" aria-hidden="true"></canvas>
-    <div class="sky__shade" aria-hidden="true"></div>
-    <header class="site-header today-header">
-      <a class="brand" href="./" aria-label="Gatecast home">
-        <svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8"/><g transform="translate(4 5)"><path d="M5 20V9a7 7 0 0 1 14 0v11"/><path d="M12 13v7"/></g></svg>
-        <span class="brand__name">Gatecast</span>
-      </a>
-      <nav class="site-nav" aria-label="Main">
-        <ul>
-          <li><a href="./" aria-current="page">Today</a></li>
-          <li><a href="trip.html">Trips</a></li>
-          <li><a href="flights.html">Flights</a></li>
-        </ul>
-      </nav>
-      <div class="today-header__find" id="find-header"></div>
-      <button class="btn btn--ghost site-header__settings" type="button" popovertarget="settings" id="settings-btn">
-        <svg viewBox="0 0 24 24" aria-hidden="true" class="icon"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>
-        <span>Units &amp; display</span>
-      </button>
-    </header>
+  <header class="site-header site-header--front">
+    <!-- The edition strip: the place you chose, today's date in your own locale, and the day of the year as "No.". -->
+    <div class="edition">
+      <div class="edition__in">
+        <p class="edition__line"><span class="edition__long" id="edition-long">TODAY'S EDITION</span><span class="edition__short" id="edition-short"></span></p>
+        <div class="edition__tools">
+          <a href="#guestbook">Send a tip</a>
+          <a href="#about">How we pick stories</a>
+          <button class="edition__settings" type="button" popovertarget="settings" id="settings-btn">
+            <svg viewBox="0 0 24 24" aria-hidden="true" class="icon"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>
+            <span>Units &amp; display</span>
+          </button>
+        </div>
+      </div>
+    </div>
 
-    <div class="today-hero">
-      <div class="today-hero__main">
-        <section class="hero-today" id="hero" aria-live="polite" aria-label="Today">
-          <h1 class="hero__title hero__title--l">Will the weather mess up your trip?</h1>
-          <p class="hero__line">Gatecast checks every airport on your journey against the forecast, and tells you what today’s weather means where you are.</p>
-        </section>
+    <div class="masthead">
+      <div class="masthead__in">
+        <div class="masthead__title">
+          <p class="masthead__kicker">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V9a7 7 0 0 1 14 0v11"/><path d="M12 13v7"/></svg>
+            <span>The weird &amp; the weather</span><span class="masthead__rule" aria-hidden="true"></span>
+          </p>
+          <h1 class="masthead__h1">GATECAST</h1>
+          <p class="masthead__lede">Odd news from real outlets, with a link to every original. Plus the weather, told plainly.</p>
+          <!-- Decorative. It has its own grid cell beside the lede, so it never covers the wordmark. -->
+          <div class="masthead__burst" aria-hidden="true"><span class="masthead__burst-ink burst"></span><span class="masthead__burst-text">Real<br>sources<br>only</span></div>
+          <button class="masthead__settings bev bev--sun" type="button" popovertarget="settings" aria-label="Units and display">
+            <svg viewBox="0 0 24 24" aria-hidden="true" class="icon"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>
+          </button>
+        </div>
 
-        <div class="first" id="first">
-          <div class="first__find">
-            <button type="button" class="btn btn--sun first__locate" id="locate-big" data-locate>
-              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
-              Use my location
-            </button>
-            <span class="first__or">or</span>
-            <div class="first__search" id="find-first">
-              <div class="finder" id="finder">
-                <form id="place-form" class="finder__form" role="search" novalidate>
-                  <div class="field combo">
-                    <label for="place" class="sr-only">Search for a city</label>
-                    <svg class="icon finder__glass" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
-                    <input id="place" type="text" role="combobox" autocomplete="off" spellcheck="false" aria-expanded="false" aria-controls="place-list" aria-autocomplete="list" placeholder="Search city or town">
-                    <ul id="place-list" class="combo__list" role="listbox" aria-label="Places" hidden></ul>
-                  </div>
-                  <button type="button" class="btn btn--glass finder__locate" id="locate" data-locate aria-label="Use my location">
-                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
-                  </button>
-                </form>
-                <p id="locate-error" class="finder__error" role="alert" hidden></p>
+        <!-- The weather box: an old program window with the live WebGL sky inside. js/weather.js fills it. -->
+        <section class="wxbox" id="wxbox" aria-labelledby="wx-h">
+          <div class="wxbox__bar">
+            <h2 class="wxbox__title" id="wx-h">WEATHER BOX<span id="wx-place"></span></h2>
+            <button class="bev bev--sun wxbox__change" type="button" id="wx-change" aria-expanded="false" aria-controls="wx-find">Change city</button>
+          </div>
+          <div class="wxbox__find" id="wx-find" hidden>
+            <div class="finder" id="finder">
+              <form id="place-form" class="finder__form" role="search" novalidate>
+                <div class="field combo">
+                  <label for="place" class="sr-only">Search for a city</label>
+                  <svg class="icon finder__glass" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+                  <input id="place" type="text" role="combobox" autocomplete="off" spellcheck="false" aria-expanded="false" aria-controls="place-list" aria-autocomplete="list" placeholder="Search city or town">
+                  <ul id="place-list" class="combo__list" role="listbox" aria-label="Places" hidden></ul>
+                </div>
+                <button type="button" class="bev finder__locate" id="locate" data-locate aria-label="Use my location">
+                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
+                </button>
+              </form>
+              <p id="locate-error" class="finder__error" role="alert" hidden></p>
+            </div>
+            <div class="wxbox__popular"><span>Popular</span><div class="wxbox__pills" id="popular"></div></div>
+            <div class="wxbox__places" id="saved-places"></div>
+            <p class="wxbox__privacy">Your location stays in your browser. It is rounded to about a kilometre and used only to fetch your forecast.</p>
+          </div>
+          <div class="sky sky--day wxbox__screen" id="sky">
+            <canvas class="sky__canvas" id="sky-canvas" aria-hidden="true"></canvas>
+            <div class="sky__shade" aria-hidden="true"></div>
+            <div class="wxbox__scan" aria-hidden="true"></div>
+            <div class="wxnow" id="hero" aria-live="polite">
+              <div class="wxfirst">
+                <p class="wxfirst__title">Where’s your weather?</p>
+                <p class="wxfirst__line">Share your location or pick a city, and the box shows the sky there now and the next 8 hours.</p>
+                <button type="button" class="bev bev--sun wxfirst__locate" id="locate-big" data-locate>
+                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
+                  Use my location
+                </button>
               </div>
             </div>
           </div>
-          <a class="first__trip" href="trip.html">Check a trip <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
-          <p class="first__privacy">
-            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
-            <span>Your location stays in your browser. It is rounded to about a kilometre, used only to fetch your forecast, and never stored on our servers.</span>
-          </p>
-          <div class="first__popular"><span>Popular</span><div class="first__pills" id="popular"></div></div>
-        </div>
+          <div id="alerts" class="wxbox__alerts"></div>
+          <div class="wxbox__since" id="wx-since" hidden></div>
+          <a class="wxbox__weird" id="wx-weird" href="#believe" hidden></a>
+        </section>
       </div>
-
-      <aside class="now glass" id="now" aria-label="Weather here now" hidden></aside>
     </div>
-  </div>
+
+    <div class="tabbar">
+      <div class="tabbar__in">
+        <nav class="site-nav" aria-label="Main">
+        <ul>
+          <li><a href="./" aria-current="page"><svg class="site-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h13v14H6a2 2 0 0 1-2-2zM17 9h3v8a2 2 0 0 1-2 2M7 9h7M7 12.5h7M7 16h4"/></svg><span>Front page</span></a></li>
+          <li><a href="library.html"><svg class="site-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V5h4v15M10 20V3h4v17M16 20l2.5-14 3.5.7L19.5 20M3 20h19"/></svg><span>Library</span></a></li>
+          <li><a href="trip.html"><svg class="site-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="1"/><path d="M9 7V4h6v3M3 12h18"/></svg><span>Trips</span></a></li>
+          <li><a href="flights.html"><svg class="site-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 13.5l19-7-4 13-5-4.5-3 3.5v-5l12-7"/></svg><span>Flights</span></a></li>
+        </ul>
+      </nav>
+        <nav class="sections" id="sections" aria-label="Sections" hidden></nav>
+      </div>
+    </div>
+  </header>
 
   <div id="settings" class="settings" popover aria-labelledby="settings-title"></div>
 
   <main id="main">
-    <div id="alerts"></div>
-
-    <section class="today" id="today" aria-labelledby="today-title" hidden>
-      <div class="today__head">
-        <h2 class="today__title" id="today-title">Today</h2>
-        <div class="today__places" id="saved-places"></div>
-      </div>
-      <div class="since-slot" id="today-since" hidden></div>
-      <h3 class="sr-only">What it means</h3>
-      <ul class="means" id="means"></ul>
-
-      <div class="today__grid">
-        <section class="panel days-panel" id="days-panel" aria-labelledby="days-title">
-          <h3 class="panel__label" id="days-title">Next 10 days</h3>
-          <ol class="days" id="days"></ol>
-          <p class="panel__note">Each bar runs from the day’s low to its high, on the scale of all ten days. The percentage is the chance of rain or snow that day.</p>
-        </section>
-        <section class="panel panel--flush radar-panel" id="radar-panel" aria-labelledby="radar-title">
-          <h3 class="panel__label radar-panel__label" id="radar-title">Rain radar</h3>
-          <div class="radar" id="radar"><p class="radar__placeholder">Radar loads when you scroll here.</p></div>
-          <div class="radar__controls"><button type="button" class="btn btn--ghost" id="radar-play" disabled>Play last 2 hours</button>
-            <input type="range" id="radar-frame" min="0" max="0" value="0" aria-label="Radar time" disabled><span class="radar__time" id="radar-time"></span></div>
-        </section>
-      </div>
+    <!-- Real headlines from /api/weird. It stops under reduced motion, on hover or focus, and with its button. -->
+    <section class="ticker" id="ticker" aria-label="Odd headlines" hidden>
+      <span class="ticker__label">Odd news</span>
+      <div class="ticker__vp"><div class="ticker__track" id="ticker-track"></div></div>
+      <button type="button" class="ticker__btn" id="ticker-btn" aria-pressed="false">
+        <svg class="ticker__pause" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="5" height="16"/><rect x="14" y="4" width="5" height="16"/></svg>
+        <svg class="ticker__play" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4l13 8-13 8z"/></svg>
+        <span class="sr-only" id="ticker-btn-label">Pause the headline ticker</span>
+      </button>
     </section>
 
-    <!-- The brief: shown once there is something real in it. Headlines link out to the outlet; we never copy
-         their summary or opening paragraph. Pictures are the outlet's own link-preview image, hotlinked from its
-         site and credited (owner decision, 16 Nov 2026). Statehouse votes and Both sides come from js/civic.js. -->
-    <section class="brief" id="brief" aria-labelledby="brief-title" hidden>
-      <div class="brief__head">
-        <h2 class="brief__title" id="brief-title">The brief</h2>
-        <details class="brief__about">
-          <summary>Why am I seeing this?</summary>
-          <div class="brief__about-body">
-            <p>The brief is picked from four things only: the place you chose (kept on this device), a saved trip on this device, official National Weather Service alerts for that place, and the US state it is in. Each item says which of them put it there.</p>
-            <p>Headlines, statehouse votes and Both sides are listed newest first, as published or recorded. They are never ranked by clicks or popularity, and Gatecast keeps no record of what you read.</p>
-            <p><a href="how.html">How Gatecast works</a></p>
+    <div class="front">
+      <div class="front__top" id="front-top">
+        <article class="lead" id="lead" aria-labelledby="lead-h" hidden></article>
+        <aside class="front__aside" aria-label="Also odd, and your streak">
+          <section class="also" id="also" aria-labelledby="also-h" hidden>
+            <h2 class="also__h" id="also-h">Also odd</h2>
+            <ol class="also__list" id="also-list"></ol>
+          </section>
+          <section class="streak" id="streak" aria-labelledby="streak-h">
+            <h2 class="streak__h" id="streak-h">Your reading streak</h2>
+            <p class="streak__digits" id="streak-digits" aria-hidden="true"></p>
+            <p class="streak__line" id="streak-line">Kept on this device only, like an old hit counter that only counts you.</p>
+          </section>
+        </aside>
+      </div>
+      <p class="front__empty" id="front-empty" hidden></p>
+
+      <!-- Favourites: readers' favourites only when there are real Weird-o-meter votes, else the editor's picks. -->
+      <section class="favs" id="favs" aria-labelledby="favs-h" hidden>
+        <div class="sechead sechead--rule">
+          <p class="sechead__kicker" id="favs-kicker"></p>
+          <h2 class="sechead__h sechead__h--m" id="favs-h">Editor’s favourites</h2>
+        </div>
+        <ol class="favs__list" id="favs-list"></ol>
+      </section>
+
+      <section class="believe" id="believe" aria-labelledby="bel-h" hidden>
+        <div class="sechead sechead--rule">
+          <p class="sechead__kicker">FROM REAL OUTLETS · EVERY ONE LINKS TO THE ORIGINAL</p>
+          <h2 class="sechead__h" id="bel-h">Believe it or not. <span>It’s all sourced.</span></h2>
+        </div>
+        <div class="filters" role="group" aria-label="Filter by category" id="filters"></div>
+        <p class="sr-only" aria-live="polite" id="grid-note"></p>
+        <ul class="grid" id="grid"></ul>
+        <button type="button" class="bev bev--sun believe__more" id="more" hidden></button>
+      </section>
+
+      <!-- Near you: the existing brief (state headlines, NWS alerts, statehouse votes) beside the trip box. -->
+      <section class="nearyou" id="near" aria-labelledby="brief-title">
+        <div class="sechead sechead--row">
+          <div>
+            <p class="sechead__kicker" id="near-kicker">NEAR YOU · REAL HEADLINES, ALERTS AND VOTES</p>
+            <h2 class="sechead__h sechead__h--m" id="brief-title">The brief</h2>
           </div>
-        </details>
-      </div>
-      <div class="brief__new" id="brief-new" role="status" hidden></div>
-      <section class="brief__block" id="brief-weather" aria-labelledby="brief-weather-title" hidden>
-        <h3 class="brief__label" id="brief-weather-title">Weather news</h3>
-        <ul class="wxnews-list" id="brief-weather-list"></ul>
+          <button type="button" class="btn--text near__edition" data-change-place>Change your edition</button>
+        </div>
+        <div class="near__grid">
+          <!-- Headlines link out to the outlet; we never copy their summary or opening paragraph. Pictures are the
+               outlet's own link-preview image, hotlinked from its site and credited (owner decision, 16 Nov 2026). -->
+          <section class="brief" id="brief" aria-label="The brief" hidden>
+            <details class="brief__about">
+              <summary>Why am I seeing this?</summary>
+              <div class="brief__about-body">
+                <p>The brief is picked from four things only: the place you chose (kept on this device), a saved trip on this device, official National Weather Service alerts for that place, and the US state it is in. Each item says which of them put it there.</p>
+                <p>Headlines, statehouse votes and Both sides are listed newest first, as published or recorded. They are never ranked by clicks or popularity, and Gatecast keeps no record of what you read.</p>
+                <p><a href="how.html">How Gatecast works</a></p>
+              </div>
+            </details>
+            <div class="brief__new" id="brief-new" role="status" hidden></div>
+            <section class="brief__block" id="brief-weather" aria-labelledby="brief-weather-title" hidden>
+              <h3 class="brief__label" id="brief-weather-title">Weather news</h3>
+              <ul class="wxnews-list" id="brief-weather-list"></ul>
+            </section>
+            <section class="brief__block" id="brief-news" aria-labelledby="brief-news-title" hidden>
+              <h3 class="brief__label" id="brief-news-title">Headlines</h3>
+              <p class="because" id="brief-news-why"></p>
+              <ol class="heads" id="brief-news-list"></ol>
+              <p class="brief__source" id="brief-news-source"></p>
+            </section>
+            <section class="brief__block brief__civic" id="civic" hidden></section>
+          </section>
+          <p class="near__empty" id="near-empty">Pick a place in the weather box and the brief fills with real headlines, official alerts and statehouse votes from there.</p>
+
+          <section class="flybox" id="flybox" aria-labelledby="fly-h">
+            <div class="flybox__head">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 13.5l19-7-4 13-5-4.5-3 3.5v-5l12-7"/></svg>
+              <h3 class="flybox__h" id="fly-h">Flying? Check your trip</h3>
+            </div>
+            <div class="flybox__body" id="fly-body"></div>
+            <form class="flybox__form" id="fly-form" action="trip.html" method="get">
+              <div class="flybox__field"><label for="fly-from">From</label><input id="fly-from" name="from" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="3" placeholder="JFK" pattern="[A-Za-z]{3}" required></div>
+              <div class="flybox__field"><label for="fly-to">To</label><input id="fly-to" name="to" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="3" placeholder="LHR" pattern="[A-Za-z]{3}" required></div>
+              <div class="flybox__field flybox__field--wide"><label for="fly-when">Leaving (local time at the airport)</label><input id="fly-when" name="t" type="datetime-local" required></div>
+              <p class="flybox__error" id="fly-error" role="alert" hidden></p>
+              <button type="submit" class="bev bev--ink flybox__go">Check the weather risk</button>
+            </form>
+            <p class="flybox__note">Risk comes from the forecast at each airport. For gates, times and delays, check your airline.</p>
+          </section>
+        </div>
       </section>
-      <section class="brief__block" id="brief-news" aria-labelledby="brief-news-title" hidden>
-        <h3 class="brief__label" id="brief-news-title">Headlines</h3>
-        <p class="because" id="brief-news-why"></p>
-        <ol class="heads" id="brief-news-list"></ol>
-        <p class="brief__source" id="brief-news-source"></p>
+
+      <!-- The weather desk: what today means, 10 days and the rain radar for the place in the weather box. -->
+      <section class="today" id="today" aria-labelledby="today-title" hidden>
+        <div class="sechead sechead--row today__head">
+          <div>
+            <p class="sechead__kicker">THE WEATHER DESK</p>
+            <h2 class="sechead__h sechead__h--m today__title" id="today-title">Today</h2>
+          </div>
+        </div>
+        <div class="since-slot" id="today-since" hidden></div>
+        <h3 class="sr-only">What it means</h3>
+        <ul class="means" id="means"></ul>
+        <div class="today__grid">
+          <section class="panel days-panel" id="days-panel" aria-labelledby="days-title">
+            <h3 class="panel__label" id="days-title">Next 10 days</h3>
+            <ol class="days" id="days"></ol>
+            <p class="panel__note">Each bar runs from the day’s low to its high, on the scale of all ten days. The percentage is the chance of rain or snow that day.</p>
+          </section>
+          <section class="panel panel--flush radar-panel" id="radar-panel" aria-labelledby="radar-title">
+            <h3 class="panel__label radar-panel__label" id="radar-title">Rain radar</h3>
+            <div class="radar" id="radar"><p class="radar__placeholder">Radar loads when you scroll here.</p></div>
+            <div class="radar__controls"><button type="button" class="btn btn--ghost" id="radar-play" disabled>Play last 2 hours</button>
+              <input type="range" id="radar-frame" min="0" max="0" value="0" aria-label="Radar time" disabled><span class="radar__time" id="radar-time"></span></div>
+          </section>
+        </div>
       </section>
-      <section class="brief__block brief__civic" id="civic" hidden></section>
-    </section>
+
+      <!-- The Stacks: a CSS shelf. Spines are typographic, not cover images. -->
+      <section class="libteaser" id="library" aria-labelledby="lib-h">
+        <div class="libteaser__copy">
+          <p class="libteaser__tag">New: The Stacks</p>
+          <h2 class="libteaser__h" id="lib-h">A library for the curious</h2>
+          <p class="libteaser__p">True crime, unsolved mysteries, weird history, strange science and the cons that fooled everyone. Pull a book off the shelf and turn it over.</p>
+          <a class="bev bev--sun libteaser__go" href="library.html">Enter the library <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+        </div>
+        <a class="shelf" href="library.html" aria-label="Browse the shelves in the library">
+          <span class="shelf__books" aria-hidden="true">
+            <span class="spine spine--1">In Cold Blood</span>
+            <span class="spine spine--2">Zodiac</span>
+            <span class="spine spine--3">Stiff</span>
+            <span class="spine spine--4">The Ghost Map</span>
+            <span class="spine spine--5">Bad Blood</span>
+            <span class="spine spine--6">I’ll Be Gone in the Dark</span>
+          </span>
+          <span class="shelf__board" aria-hidden="true"></span>
+          <span class="shelf__go">Enter the library <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        </a>
+      </section>
+
+      <section class="community" aria-label="Tips and how we pick">
+        <form class="guestbook" id="guestbook" aria-labelledby="gb-h" novalidate>
+          <h2 class="guestbook__h" id="gb-h">Sign the guestbook</h2>
+          <p class="guestbook__p">Seen something weird from a real outlet? Send us the link. A person reads every tip, and we only publish stories we can trace to the original.</p>
+          <div class="guestbook__field"><label for="gb-link">Link to the story</label><input id="gb-link" name="url" type="url" inputmode="url" autocomplete="off" placeholder="https://" required></div>
+          <div class="guestbook__field"><label for="gb-why">What makes it weird? (optional)</label><textarea id="gb-why" name="note" rows="2" maxlength="280" placeholder="One line is plenty"></textarea></div>
+          <div class="guestbook__hp" aria-hidden="true"><label for="gb-website">Website</label><input id="gb-website" name="website" type="text" tabindex="-1" autocomplete="off"></div>
+          <div class="guestbook__send">
+            <button type="submit" class="bev guestbook__btn" id="gb-send">Send to the editor</button>
+            <p class="guestbook__note" id="gb-note" aria-live="polite">We never publish tips without checking the source.</p>
+          </div>
+        </form>
+        <section class="about" id="about" aria-labelledby="about-h">
+          <h2 class="about__h" id="about-h">How we pick the weird</h2>
+          <ul class="about__list">
+            <li>Every story comes from a real outlet, and links back to it.</li>
+            <li>We use the outlet’s own headline and preview image. We never rewrite facts or write a summary for them.</li>
+            <li>A story runs only if the strangeness is in the situation, not in someone’s misfortune.</li>
+            <li>A weird rating on a card is our editor’s opinion, shown only when they gave one. The Weird-o-meter on the lead is yours.</li>
+          </ul>
+          <a class="about__more" href="how.html">How Gatecast works</a>
+        </section>
+      </section>
+    </div>
   </main>
 
   <footer class="site-footer">
-    <p>Gatecast is a planning aid, not an official source. Check your airline for the status of your flight. <a href="how.html">How Gatecast works</a>.</p>
-    <p>Forecasts: <a href="https://open-meteo.com/" rel="noopener">Open-Meteo</a> (CC BY 4.0). Radar: <a href="https://www.rainviewer.com/" rel="noopener">RainViewer</a>. Map: © <a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a> contributors. Live aircraft: <a href="https://adsb.lol/" rel="noopener">adsb.lol</a> (ODbL). Routes: <a href="https://www.adsbdb.com/" rel="noopener">adsbdb</a>. Observations: NOAA. US status: FAA. Alerts: National Weather Service. Headlines and their pictures belong to the newsrooms named beside them; each links to the story, and pictures load from the newsroom’s own site.</p>
+    <nav class="badges" aria-label="About Gatecast">
+      <a class="badge badge--cobalt" href="https://open-meteo.com/" rel="noopener">Forecasts by Open-Meteo</a>
+      <a class="badge badge--sun" href="how.html">Real sources only</a>
+      <a class="badge badge--night" href="how.html">How Gatecast works</a>
+      <a class="badge badge--lime" href="#guestbook">Sign the guestbook</a>
+      <a class="badge" href="library.html">The Stacks library</a>
+    </nav>
+    <div class="site-footer__lines">
+      <p>Headlines and preview images belong to their publishers; we link to every original and copy none of their reporting. Gatecast is a planning aid, not an official source: check your airline for the status of your flight. <a href="how.html">How Gatecast works</a>.</p>
+      <p>Forecasts: <a href="https://open-meteo.com/" rel="noopener">Open-Meteo</a> (CC BY 4.0). Sky: Gatecast’s WebGL engine. Radar: <a href="https://www.rainviewer.com/" rel="noopener">RainViewer</a>. Map: © <a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a> contributors. Observations: NOAA. US status: FAA. Alerts: National Weather Service.</p>
+    </div>
   </footer>
 </body>
 </html>

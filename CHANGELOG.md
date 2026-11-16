@@ -8,6 +8,13 @@ Gatecast has no tagged releases yet. `package.json` has said `1.0.0` since the f
 
 ### Added
 
+- **The weird-news pivot** (owner decision, 16 Nov 2026): Gatecast leads with odd news from real outlets, keeps the weather on top, adds a library, and keeps flights and trips as a small utility.
+  - Late-90s newsprint look across the whole site (`--np-*` tokens, Alfa Slab One and VT323 self-hosted, beveled tabs and buttons, square corners; risk colours stay reserved for rounded risk chips). See `docs/design-system.md`.
+  - Front page (`index.html`, `js/front.js`, `js/frontmodel.js`): edition strip, masthead, the live WebGL sky in a "Weather box", a pausable ticker, the lead story, "Also odd", the "Believe it or not. It's all sourced." grid with category filters, The brief, a small "Flying?" box, the library teaser, the guestbook and "How we pick".
+  - `/api/weird`: stories from nine odd-news outlets (`data/weird-sources.json`), moderated by `lib/moderation.js` (the strangeness must be in the situation, not in someone's misfortune), gated and ordered by a weirdness score, with editor's picks first.
+  - The Stacks (`library.html`): 58 real books on six shelves, our own descriptions, content notes and caveats, search, Surprise me, and a 3D book that leaves the shelf and turns over. 46 covers from Open Library are checked and baked into `data/books.json`; the rest, including every cover likely to show a killer, use a designed stand-in.
+  - Community backend in Supabase: the Weird-o-meter (one vote per visitor per story, readers' average from 50 votes), the guestbook (tips reviewed by a person), and editor's picks curated in the review console. Visitors are identified only by a salted hash of their network address. See `docs/community.md`.
+  - Review console: Tips and Picks.
 - GitHub Actions CI: tests and the build step on Node 18.x and 22.x for every push and pull request.
 - Pull request template, bug report and feature request issue forms, and Dependabot updates for npm and GitHub Actions.
 - `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, `.editorconfig` and `.nvmrc`.

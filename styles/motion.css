@@ -31,8 +31,8 @@
 @keyframes gc-grow { from { transform: scaleY(0); } }
 
 /* ---------- Small reactions ---------- */
-.btn { transition: background var(--duration-fast), border-color var(--duration-fast), transform var(--duration-fast), scale var(--duration-fast) var(--ease-out); }
-.btn:active:not(:disabled) { scale: 0.97; }
+/* Buttons press in with their bevel (app.css); motion only smooths it. */
+.btn { transition: background var(--duration-fast), border-color var(--duration-fast), box-shadow var(--duration-fast), transform var(--duration-fast); }
 
 /* ---------- Reduced motion: everything instant, behaviour unchanged ---------- */
 @media (prefers-reduced-motion: reduce) {
