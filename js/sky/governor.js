@@ -7,16 +7,15 @@
 // within budget, down to a single still frame with the loop stopped. It steps down fast (a few slow frames
 // are enough), steps up rarely and only on clear evidence, and never bounces between two tiers.
 //
-// Samples come from one of three sources (js/sky.js picks the best one available):
+// Samples come from one of two sources (js/sky.js picks the best one available):
 //   'gpu'   - GPU time of the sky draw from a WebGL timer query. Direct and precise, so it shows both
 //             overload and headroom. Budget: gpuShare of the tier's frame interval.
-//   'fence' - time from submitting the draw until a WebGL2 fence after it reports done, polled without
-//             blocking. An upper bound on GPU time (it includes queueing and a few ms of polling slack),
-//             so it is judged against the same budget with a little more allowance.
 //   'frame' - interval between two drawn frames (requestAnimationFrame timestamps). It only reveals cost once
 //             the device can no longer keep the tier's frame rate (a healthy device reads ~1.0 whatever the
-//             real cost), so it is good for stepping down and weak evidence for stepping up.
-// Either way a sample becomes a "load": 1.0 means exactly at budget.
+//             real cost). So it only ever steps down: an overloaded interval is a lower bound on the frame's
+//             cost, which picks the step through the cost model; a tier it cannot verify is never tried on
+//             hope, and it never steps up.
+// A sample becomes a "load" for its source: 1.0 means exactly at budget.
 
 // Quality tiers, best first. res: resolution factor on top of the base device-pixel scale (pixel count goes
 // with its square); lite: compile the cheaper shader variant (3 noise octaves, one rain layer, two snow
@@ -40,16 +39,18 @@ export const SETTINGS = {
   warmMs: 400,           // ...and everything in the first 400 ms (shader compile, page load, layout settle)
   window: 10,            // rolling window of recent loads
   minDecide: 6,          // a downgrade needs at least this many samples in the window...
-  down: { gpu: 1.0, fence: 1.3, frame: 1.3 },   // ...with a median load above this. 'frame' allows for vsync
-                         //    rounding (75 Hz or 50 Hz screens read 1.2 when healthy; a missed vsync reads 1.5).
-                         //    'fence' allows ~2.5 ms of polling and queueing slack.
+  down: { gpu: 1.0, frame: 1.3 },   // ...with a median load above this. 'frame' allows for vsync rounding
+                         //    (75 Hz or 50 Hz screens read 1.2 when healthy; a missed vsync reads 1.5).
   severe: 2.5,           // this many times over budget...
   severeRun: 3,          // ...on this many samples in a row: step down at once, without waiting for the window
-  fitLoad: 0.8,          // when stepping down, go straight to the first tier whose estimated load is below this
-  lastChance: 1.5,       // ...or, if none, still try the cheapest animated tier if its estimate is below this
-  up: { gpu: 0.4, fence: 0.5, frame: 1.1 },      // a step up needs every load at or below this...
-  upRun: { gpu: 90, fence: 150, frame: 450 },    // ...for this many samples in a row (3 s / 5 s / 15 s at 30 fps)
-  upFit: 0.7,            // and (not 'frame') the tier above must be estimated to stay below this load
+  fitLoad: 0.8,          // when stepping down, go straight to the first tier whose estimated GPU load is below
+                         //    this (estimated from the measured cost and the tiers' relative costs)...
+  lastChance: 1.5,       // ...or, if none and timing is 'gpu', try the cheapest animated tier if its estimate is
+                         //    below this: the cost model is a guess, and 'gpu' timing will check it
+  up: { gpu: 0.4, frame: 1.1 },     // a step up needs every load at or below this...
+  upRun: { gpu: 90, frame: Infinity },  // ...for this many samples in a row (3 s at 30 fps). Never on 'frame'
+                         //    timing: a healthy frame interval says nothing about spare GPU capacity.
+  upFit: 0.7,            // and the tier above must be estimated to stay below this GPU load
   maxUpgrades: 2,        // per session
 };
 
@@ -66,11 +67,11 @@ export function loadOf(ms, source, tier, settings = SETTINGS) {
   return source === 'frame' ? ms / frameMs : ms / (frameMs * settings.gpuShare);
 }
 
-// Estimated load if the same work ran at tier `to` instead of `from` (cost scales with pixels and features,
-// the budget with the frame interval).
-function estimate(load, from, to) {
+// Estimated GPU load at tier `to` for a device whose full-quality frame costs `fullMs` (cost scales with
+// pixels and features, the budget with the frame interval).
+function estimate(fullMs, to, settings) {
   if (TIERS[to].fps === 0) return 0;
-  return load * (TIERS[to].cost / TIERS[from].cost) * (TIERS[to].fps / TIERS[from].fps);
+  return (fullMs * TIERS[to].cost) / ((1000 / TIERS[to].fps) * settings.gpuShare);
 }
 
 // createGovernor({ start, floor }) - start: first tier. Returns an object with:
@@ -111,13 +112,13 @@ export function createGovernor({ start = 0, settings = SETTINGS } = {}) {
     return { tier: to, from, reason, measured: true };
   }
 
-  // The cheapest step that should fit: the first tier below this one whose estimated load is under
-  // fitLoad. If none fits but the cheapest animated tier is not hopeless, try that before giving up on
-  // motion: the cost model is a guess, and that tier will be measured like any other.
-  function fitBelow(load) {
-    for (let t = g.tier + 1; t < STILL; t++) if (estimate(load, g.tier, t) <= S.fitLoad) return t;
+  // The best tier below this one whose estimated load fits, from a measured frame cost in ms. With 'gpu'
+  // timing, if nothing fits but the cheapest animated tier is not hopeless, try it (it will be measured).
+  function fitBelow(ms, source) {
+    const fullMs = ms / TIERS[g.tier].cost;   // for 'frame' timing, a lower bound
+    for (let t = g.tier + 1; t < STILL; t++) if (estimate(fullMs, t, S) <= S.fitLoad) return t;
     const last = STILL - 1;
-    return g.tier < last && estimate(load, g.tier, last) <= S.lastChance ? last : STILL;
+    return source === 'gpu' && g.tier < last && estimate(fullMs, last, S) <= S.lastChance ? last : STILL;
   }
 
   g.sample = (ms, at = 0, source = 'frame') => {
@@ -135,14 +136,14 @@ export function createGovernor({ start = 0, settings = SETTINGS } = {}) {
     // Far over budget several frames running: go now, and as far as the numbers say.
     slowRun = load > S.severe ? slowRun + 1 : 0;
     if (slowRun >= S.severeRun) {
-      const m = median(loads.slice(-S.severeRun));
-      return move(fitBelow(m), `very slow: ${source} ${g.medianMs.toFixed(1)} ms, load ${m.toFixed(2)}`);
+      const m = median(msWin.slice(-S.severeRun));
+      return move(fitBelow(m, source), `very slow: ${source} ${m.toFixed(1)} ms, load ${median(loads.slice(-S.severeRun)).toFixed(2)}`);
     }
     // Consistently over budget: the median ignores the odd spike (GC, a big layout, a background tab).
     if (loads.length >= S.minDecide) {
       const m = median(loads);
       if (m > S.down[source]) {
-        return move(fitBelow(m), `slow: ${source} median ${g.medianMs.toFixed(1)} ms, load ${m.toFixed(2)}`);
+        return move(fitBelow(g.medianMs, source), `slow: ${source} median ${g.medianMs.toFixed(1)} ms, load ${m.toFixed(2)}`);
       }
     }
 
@@ -151,9 +152,8 @@ export function createGovernor({ start = 0, settings = SETTINGS } = {}) {
     goodRun = load <= S.up[source] ? goodRun + 1 : 0;
     const up = g.tier - 1;
     if (up >= g.ceiling && g.upgrades < S.maxUpgrades && failed[up] < 2 && goodRun >= S.upRun[source]) {
-      const m = median(loads);
-      if (source === 'frame' || estimate(m, g.tier, up) <= S.upFit) {
-        return move(up, `headroom: ${source} median ${g.medianMs.toFixed(1)} ms, load ${m.toFixed(2)}`);
+      if (estimate(g.medianMs / TIERS[g.tier].cost, up, S) <= S.upFit) {
+        return move(up, `headroom: ${source} median ${g.medianMs.toFixed(1)} ms, load ${median(loads).toFixed(2)}`);
       }
     }
     return null;

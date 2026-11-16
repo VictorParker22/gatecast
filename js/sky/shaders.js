@@ -18,15 +18,15 @@
 // so cloud cover is unchanged), the nearer rain layer only, the two larger snow layers, and steady stars.
 // The legibility ceiling (7) is the same in both, so text contrast holds at every tier.
 //
-// Time without jumps: nothing here multiplies a growing clock any more. JavaScript integrates every moving
-// offset in double precision and wraps each one at a period over which its layer repeats exactly:
+// Time without jumps: nothing here multiplies a growing clock any more (the old 20-minute uTime wrap made
+// rain, snow and twinkle jump). JavaScript integrates every moving offset in double precision and wraps it
+// where the layer repeats exactly, so the uniforms stay small and precise:
 //   - rain and snow cells are numbered modulo WRAP_CELLS, so their scroll offsets wrap at WRAP_CELLS;
-//   - value noise tiles every TILE cells, and fbm's octave matrix is 0.4 x an integer matrix, so a drift of
-//     125 x TILE (= 2000) maps every octave onto whole tiles: the clouds repeat exactly, and the drift wraps
-//     there (each cloud layer has its own drift uniform for that reason);
 //   - twinkle and sway frequencies are rounded to whole cycles per PHASE_S seconds, so they run on uPhase,
 //     a 0..1 clock that wraps every PHASE_S seconds.
-// So the picture never jumps, however long the page stays open, and every uniform stays small.
+// Cloud drift is the one exception: making the noise tile would cost every pixel ~4% and change the cloud
+// pattern, so it wraps at DRIFT_WRAP instead. Drift moves 0.012-0.042 units a second, so that takes 27 to 95
+// hours of on-screen animation, and float precision there (~0.004 of the finest noise cell) is still fine.
 
 export const VERTEX_SHADER = `
 attribute vec2 aPos;
@@ -34,8 +34,7 @@ void main() { gl_Position = vec4(aPos, 0.0, 1.0); }
 `;
 
 // Keep in step with js/sky.js, which wraps the offsets.
-export const TILE = 16;            // value noise repeats every TILE cells
-export const DRIFT_WRAP = 125 * TILE;
+export const DRIFT_WRAP = 4096;    // cloud drift wraps here (see above)
 export const WRAP_CELLS = 256;     // rain and snow cells are numbered modulo this
 export const PHASE_S = 600;        // uPhase wraps every PHASE_S seconds
 
@@ -49,7 +48,7 @@ precision mediump float;
 uniform vec2 uRes;        // canvas size in device pixels
 uniform float uUnit;      // device pixels per scene unit; one unit is 500 CSS pixels on every screen
 uniform float uPhase;     // animation clock as a fraction of PHASE_S seconds (0..1, wraps without a jump)
-uniform vec2 uDrift;      // how far the far (x) and near (y) clouds have drifted, each wrapped at DRIFT_WRAP
+uniform vec2 uDrift;      // how far the far (x) and near (y) clouds have drifted (wrapped at DRIFT_WRAP)
 uniform vec3 uTop;        // atmosphere colour at the top of the canvas
 uniform vec3 uHorizon;    // atmosphere colour at the bottom
 uniform vec3 uCloudLit;   // colour of thin cloud
@@ -65,7 +64,6 @@ uniform float uLean;      // how far rain and snow lean right now (wind plus slo
 uniform vec2 uRainOff;    // vertical scroll of the two rain layers, in cells, wrapped at WRAP_CELLS
 uniform vec2 uSnowOff[3]; // scroll of the three snow layers, in cells, wrapped at WRAP_CELLS
 
-const float TILE = ${TILE.toFixed(1)};
 const float WRAP_CELLS = ${WRAP_CELLS.toFixed(1)};
 const float PHASE_CYCLES = ${(PHASE_S / (2 * Math.PI)).toFixed(6)};  // PHASE_S / 2pi: rad/s -> cycles per PHASE_S
 const float TAU = 6.2831853;
@@ -91,15 +89,13 @@ float hash(vec2 p) {
   return fract((p3.x + p3.y) * p3.z);
 }
 
-// Value noise: random values on a grid, smoothly blended between grid points. The grid repeats every
-// TILE cells (see the note on time at the top of this file).
+// Value noise: random values on a grid, smoothly blended between grid points.
 float noise(vec2 p) {
-  vec2 i = mod(floor(p), TILE);
-  vec2 j = mod(i + 1.0, TILE);
+  vec2 i = floor(p);
   vec2 f = fract(p);
   vec2 u = f * f * (3.0 - 2.0 * f);
-  return mix(mix(hash(i), hash(vec2(j.x, i.y)), u.x),
-             mix(hash(vec2(i.x, j.y)), hash(j), u.x), u.y);
+  return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x),
+             mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
 }
 
 // Fractal noise ("fbm"): four layers of noise, each twice as detailed and half as strong as the last,

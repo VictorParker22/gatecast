@@ -33,16 +33,24 @@ test('a steady fast device stays at the top tier', () => {
 
 test('a steady slow device steps down to the still frame within a bounded number of samples', () => {
   // Like the software renderer here: about 3 frames a second at full quality.
-  const gov = createGovernor({ start: 0 });
-  const changes = run(gov, device(330), 1000);
-  assert.equal(gov.tier, STILL);
-  const last = changes[changes.length - 1];
-  assert.ok(last.i < 40, `reached still after ${last.i} samples`);
-  assert.ok(changes.length >= 2 && changes.length <= 3, `${changes.length} steps`);   // tries the cheapest animated tier first
-  for (let k = 1; k < changes.length; k++) assert.ok(changes[k].tier > changes[k - 1].tier, 'only ever down');
-  assert.match(last.reason, /slow/);
+  for (const source of ['frame', 'gpu']) {
+    const gov = createGovernor({ start: 0 });
+    const changes = run(gov, device(330), 1000, { source });
+    assert.equal(gov.tier, STILL, source);
+    const last = changes[changes.length - 1];
+    assert.ok(last.i < 40, `${source}: reached still after ${last.i} samples`);
+    assert.ok(changes.length <= 3, `${source}: ${changes.length} steps`);
+    for (let k = 1; k < changes.length; k++) assert.ok(changes[k].tier > changes[k - 1].tier, 'only ever down');
+    assert.match(last.reason, /slow/);
+  }
+  // With GPU timing, a device the cost model calls nearly hopeless still gets one measured try at the
+  // cheapest animated tier, and goes still only if that is slow too.
+  const tried = createGovernor({ start: 0 });
+  const steps = run(tried, (tier) => 100 * TIERS[tier].cost * (tier === 4 ? 1.2 : 1), 1000, { source: 'gpu' });
+  assert.deepEqual(steps.map((c) => c.tier), [4, STILL]);
 
-  // Moderately slow (a mid-range phone, frames at 45 ms on 'frame' timing): one or two steps, not to still.
+  // Moderately slow (frames at 45 ms on 'frame' timing, i.e. the GPU is saturated at full quality): a big
+  // step, but motion stays.
   const mid = createGovernor({ start: 0 });
   run(mid, device(45), 3000);
   assert.ok(mid.tier > 0 && mid.tier < STILL, `settled at ${TIERS[mid.tier].name}`);
@@ -68,15 +76,25 @@ test('a single slow spike does not trigger a downgrade', () => {
 
 test('a borderline device does not oscillate', () => {
   // Full tier sits right at the edge (frames alternate around the threshold); the next tier is fine.
-  // With 'frame' timing the governor may try going back up once, but never ping-pongs.
   for (const source of ['frame', 'gpu']) {
     const gov = createGovernor({ start: 0 });
     const edge = source === 'gpu' ? 8.5 : 44;
     const changes = run(gov, (tier, i) => (tier === 0 ? edge + (i % 2 ? 3 : -3) : (source === 'gpu' ? 3.5 : 1000 / 30)), 20000, { source });
-    assert.ok(changes.length <= 3, `${source}: ${changes.length} changes`);
+    assert.ok(changes.length >= 1 && changes.length <= 3, `${source}: ${changes.length} changes`);
     const tail = changes.filter((c) => c.i > 2000);
     assert.deepEqual(tail, [], `${source}: still changing late`);
-    assert.equal(gov.tier, 1, source);
+    assert.ok(gov.tier > 0 && gov.tier < STILL, source);
+    if (source === 'gpu') assert.equal(gov.tier, 1, 'GPU timing takes the one step that fits');
+  }
+  // A device the cost model misjudges: the tier above looks affordable from below but is slow when tried.
+  // It is tried once, then locked out: down, up, down, and stable from then on.
+  {
+    const gov = createGovernor({ start: 1 });
+    const cost = { 0: 20, 1: 9, 2: 2.5 };
+    const changes = run(gov, (tier, i) => (cost[tier] ?? 1) * (1 + 0.1 * Math.sin(i / 7)), 30000, { source: 'gpu' });
+    assert.deepEqual(changes.map((c) => c.tier), [2, 1, 2]);
+    assert.equal(gov.ceiling, 2);
+    assert.deepEqual(changes.filter((c) => c.i > 2000), []);
   }
 });
 
@@ -99,7 +117,7 @@ test('upgrades are capped and a failed upgrade is not retried', () => {
   // A device that alternates long fast and slow phases (thermal throttling, a background job, ...).
   const gov = createGovernor({ start: 0 });
   const phase = 2000;
-  const changes = run(gov, (tier, i) => (Math.floor(i / phase) % 2 ? 1000 / 30 : 60 * TIERS[tier].cost + 20), 40000);
+  const changes = run(gov, (tier, i) => (Math.floor(i / phase) % 2 ? 2 : 12) * TIERS[tier].cost, 40000, { source: 'gpu' });
   const ups = changes.filter((c) => c.tier < c.from);
   assert.ok(ups.length >= 1 && ups.length <= SETTINGS.maxUpgrades, `${ups.length} upgrades`);
   assert.equal(gov.upgrades, ups.length);
@@ -113,11 +131,14 @@ test('upgrades are capped and a failed upgrade is not retried', () => {
 
   // Started low (a remembered or prior tier) on a device that is in fact fast: climbs, but at most twice.
   const low = createGovernor({ start: 4 });
-  const climbed = run(low, (tier) => (1000 / TIERS[tier].fps), 20000);
+  const climbed = run(low, () => 0.5, 20000, { source: 'gpu' });
   assert.equal(climbed.length, SETTINGS.maxUpgrades);
   assert.equal(low.tier, 4 - SETTINGS.maxUpgrades);
   // Climbing is cautious: the first step up needs a long clean run.
-  assert.ok(climbed[0].i >= SETTINGS.upRun.frame, `first upgrade after ${climbed[0].i} samples`);
+  assert.ok(climbed[0].i >= SETTINGS.upRun.gpu, `first upgrade after ${climbed[0].i} samples`);
+  // Frame-interval timing cannot see spare capacity, so it never climbs.
+  const blind = createGovernor({ start: 4 });
+  assert.deepEqual(run(blind, (tier) => 1000 / TIERS[tier].fps, 20000), []);
 });
 
 test('the still tier takes no samples and the frame rate tier budgets per frame', () => {
@@ -140,7 +161,7 @@ test('starting tier: remembered wins, cores and memory are only a weak prior', (
   assert.equal(startTier({ cores: 8, memory: 1 }).tier, 2);
   // Never a hard rule: a prior start can still climb.
   const gov = createGovernor({ start: startTier({ cores: 2 }).tier });
-  run(gov, (tier) => 1000 / TIERS[tier].fps, 5000);
+  run(gov, () => 0.5, 5000, { source: 'gpu' });
   assert.ok(gov.tier < 2);
 });
 

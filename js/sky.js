@@ -21,7 +21,7 @@
 // Debugging on a real phone: open the page with ?skydebug (see the end of this file).
 
 import { VERTEX_SHADER, fragmentShader, DRIFT_WRAP, WRAP_CELLS, PHASE_S } from './sky/shaders.js';
-import { TIERS, STILL, createGovernor, startTier, batteryHold, holdReason,
+import { TIERS, STILL, SETTINGS, createGovernor, startTier, batteryHold, holdReason,
   MEMORY_KEY, signature, rememberTier, recallTier } from './sky/governor.js';
 
 const FADE_S = 1;
@@ -70,8 +70,9 @@ let variants = [null, null];         // compiled programs: [full, lite]; false =
 let prog = null;                     // the variant in use: { program, loc }
 let reduceQuery = null, reduce = false, onScreen = true;
 let raf = 0, lastMs = 0, flashStart = -1e9, nextFlash = 0;
-// Animation clock and moving offsets. Kept in double precision here and wrapped only where the shader's
-// pattern repeats exactly (see the note on time in js/sky/shaders.js), so nothing ever jumps.
+// Animation clock and moving offsets. Kept in double precision here and wrapped where the shader's pattern
+// repeats exactly, except cloud drift, which wraps only after a day or more of on-screen animation (see the
+// note on time in js/sky/shaders.js). The old 20-minute jump is gone.
 let time = STATIC_TIME_S, drift = 0;
 const snowX = new Float64Array(SNOW_LAYERS.length);
 const snowOff = new Float32Array(2 * SNOW_LAYERS.length);
@@ -80,7 +81,7 @@ let cssW = 0, cssH = 0, pxScale = 1, sizeDirty = true;
 // Governor state.
 let gov = null, tier = 0, frameMs = 1000 / 30;
 const holds = { saveData: false, battery: false };
-let memorySig = '', samplesOnTier = 0, remembered = false;
+let memorySig = '', samplesOnTier = 0, remembered = false, pinned = false;
 
 const clamp01 = (x) => Math.min(1, Math.max(0, x));
 const toLinear = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
@@ -201,17 +202,15 @@ function resize() {
 //     work on the page. Results arrive a frame or more later, and a "disjoint" event (GPU clock change,
 //     context switch) makes in-flight results meaningless, so those are thrown away. Several browsers hide
 //     this extension (Safari, Firefox by default, many phones), so it is a bonus, not a need.
-//  2. WebGL2 fence: after a draw we insert a fence and check it, without waiting, from short timers until the
-//     GPU reports it done. The elapsed time is an upper bound on the draw's GPU time (plus queueing and a few
-//     ms of timer slack). One fence is in flight at a time, so it costs a handful of timer callbacks a frame.
-//  3. Otherwise (WebGL1 without the timer extension), the interval between drawn frames from
-//     requestAnimationFrame timestamps. This only shows overload once the browser actually delivers frames
-//     late, and some browsers keep requestAnimationFrame on time while silently dropping canvas frames (seen
-//     with software rendering), so it is the weakest signal and the governor treats it cautiously.
+//  2. Otherwise, the interval between drawn frames from requestAnimationFrame timestamps. This only shows
+//     overload once the browser actually delivers frames late (the governor uses that late interval as a
+//     lower bound on the frame's cost), and cannot see headroom, so the governor treats it cautiously.
+//     WebGL2 fences looked like a middle option, but Chrome only reports them done at frame boundaries plus a
+//     deliberate delay (a trivial clear reads ~66 ms when polled per frame, ~290 ms from timers), so they
+//     would make every device look slow.
 // We deliberately never time draws with gl.finish() or readPixels(): both stall the main thread until the
 // GPU is idle, which is exactly the jank this is meant to prevent.
 const timer = { ext: null, gl2: false, on: false, pending: [], issued: 0, results: 0, name: 'none' };
-const fence = { on: false, sync: null, t0: 0, done: [] };
 
 function setupTimer() {
   timer.pending = []; timer.issued = 0; timer.results = 0; timer.on = false; timer.ext = null; timer.name = 'none';
@@ -221,12 +220,7 @@ function setupTimer() {
     timer.ext = gl.getExtension(name);
     if (timer.ext) { timer.on = true; timer.name = name; }
   } catch { timer.on = false; }
-  fence.sync = null;
-  fence.done = [];
-  fence.on = timer.gl2 && typeof gl.fenceSync === 'function';
 }
-
-const timingSource = () => (timer.on ? 'gpu' : fence.on ? 'fence' : 'frame');
 
 function timerBegin() {
   if (!timer.on || timer.pending.length >= 3) return null;
@@ -259,35 +253,13 @@ function timerPoll(out) {
     }
     if (timer.gl2) gl.deleteQuery(q); else E.deleteQueryEXT(q);
   }
-  if (timer.issued >= 60 && timer.results < 5) {   // never (or hardly ever) answers: fall back
+  if (timer.issued >= 60 && timer.results < 5) {   // never (or hardly ever) answers: use frame intervals
     for (const q of timer.pending) { if (timer.gl2) gl.deleteQuery(q); else E.deleteQueryEXT(q); }
     timer.pending = [];
     timer.on = false;
     timer.name = 'none';
     gov.reset(performance.now());
   }
-}
-
-function fenceBegin() {
-  if (timer.on || !fence.on || fence.sync) return;
-  fence.sync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
-  if (!fence.sync) { fence.on = false; return; }
-  gl.flush();   // submit now, so the time measured is the GPU's and not ours
-  fence.t0 = performance.now();
-  setTimeout(fencePoll, 1);
-}
-
-// Non-blocking check (getSyncParameter never waits); try again shortly until done or clearly hopeless.
-function fencePoll() {
-  const sync = fence.sync;
-  if (!sync) return;
-  if (gl.isContextLost()) { fence.sync = null; return; }
-  const ms = performance.now() - fence.t0;
-  const done = gl.getSyncParameter(sync, gl.SYNC_STATUS) === gl.SIGNALED;
-  if (!done && ms < 1000) { setTimeout(fencePoll, 2); return; }
-  gl.deleteSync(sync);
-  fence.sync = null;
-  fence.done.push(ms);
 }
 
 // --- Governing ---------------------------------------------------------------------------------------------
@@ -318,17 +290,15 @@ const gpuMs = [];
 function measure(ms, interval) {
   gpuMs.length = 0;
   if (timer.on) timerPoll(gpuMs);   // always collect, so finished queries are freed
-  const fenced = fence.done;
-  fence.done = [];
   if (fade < 1) return;             // crossfades are noisy (both kinds' layers are drawn): do not judge them
   let decision = null;
-  const source = timingSource();
-  if (source !== 'frame') {
-    for (const g of source === 'gpu' ? gpuMs : fenced) decision = decision || gov.sample(g, ms, source);
+  if (timer.on) {
+    for (const g of gpuMs) decision = decision || gov.sample(g, ms, 'gpu');
   } else if (interval > 0) {
     decision = gov.sample(interval, ms, 'frame');
   }
   if (debug) debugSample();
+  if (pinned) return;
   if (decision) {
     remember();
     remembered = true;
@@ -406,7 +376,7 @@ function frame(ms) {
   advance(dt);
   const query = timerBegin();
   draw(flashLevel(ms));
-  if (query) timerEnd(query); else fenceBegin();
+  if (query) timerEnd(query);
   measure(ms, interval);
 }
 
@@ -452,9 +422,13 @@ function chooseStart() {
     stored = recallTier(localStorage.getItem(MEMORY_KEY), Date.now(), memorySig);
   } catch { /* storage blocked */ }
   remembered = stored != null;
-  const start = startTier({ remembered: stored, cores: navigator.hardwareConcurrency || 0, memory: navigator.deviceMemory || 0 });
+  let start = startTier({ remembered: stored, cores: navigator.hardwareConcurrency || 0, memory: navigator.deviceMemory || 0 });
+  const pin = /^tier([0-9])$/.exec(debugMode);
+  if (pin && +pin[1] <= STILL) { pinned = true; start = { tier: +pin[1], reason: 'pinned by ?skydebug' }; }
   holds.saveData = !!(navigator.connection && navigator.connection.saveData);
-  gov = createGovernor({ start: start.tier });
+  // A pinned tier still measures (for __sky.frameMs) but never decides anything.
+  gov = createGovernor({ start: start.tier, settings: pinned
+    ? { ...SETTINGS, down: { gpu: Infinity, frame: Infinity }, severe: Infinity, maxUpgrades: 0 } : SETTINGS });
   const hold = holdReason(holds);
   tier = hold ? STILL : gov.tier;
   frameMs = 1000 / (TIERS[tier].fps || 30);
@@ -464,7 +438,8 @@ function chooseStart() {
 // --- Debug hook ----------------------------------------------------------------------------------------
 // Add ?skydebug to the page URL to get window.__sky (current tier, frame timing, the reason for the last
 // change and a short history) and a console line on every tier change. ?skydebug=reset also forgets the
-// remembered tier first. Without the parameter none of this runs.
+// remembered tier first; ?skydebug=tier0 ... tier5 pins a tier (measured, never changed or remembered), to
+// compare how the tiers look and cost. Without the parameter none of this runs.
 let debugMode = '';
 try {
   const query = new URLSearchParams(location.search);
@@ -490,7 +465,7 @@ function debugSample() {
   if (!d) return;
   d.frameMs = +gov.medianMs.toFixed(2);
   d.load = +gov.lastLoad.toFixed(2);
-  d.source = timer.on ? `gpu (${timer.name})` : fence.on ? 'fence (WebGL2 sync)' : 'frame interval';
+  d.source = timer.on ? `gpu (${timer.name})` : 'frame interval';
   d.upgrades = gov.upgrades;
   d.ceiling = gov.ceiling;
   d.canvas = canvas ? `${canvas.width}x${canvas.height}` : '';
