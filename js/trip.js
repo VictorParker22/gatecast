@@ -410,7 +410,8 @@ function renderExamples() {
   const btn = (t, label, cls = '') => `<button type="button" class="pill ${cls}" data-trip='${esc(JSON.stringify(t))}'>${esc(label)}</button>`;
   $('#example-list').innerHTML =
     recents.map((t) => btn({ ...t, t: Date.parse(t.t) > now - 12 * HOUR ? t.t : defaultDeparture() }, t.r.join(' → '), 'pill--recent')).join('') +
-    EXAMPLES.map((x) => btn({ r: x.r, l: x.l, d: [], t: defaultDeparture() }, x.label)).join('');
+    // ex marks a tried-out example, so the Today page never presents it as the visitor's own trip.
+    EXAMPLES.map((x) => btn({ r: x.r, l: x.l, d: [], t: defaultDeparture(), ex: true }, x.label)).join('');
   $('.examples__label').textContent = recents.length ? 'Recent and examples' : 'Try an example';
 }
 $('#example-list').addEventListener('click', (e) => {

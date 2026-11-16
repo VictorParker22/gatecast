@@ -5,7 +5,7 @@
 Gatecast tells you, in one plain sentence, whether the weather is likely to disrupt your flight or connection. Enter your airports, departure time and layover, and it lines up the forecast at every stop with the hours you are actually there, rates each airport Low, Elevated or High, and says why. Around that sits a local weather home page and live flight status. It is a static site with no framework, built on free, keyless data sources, with a small server only for the sources that cannot be called from a browser.
 
 <p align="center">
-  <img src="docs/screenshots/board-desktop.png" alt="The Gatecast weather home: a blue sky header with the temperature and a one-sentence headline, above a board of boxes for the next 24 hours, 10 days, rain radar, current conditions, a quick question, a city comparison, flights and a winter checklist." width="640">
+  <img src="docs/screenshots/board-desktop.png" alt="Gatecast before the redesign: a blue sky header above a board of weather boxes." width="640">
 </p>
 
 More screenshots, including the connection checker, are in [`docs/screenshots/`](docs/screenshots/).
@@ -28,7 +28,7 @@ More screenshots, including the connection checker, are in [`docs/screenshots/`]
 
 Local weather with flight status. Three pages:
 
-- **Today** (`index.html`): asks for your location (or a city) and answers in one sentence under a sky-coloured header. Below it is a personal board: boxes for the next 24 hours, 10 days, radar, current details, a daily question from the forecast, a here-and-there city comparison, flights, and a tip with a season checklist. Each box can be resized, reordered, hidden or kept on a shelf, and the arrangement is saved on the device.
+- **Today** (`index.html`): the animated sky with one answer on top. If one of your saved trips leaves within 72 hours, its verdict leads; otherwise the weather where you are does, and a first visit gets a short welcome with location and city search. Below: what today's weather means for you (commute, what to take, air and sun, flights near you), the next 10 days and the rain radar.
 - **Trips** (`trip.html`): enter your airports, departure time and layover and get a plain-language verdict on whether weather threatens the connection.
 - **Flights** (`flights.html`): track a flight live by number, with weather at both ends, or look up any airport's current weather risk and the aircraft around it.
 
@@ -63,11 +63,14 @@ The site is deployed on Vercel (`vercel.json`). Vercel runs `node scripts/build-
 
 | Path | What it does |
 |---|---|
-| `index.html`, `js/weather.js`, `styles/board.css` | Weather home: sky header, the board and its boxes, shelf, options panel |
+| `index.html`, `js/weather.js`, `styles/home.css` | Today: sky hero (trip verdict, weather or first visit), "here now" card, what today means, 10 days, radar |
+| `js/today.js` | Today's pure logic: upcoming trip, commute, what to take, air and sun, flights near you (unit-tested) |
 | `js/sky.js`, `js/sky/shaders.js`, `styles/sky.css` | WebGL animated sky behind the header, with a flat-colour fallback |
 | `js/sky/governor.js` | Decides the sky's quality level from measured frame times (pure, unit-tested) |
-| `js/motion.js`, `styles/motion.css` | Animation and micro-interactions for the board |
-| `js/boardcontent.js` | Headline sentence, parts of the day, daily question, tips, season checklists, city comparison (pure, unit-tested) |
+| `js/motion.js`, `styles/motion.css` | First-load entrance and small press feedback, off under reduced motion |
+| `js/boardcontent.js` | Headline sentence and sky mapping used by Today; also older content helpers kept for their tests (pure, unit-tested) |
+| `js/journey.js`, `js/tripview.js`, `styles/trip.css` | Trips: the journey strip model (pure, unit-tested) and the verdict, strip and stop-card views |
+| `js/flightstatus.js`, `styles/flights.css` | Flights: which number leads, position freshness, the one-line weather verdict (pure, unit-tested) |
 | `flights.html`, `js/flights.js` | Flight tracking and airport view |
 | `trip.html`, `js/trip.js` | Connection checker |
 | `js/shell.js` | Shared storage; unit, clock (12 or 24 hour) and theme preferences; settings popover |
@@ -105,7 +108,7 @@ Each forecast hour is scored for thunderstorms, freezing rain, snowfall rate, fo
 
 ## Design direction
 
-The visual language in use today is documented in [`docs/design-system.md`](docs/design-system.md). The team is exploring a redesign, "a departure board for weather", in which your trip is the home page, one journey sits on one time axis, and colour only ever means risk. The idea, the critique behind it, the screens explored and the open questions before launch are in [`docs/redesign.md`](docs/redesign.md). The shared foundation is in place (monochrome tokens where colour only means risk, Barlow Condensed signage type, the new header and navigation); the page layouts are still being rebuilt.
+The visual language in use today is documented in [`docs/design-system.md`](docs/design-system.md). The team is exploring a redesign, "a departure board for weather", in which your trip is the home page, one journey sits on one time axis, and colour only ever means risk. The idea, the critique behind it, the screens explored and the open questions before launch are in [`docs/redesign.md`](docs/redesign.md). It is now built: monochrome tokens where colour only means risk, Barlow Condensed signage type, the new header and navigation, and the rebuilt Today, Trips and Flights pages.
 
 ## Contributing
 
