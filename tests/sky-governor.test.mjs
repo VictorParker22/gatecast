@@ -19,6 +19,41 @@ function run(gov, cost, n, { source = 'frame', startAt = 0 } = {}) {
   return changes;
 }
 
+// A fuller simulation of js/sky.js on a clock: samples while the tier animates (the frame interval can never
+// beat the tier's frame rate), nothing at the still tier, poll() once a second, memory() written whenever
+// it has something. `cost(tier, t)` gives the frame's ms at time t; `jank(t)` marks samples a long-task
+// observer would flag. Returns the tier changes, what was remembered, and the final state.
+function live(gov, cost, untilMs, { source = 'frame', jank = () => false } = {}) {
+  let t = 0, nextPoll = 1000;
+  const changes = [], remembered = [];
+  gov.reset(0);
+  const apply = (d) => { if (d) { changes.push({ t: Math.round(t), ...d }); gov.reset(t); } };
+  while (t < untilMs) {
+    if (TIERS[gov.tier].fps) {
+      const ms = cost(gov.tier, t);
+      const sample = source === 'frame' ? Math.max(ms, 1000 / TIERS[gov.tier].fps) : ms;
+      t += source === 'frame' ? sample : 1000 / TIERS[gov.tier].fps;
+      apply(gov.sample(sample, t, source, jank(t)));
+    } else t += 100;
+    if (t >= nextPoll) { nextPoll += 1000; apply(gov.poll(t)); }
+    const m = gov.memory(t);
+    if (m != null && remembered[remembered.length - 1] !== m) remembered.push(m);
+  }
+  return { changes, remembered, tier: gov.tier, retrials: gov.retrials };
+}
+
+// The traces from the lead's review: a capable phone on 'frame' timing (33 ms frames) with a burst of jank.
+// `at` = how many good frames come first. Returns a cost function.
+const burst = (at, frames, ms) => {
+  let i = 0;   // counts frames, as the traces do
+  return () => { i++; return i > at && i <= at + frames ? ms : 33.3; };
+};
+const TRACES = {
+  '8 frames of 120 ms after 15 good frames': [15, 8, 120],
+  'one long task: 3 frames of 250 ms after 20 good frames': [20, 3, 250],
+  'mild jank: 12 frames of 50 ms after 20 good frames': [20, 12, 50],
+};
+
 // A device whose full-tier frame costs `fullMs`, scaling with each tier's relative cost.
 const device = (fullMs, jitter = () => 0) => (tier, i) => fullMs * TIERS[tier].cost + jitter(i);
 
@@ -187,4 +222,84 @@ test('remembered tier round-trips, expires and is tied to the device', () => {
   assert.equal(recallTier(raw, 1_000_000 + 3600e3, 'other'), null, 'other device or browser build');
   assert.equal(recallTier(raw, 0, sig), null, 'clock went backwards');
   for (const junk of [null, '', '{', '{"v":1,"tier":99,"at":0,"sig":"x"}', '42']) assert.equal(recallTier(junk, 1, 'x'), null);
+});
+
+for (const [name, [at, frames, ms]] of Object.entries(TRACES)) {
+  test(`jank at page load leaves a capable 'frame' device animated: ${name}`, () => {
+    const r = live(createGovernor({ start: 0 }), burst(at, frames, ms), 60_000);
+    assert.equal(r.tier, 0);
+    assert.deepEqual(r.remembered, [], 'nothing learned from jank is remembered');
+  });
+
+  test(`the same jank later in the session is undone by a re-trial: ${name}`, () => {
+    // Shifted to after the page-load warm-up (frame 200 is about 6.7 s in), so the governor does react.
+    const r = live(createGovernor({ start: 0 }), burst(at + 200, frames, ms), 60_000);
+    assert.equal(r.tier, 0, JSON.stringify(r.changes));
+    assert.ok(r.changes.length >= 2 && r.retrials === 1, JSON.stringify(r.changes));
+    const back = r.changes[r.changes.length - 1];
+    assert.match(back.reason, /re-trial/);
+    assert.ok(back.t - r.changes[0].t <= SETTINGS.retryCalmMs + 1100, `back after ${back.t - r.changes[0].t} ms`);
+    assert.deepEqual(r.remembered, [], 'a provisional downgrade is never remembered');
+  });
+}
+
+test('samples overlapping a long main-thread task are ignored', () => {
+  const r = live(createGovernor({ start: 0 }), burst(220, 3, 250), 30_000, { jank: (t) => t > 7300 && t < 8100 });
+  assert.deepEqual(r.changes, []);
+});
+
+test('a persistently slow frame-timed device ends on the still frame after two brief re-trials, and remembers it', () => {
+  // Like the software renderer: ~330 ms frames at full quality, scaling with tier cost.
+  const r = live(createGovernor({ start: 1 }), (tier) => 330 * TIERS[tier].cost, 120_000);
+  assert.equal(r.tier, STILL);
+  // One failed re-trial is not proof (a long stall can span it), so the tier is tried twice before it is final.
+  assert.equal(r.retrials, SETTINGS.confirmTrials, `${r.retrials} re-trials`);
+  const last = r.changes[r.changes.length - 1];
+  assert.ok(last.t < 25_000, `final still at ${last.t} ms`);
+  assert.equal(last.confirmed, true);
+  // Each re-trial was short: from re-trial to giving up again within about a second and a half.
+  const trials = r.changes.map((c, i) => [c, r.changes[i + 1]]).filter(([c]) => /re-trial/.test(c.reason));
+  assert.equal(trials.length, SETTINGS.confirmTrials);
+  for (const [start, end] of trials) assert.ok(end.t - start.t < 1500, `re-trial lasted ${end.t - start.t} ms`);
+  // The first failed re-trial is not remembered; only the confirmed result is.
+  assert.equal(r.changes.filter((c) => c.confirmed).length, 1);
+  assert.deepEqual(r.remembered, [STILL]);
+});
+
+test('a device that janks every time it loads never persists a downgrade', () => {
+  // Five visits; each has jank at load and a second burst later (the map library arriving, say).
+  for (let visit = 0; visit < 5; visit++) {
+    const jank = (tier, t) => (t < 2000 || (t > 9000 && t < 9500) ? 150 : 33.3);
+    const r = live(createGovernor({ start: 0 }), jank, 40_000);
+    assert.deepEqual(r.remembered, [], `visit ${visit}`);
+    assert.equal(r.tier, 0);
+  }
+});
+
+test('re-trials are capped and a tier that fails two re-trials is final', () => {
+  // Jank keeps coming back every 12 s: the governor re-tries at most maxRetrials times.
+  const r = live(createGovernor({ start: 0 }), (tier, t) => (t > 5000 && t % 12_000 < 600 ? 200 : 33.3), 200_000);
+  assert.ok(r.retrials <= SETTINGS.maxRetrials, `${r.retrials} re-trials`);
+  assert.ok(r.changes.length <= 2 * SETTINGS.maxRetrials + 2, `${r.changes.length} changes`);
+  // A tier closed after failing its re-trials is never entered again: one entry per re-trial, then no more.
+  const gov = createGovernor({ start: 1 });
+  const slow = live(gov, (tier) => (tier <= 1 ? 90 : 33.3), 120_000);
+  const intoOne = slow.changes.filter((c) => c.tier === 1);
+  assert.equal(intoOne.length, SETTINGS.confirmTrials, JSON.stringify(slow.changes));
+  assert.ok(gov.ceiling >= 2);
+});
+
+test('a confirmed GPU-timed result is remembered, but not before the page has settled', () => {
+  const gov = createGovernor({ start: 0 });
+  const r = live(gov, (tier) => 20 * TIERS[tier].cost, 3000, { source: 'gpu' });
+  assert.ok(r.changes.length >= 1 && r.changes[0].t < SETTINGS.persistAfterMs);
+  assert.deepEqual(r.remembered, [], 'too early');
+  assert.equal(gov.memory(SETTINGS.persistAfterMs + 1), gov.tier);
+});
+
+test('a stall that spans one re-trial does not confirm a downgrade', () => {
+  // A healthy device hit by six seconds of main-thread stall mid-session, with no long-task reports (Safari).
+  const r = live(createGovernor({ start: 0 }), (tier, t) => (t > 20_000 && t < 26_000 ? 200 : 33.3), 90_000);
+  assert.equal(r.tier, 0, JSON.stringify(r.changes));
+  assert.deepEqual(r.remembered, []);
 });

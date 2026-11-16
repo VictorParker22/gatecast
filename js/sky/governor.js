@@ -12,10 +12,20 @@
 //             overload and headroom. Budget: gpuShare of the tier's frame interval.
 //   'frame' - interval between two drawn frames (requestAnimationFrame timestamps). It only reveals cost once
 //             the device can no longer keep the tier's frame rate (a healthy device reads ~1.0 whatever the
-//             real cost). So it only ever steps down: an overloaded interval is a lower bound on the frame's
-//             cost, which picks the step through the cost model; a tier it cannot verify is never tried on
-//             hope, and it never steps up.
+//             real cost), and it also measures main-thread stalls that have nothing to do with the sky.
 // A sample becomes a "load" for its source: 1.0 means exactly at budget.
+//
+// Jank versus overload on 'frame' timing. Jank passes; GPU overload does not. So:
+//   - the first loadWarmMs after navigation (module loading, first render, the arrival animation) are not
+//     judged at all, and the caller drops samples that overlapped a long main-thread task it did not cause;
+//   - a 'frame' downgrade is provisional: after a calm spell the tier it left is tried again (spaced out,
+//     at most maxRetrials per session, from the still frame too). A truly slow device fails that re-trial
+//     within a second or so; after two such failures the downgrade is confirmed and final; jank that has passed does not
+//     come back, so the sky returns to where it was;
+//   - only confirmed results are remembered (see memory()): 'gpu' measurements, or a 'frame' tier that failed
+//     again during its re-trial, and never anything decided in the first persistAfterMs of the page.
+// On 'frame' timing a healthy interval says nothing about spare capacity, so apart from re-trials it never
+// steps up; an overloaded interval is a lower bound on the frame's cost and picks the step down.
 
 // Quality tiers, best first. res: resolution factor on top of the base device-pixel scale (pixel count goes
 // with its square); lite: compile the cheaper shader variant (3 noise octaves, one rain layer, two snow
@@ -51,7 +61,16 @@ export const SETTINGS = {
   upRun: { gpu: 90, frame: Infinity },  // ...for this many samples in a row (3 s at 30 fps). Never on 'frame'
                          //    timing: a healthy frame interval says nothing about spare GPU capacity.
   upFit: 0.7,            // and the tier above must be estimated to stay below this GPU load
-  maxUpgrades: 2,        // per session
+  maxUpgrades: 2,        // per session ('gpu' timing)
+  loadWarmMs: 2500,      // 'frame' timing: nothing in the first 2.5 s after navigation is judged (page-load jank)
+  retryCalmMs: 4000,     // after a provisional ('frame') downgrade, re-try the tier above after 4 s of calm...
+  retryBackoff: 2,       // ...then 8 s, 16 s: each re-trial waits twice as long
+  maxRetrials: 3,        // re-trials per session, so a weak device sees at most a couple of brief stutters
+  probationMs: 8000,     // a re-tried tier that fails within this time counts as a failed re-trial...
+  confirmTrials: 2,      // ...and two failed re-trials of the same tier confirm it too slow for the session.
+                         //    One is not enough: a stall lasting several seconds can span a single re-trial,
+                         //    and browsers without long-task reports (Safari) cannot tell that from overload.
+  persistAfterMs: 5000,  // nothing is remembered before the page has been up this long
 };
 
 const median = (xs) => {
@@ -74,43 +93,85 @@ function estimate(fullMs, to, settings) {
   return (fullMs * TIERS[to].cost) / ((1000 / TIERS[to].fps) * settings.gpuShare);
 }
 
-// createGovernor({ start, floor }) - start: first tier. Returns an object with:
-//   sample(ms, at, source)  feed one measurement (at = timestamp in ms). Returns null, or a decision
-//                           { tier, from, reason, measured: true } that the caller must apply.
-//   reset(at, why)          start a warm-up (call after start, resize, tab re-show, a kind crossfade, and
+// createGovernor({ start, bornAt, settings }) - start: first tier; bornAt: the navigation time on the same
+// clock as the sample timestamps (0 for performance.now()). Returns an object with:
+//   sample(ms, at, source, jank)  feed one measurement (at = timestamp in ms; jank = it overlapped a long
+//                           main-thread task, so it is ignored). Returns null, or a decision
+//                           { tier, from, reason, confirmed } that the caller must apply.
+//   poll(at)                call about once a second while the sky could animate (visible, no hold): returns
+//                           a re-trial decision when one is due, else null. Works at the still tier too.
+//   memory(at)              the tier worth remembering for this device now, or null if nothing is confirmed.
+//   reset(at)               start a warm-up (call after start, resize, tab re-show, a kind crossfade, and
 //                           after applying a decision) and forget the rolling window.
-//   tier, ceiling, upgrades, lastLoad, medianMs  current state, for debugging.
-export function createGovernor({ start = 0, settings = SETTINGS } = {}) {
+//   tier, ceiling, upgrades, retrials, pending, lastLoad, medianMs  current state, for debugging.
+export function createGovernor({ start = 0, bornAt = 0, settings = SETTINGS } = {}) {
   const S = settings;
   const g = {
     tier: Math.min(STILL, Math.max(0, start | 0)),
     ceiling: 0,            // best tier still allowed this session (a tier that failed after an upgrade is locked out)
     upgrades: 0,
+    retrials: 0,
+    pending: null,         // best tier left by an unconfirmed ('frame') downgrade: the next re-trial target
+    confirmed: false,      // whether the current tier was reached on confirmed evidence (worth remembering)
     lastLoad: 0,
     medianMs: 0,
     source: 'frame',
   };
-  let resetAt = -Infinity, seen = 0;
+  let resetAt = -Infinity, seen = 0, changedAt = bornAt;
   let loads = [], msWin = [], slowRun = 0, goodRun = 0;
-  const failed = new Array(TIERS.length).fill(0);   // how often each tier has been stepped down from
-  let upgradedInto = -1;                            // the tier the last upgrade went to
+  let upgradedInto = -1;                            // the tier the last 'gpu' upgrade went to
+  let trial = null;                                 // { tier, until }: a re-trial on probation
+  const failedTrials = TIERS.map(() => 0);          // failed re-trials per tier, this session
 
   g.reset = (at = 0) => { resetAt = at; seen = 0; loads = []; msWin = []; slowRun = 0; goodRun = 0; };
 
-  function move(to, reason) {
+  // A tier proved too slow: it and everything better are closed for the session.
+  const close = (t) => {
+    g.ceiling = Math.max(g.ceiling, t + 1);
+    if (g.pending != null && g.pending < g.ceiling) g.pending = null;
+  };
+
+  function move(to, reason, at, source) {
     const from = g.tier;
+    let confirmed;
     if (to > from) {
-      failed[from]++;
-      // An upgrade that did not hold is not tried again this session: no oscillation.
-      if (upgradedInto === from) g.ceiling = Math.max(g.ceiling, from + 1);
+      // Down. A tier that fails again during its re-trial, or right after a headroom upgrade, is closed for
+      // the session (no oscillation) once it has failed confirmTrials re-trials. Worth remembering: 'gpu' timing
+      // (direct evidence) or a closed tier.
+      // Any other 'frame' downgrade may be jank, so it is provisional and its tier gets re-tried later.
+      const retried = trial && trial.tier === from && at <= trial.until;
+      if (retried) failedTrials[from]++;
+      const final = (retried && failedTrials[from] >= S.confirmTrials) || upgradedInto === from;
+      confirmed = source === 'gpu' || final;
+      if (final) close(from);
+      else if (source !== 'gpu' && g.retrials < S.maxRetrials) g.pending = g.pending == null ? from : Math.min(g.pending, from);
+      trial = null;
+    } else if (reason.startsWith('re-trial')) {
+      confirmed = false;
+      g.retrials++;
+      g.pending = null;
+      trial = { tier: to, until: at + S.probationMs };
     } else {
+      confirmed = true;   // 'gpu' headroom
       g.upgrades++;
       upgradedInto = to;
     }
     g.tier = to;
+    g.confirmed = confirmed;
+    changedAt = at;
     g.reset(-Infinity);   // the caller resets again with a real timestamp when it applies the change
-    return { tier: to, from, reason, measured: true };
+    return { tier: to, from, reason, confirmed };
   }
+
+  g.poll = (at) => {
+    if (trial && at > trial.until) trial = null;   // the re-trial held: the earlier downgrade was jank
+    const t = g.pending;
+    if (t == null || t >= g.tier || t < g.ceiling || g.retrials >= S.maxRetrials) return null;
+    if (at - changedAt < S.retryCalmMs * S.retryBackoff ** g.retrials) return null;
+    return move(t, `re-trial ${g.retrials + 1}/${S.maxRetrials} of ${TIERS[t].name} after a calm spell`, at, 'frame');
+  };
+
+  g.memory = (at) => (g.confirmed && !trial && at - bornAt >= S.persistAfterMs ? g.tier : null);
 
   // The best tier below this one whose estimated load fits, from a measured frame cost in ms. With 'gpu'
   // timing, if nothing fits but the cheapest animated tier is not hopeless, try it (it will be measured).
@@ -121,9 +182,10 @@ export function createGovernor({ start = 0, settings = SETTINGS } = {}) {
     return source === 'gpu' && g.tier < last && estimate(fullMs, last, S) <= S.lastChance ? last : STILL;
   }
 
-  g.sample = (ms, at = 0, source = 'frame') => {
+  g.sample = (ms, at = 0, source = 'frame', jank = false) => {
     if (g.tier === STILL || !(ms >= 0) || !Number.isFinite(ms)) return null;
     g.source = source;
+    if (source === 'frame' && (jank || at - bornAt < S.loadWarmMs)) return null;   // main-thread noise
     seen++;
     if (seen <= S.warmSamples || at - resetAt < S.warmMs) return null;   // warm-up: noisy, ignore
 
@@ -137,23 +199,23 @@ export function createGovernor({ start = 0, settings = SETTINGS } = {}) {
     slowRun = load > S.severe ? slowRun + 1 : 0;
     if (slowRun >= S.severeRun) {
       const m = median(msWin.slice(-S.severeRun));
-      return move(fitBelow(m, source), `very slow: ${source} ${m.toFixed(1)} ms, load ${median(loads.slice(-S.severeRun)).toFixed(2)}`);
+      return move(fitBelow(m, source), `very slow: ${source} ${m.toFixed(1)} ms, load ${median(loads.slice(-S.severeRun)).toFixed(2)}`, at, source);
     }
     // Consistently over budget: the median ignores the odd spike (GC, a big layout, a background tab).
     if (loads.length >= S.minDecide) {
       const m = median(loads);
       if (m > S.down[source]) {
-        return move(fitBelow(g.medianMs, source), `slow: ${source} median ${g.medianMs.toFixed(1)} ms, load ${m.toFixed(2)}`);
+        return move(fitBelow(g.medianMs, source), `slow: ${source} median ${g.medianMs.toFixed(1)} ms, load ${m.toFixed(2)}`, at, source);
       }
     }
 
-    // Stepping up: only with a long clean run, at most maxUpgrades times, never past the ceiling, never into
-    // a tier that has already failed twice.
+    // Stepping up on measured headroom ('gpu' only): a long clean run, at most maxUpgrades times, never
+    // past the ceiling.
     goodRun = load <= S.up[source] ? goodRun + 1 : 0;
     const up = g.tier - 1;
-    if (up >= g.ceiling && g.upgrades < S.maxUpgrades && failed[up] < 2 && goodRun >= S.upRun[source]) {
+    if (up >= g.ceiling && g.upgrades < S.maxUpgrades && goodRun >= S.upRun[source]) {
       if (estimate(g.medianMs / TIERS[g.tier].cost, up, S) <= S.upFit) {
-        return move(up, `headroom: ${source} median ${g.medianMs.toFixed(1)} ms, load ${median(loads).toFixed(2)}`);
+        return move(up, `headroom: ${source} median ${g.medianMs.toFixed(1)} ms, load ${median(loads).toFixed(2)}`, at, source);
       }
     }
     return null;

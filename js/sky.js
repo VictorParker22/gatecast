@@ -37,7 +37,7 @@ const NEAR_DRIFT = 1.8;              // the near cloud layer drifts this much fa
 // of the layers in the shader. Rain cells are 5 times taller than wide.
 const RAIN_LAYERS = [{ scale: 70 * 0.2, speed: 2.6 }, { scale: 44 * 0.2, speed: 3.4 }];
 const SNOW_LAYERS = [{ scale: 20, speed: 0.05 }, { scale: 11, speed: 0.08 }, { scale: 6, speed: 0.12 }];
-const STABLE_SAMPLES = 300;          // about 10 s on one tier counts as settled (worth remembering)
+const SAMPLE_DELAY_MS = 150;         // 'frame' samples wait this long, so long-task reports can arrive first
 
 // The look of each kind. Colours are sRGB hex near the --sky-* token for that kind, a little deeper
 // so brighter details have room below the shader's legibility ceiling.
@@ -81,7 +81,7 @@ let cssW = 0, cssH = 0, pxScale = 1, sizeDirty = true;
 // Governor state.
 let gov = null, tier = 0, frameMs = 1000 / 30;
 const holds = { saveData: false, battery: false };
-let memorySig = '', samplesOnTier = 0, remembered = false, pinned = false;
+let memorySig = '', remembered = false, saved = null, pinned = false, pollTimer = 0;
 
 const clamp01 = (x) => Math.min(1, Math.max(0, x));
 const toLinear = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
@@ -266,8 +266,14 @@ function timerPoll(out) {
 
 const motionAllowed = () => !reduce && TIERS[tier].fps > 0;
 
+// Write the governor's confirmed tier, if it has one and it is news. Unconfirmed ('frame' timing, not yet
+// re-tried) downgrades and anything from the first seconds of the page are never written.
 function remember() {
-  try { localStorage.setItem(MEMORY_KEY, rememberTier(gov.tier, Date.now(), memorySig)); } catch { /* private mode, quota */ }
+  if (pinned) return;
+  const t = gov.memory(performance.now());
+  if (t == null || t === saved) return;
+  saved = t;
+  try { localStorage.setItem(MEMORY_KEY, rememberTier(t, Date.now(), memorySig)); } catch { /* private mode, quota */ }
 }
 
 // Apply what the governor and the holds ask for now.
@@ -275,38 +281,71 @@ function applyTier(reason) {
   const hold = holdReason(holds);
   const want = hold ? STILL : gov.tier;
   debugNote(want, hold ? `hold: ${hold}` : reason);
+  schedulePoll();
   if (want === tier) return;
   tier = want;
   frameMs = TIERS[tier].fps ? 1000 / TIERS[tier].fps : frameMs;
   sizeDirty = true;
-  samplesOnTier = 0;
   if (gl && !gl.isContextLost() && prog) useVariant(TIERS[tier].lite);
   gov.reset(performance.now());
   updateLoop();
   if (!raf) drawStill();
 }
 
+function decide(decision) {
+  if (!decision || pinned) return;
+  applyTier(decision.reason);
+  remember();
+  // A confirmed result from the first seconds is written once the page has settled.
+  if (decision.confirmed) setTimeout(remember, Math.max(0, SETTINGS.persistAfterMs - performance.now()) + 50);
+}
+
+// Re-trials after a provisional downgrade are due on a clock, also at the still tier where no frames run,
+// so a light timer checks once a second while one is pending, and only when the sky could animate.
+function schedulePoll() {
+  if (pollTimer || !gov || gov.pending == null || pinned) return;
+  pollTimer = setTimeout(() => {
+    pollTimer = 0;
+    const canAnimate = prog && !gl.isContextLost() && !reduce && !holdReason(holds) && onScreen
+      && document.visibilityState === 'visible';
+    if (canAnimate) decide(gov.poll(performance.now()));
+    schedulePoll();
+  }, 1000);
+}
+
+// Long main-thread tasks (where the browser reports them; Safari does not) make frame intervals long for
+// reasons that have nothing to do with the sky. Frame samples that overlap one are dropped, unless the sky's
+// own frame callback was the slow part. Samples wait SAMPLE_DELAY_MS so the reports can arrive first.
+const longTasks = [];    // [start, end] of recent long tasks, newest last
+try {
+  if (PerformanceObserver.supportedEntryTypes?.includes('longtask')) {
+    new PerformanceObserver((list) => {
+      for (const e of list.getEntries()) longTasks.push([e.startTime, e.startTime + e.duration]);
+      if (longTasks.length > 16) longTasks.splice(0, longTasks.length - 16);
+    }).observe({ type: 'longtask' });
+  }
+} catch { /* not supported */ }
+const overlapsLongTask = (from, to) => longTasks.some(([a, b]) => a < to && b > from);
+const queued = [];       // frame samples waiting: [at, interval, ownMs]
+
 const gpuMs = [];
-function measure(ms, interval) {
+function measure(ms, interval, ownMs) {
   gpuMs.length = 0;
   if (timer.on) timerPoll(gpuMs);   // always collect, so finished queries are freed
-  if (fade < 1) return;             // crossfades are noisy (both kinds' layers are drawn): do not judge them
+  if (fade < 1) { queued.length = 0; return; }   // crossfades are noisy (both kinds' layers are drawn)
   let decision = null;
   if (timer.on) {
     for (const g of gpuMs) decision = decision || gov.sample(g, ms, 'gpu');
-  } else if (interval > 0) {
-    decision = gov.sample(interval, ms, 'frame');
+  } else {
+    if (interval > 0) queued.push([ms, interval, ownMs]);
+    while (queued.length && !decision && ms - queued[0][0] >= SAMPLE_DELAY_MS) {
+      const [at, gap, own] = queued.shift();
+      decision = gov.sample(gap, at, 'frame', own < 20 && overlapsLongTask(at - gap, at));
+    }
   }
+  decision = decision || gov.poll(ms);   // also ends a re-trial's probation
   if (debug) debugSample();
-  if (pinned) return;
-  if (decision) {
-    remember();
-    remembered = true;
-    applyTier(decision.reason);
-  } else if (!remembered && ++samplesOnTier >= STABLE_SAMPLES) {
-    remember();
-    remembered = true;
-  }
+  if (decision) { queued.length = 0; decide(decision); }
 }
 
 // --- Drawing ---------------------------------------------------------------------------------------------
@@ -369,6 +408,7 @@ function advance(dt) {
 function frame(ms) {
   raf = requestAnimationFrame(frame);
   if (ms - lastMs < frameMs - 4) return;
+  const began = performance.now();
   const interval = lastMs ? ms - lastMs : 0;
   const dt = Math.min(interval, 100) / 1000;   // no jump after a pause
   lastMs = ms;
@@ -377,7 +417,7 @@ function frame(ms) {
   const query = timerBegin();
   draw(flashLevel(ms));
   if (query) timerEnd(query);
-  measure(ms, interval);
+  measure(ms, interval, performance.now() - began);
 }
 
 // One still frame: used under reduced motion, at the still tier, and whenever the loop is not running.
@@ -391,7 +431,7 @@ function drawStill() {
 // Run the loop only while it can be seen and motion is welcome.
 function updateLoop() {
   const run = prog && !gl.isContextLost() && motionAllowed() && onScreen && document.visibilityState === 'visible';
-  if (run && !raf) { lastMs = 0; gov.reset(performance.now()); raf = requestAnimationFrame(frame); }
+  if (run && !raf) { lastMs = 0; queued.length = 0; gov.reset(performance.now()); raf = requestAnimationFrame(frame); }
   if (!run && raf) { cancelAnimationFrame(raf); raf = 0; }
 }
 
@@ -422,13 +462,14 @@ function chooseStart() {
     stored = recallTier(localStorage.getItem(MEMORY_KEY), Date.now(), memorySig);
   } catch { /* storage blocked */ }
   remembered = stored != null;
+  saved = stored;
   let start = startTier({ remembered: stored, cores: navigator.hardwareConcurrency || 0, memory: navigator.deviceMemory || 0 });
   const pin = /^tier([0-9])$/.exec(debugMode);
   if (pin && +pin[1] <= STILL) { pinned = true; start = { tier: +pin[1], reason: 'pinned by ?skydebug' }; }
   holds.saveData = !!(navigator.connection && navigator.connection.saveData);
   // A pinned tier still measures (for __sky.frameMs) but never decides anything.
-  gov = createGovernor({ start: start.tier, settings: pinned
-    ? { ...SETTINGS, down: { gpu: Infinity, frame: Infinity }, severe: Infinity, maxUpgrades: 0 } : SETTINGS });
+  gov = createGovernor({ start: start.tier, bornAt: 0, settings: pinned
+    ? { ...SETTINGS, down: { gpu: Infinity, frame: Infinity }, severe: Infinity, maxUpgrades: 0, loadWarmMs: 0 } : SETTINGS });
   const hold = holdReason(holds);
   tier = hold ? STILL : gov.tier;
   frameMs = 1000 / (TIERS[tier].fps || 30);
@@ -436,8 +477,9 @@ function chooseStart() {
 }
 
 // --- Debug hook ----------------------------------------------------------------------------------------
-// Add ?skydebug to the page URL to get window.__sky (current tier, frame timing, the reason for the last
-// change and a short history) and a console line on every tier change. ?skydebug=reset also forgets the
+// Add ?skydebug to the page URL to get a small on-screen readout (bottom left, for checking on a phone
+// without a cable), window.__sky (current tier, frame timing, the reason for the last change and a short
+// history) and a console line on every tier change. ?skydebug=reset also forgets the
 // remembered tier first; ?skydebug=tier0 ... tier5 pins a tier (measured, never changed or remembered), to
 // compare how the tiers look and cost. Without the parameter none of this runs.
 let debugMode = '';
@@ -460,6 +502,33 @@ function debugNote(to, reason) {
   }
 }
 
+// The on-screen readout: plain text, refreshed twice a second. Only ever created with ?skydebug.
+let readout = null;
+function startReadout() {
+  if (!debug || readout || !document.body) return;
+  readout = document.createElement('div');
+  readout.className = 'sky-debug';
+  readout.setAttribute('aria-hidden', 'true');
+  document.body.append(readout);
+  const update = () => {
+    const d = window.__sky || {};
+    const t = d.tier ?? tier;
+    const holdsNow = [holdReason(holds), reduce ? 'reduced motion' : ''].filter(Boolean).join(', ');
+    const lines = [`sky ${t}/${STILL} ${TIERS[t].name}${pinned ? ' (pinned)' : ''}`];
+    if (gov) {
+      const ms = gov.medianMs ? `${gov.medianMs.toFixed(1)} ms, load ${gov.lastLoad.toFixed(2)}` : 'no samples';
+      lines.push(`timing ${timer.on ? 'gpu' : 'frame'}: ${TIERS[t].fps ? ms : `stopped (last ${ms})`}`);
+      lines.push(`re-trials ${gov.retrials}/${SETTINGS.maxRetrials}${gov.pending != null ? `, next ${TIERS[gov.pending].name}` : ''}`);
+      lines.push(`remembered ${remembered ? 'yes' : 'no'}; saved ${saved == null ? 'nothing' : TIERS[saved].name}`);
+    }
+    lines.push(`hold ${holdsNow || 'none'}`);
+    lines.push(`why ${d.reason || ''}`);
+    readout.textContent = lines.join('\n');
+  };
+  update();
+  setInterval(update, 500);
+}
+
 function debugSample() {
   const d = window.__sky;
   if (!d) return;
@@ -477,6 +546,7 @@ function debugSample() {
 export function initSky(el) {
   if (canvas || !el) return;
   canvas = el;
+  startReadout();
   const options = { alpha: false, antialias: false, depth: false, stencil: false, powerPreference: 'low-power' };
   gl = canvas.getContext('webgl2', options) || canvas.getContext('webgl', options);
   if (!gl) { debugNote(STILL, 'no WebGL: flat colour'); return; }   // the canvas stays transparent over the flat colour
