@@ -1,9 +1,12 @@
 // Today (index.html): a sky hero that adapts to the visitor (a trip within 72 hours, the weather where they are,
 // or a first visit), a glass card with the weather here and the next 8 hours, then what today means, 10 days
 // and the rain radar. Pure wording and rules live in js/today.js and js/boardcontent.js.
-import { planTrip, assessTrip, assessWindow, describeCode, fmtTime, fmtDay, fmtZone, HOUR, LEVEL_LABEL } from './core.js';
+import { planTrip, assessTrip, assessWindow, scoreHour, describeCode, distanceKm, fmtTime, fmtDay, fmtZone, HOUR, LEVEL_LABEL } from './core.js';
 import { headlineParts, dayKey, skyOf } from './boardcontent.js';
-import { upcomingTrip, mightBeSoon, tripQuery, commute, carry, airSun, flightsNear, nextHours, stateOf, isUS, relTime, cleanHeadlines, arrangeHeadlines, monogram, tileTone, alertItems, airportSignal, US_STATES } from './today.js';
+import { upcomingTrip, mightBeSoon, tripQuery, commute, carry, airSun, flightsNear, nextHours, stateOf, isUS, relTime, cleanHeadlines, arrangeHeadlines, monogram, tileTone, alertItems, airportSignal, alertReason, newsReason, civicReason, US_STATES } from './today.js';
+import { placeSnapshot, diffPlaces, noteForecast, dismiss, changeLine, changeLead, dayName, alertKey, startLook, noteKind, briefNews, dismissLook, lookEntry, sinceLabel } from './changes.js';
+import { odds, stopOdds, faaPlanLine } from './riskwords.js';
+import { seenGet, seenSet } from './seen.js';
 import { loadAirports, airport, searchPlaces, nearestAirports, loadWeather, loadForecasts, loadAlerts } from './data.js';
 import { $, store, prefs, initSettings } from './shell.js';
 import { initSky, setSky } from './sky.js';
@@ -35,11 +38,25 @@ const state = {
   wx: null, wxError: null,       // local forecast, or 'rate' / 'forecast'
   alerts: [], airports: null,     // NWS alerts; nearest airports with their next-3-hour risk (null while loading)
   trip: { status: 'none' },       // 'none' | 'checking' | 'ready' | 'failed', with { trip, plan, result, route }
-  brief: null,                    // { place, us, code (US state or null), news: null while loading | { state, items } }
+  brief: null,                    // { place, us, code (US state or null), news: null while loading | { state, items }, look }
+  since: null,                    // what changed in the place's forecast since the last look: { key, changes, since } or null
+  faa: [],                        // FAA planned items for the nearby US airports (data.js loadFaaPlans, when present)
 };
 if (state.place && !(Number.isFinite(state.place.lat) && Number.isFinite(state.place.lon))) state.place = null;
 let radar = null;
 let jumpTo = null; // a section to scroll to once the forecast is on screen (old #tile- links)
+
+/* ---------- What changed since the last look (kept on this device only; js/changes.js decides) ---------- */
+
+const viewerTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+const placeKey = (p) => `${p.lat.toFixed(2)},${p.lon.toFixed(2)}`;
+// The place's forecast against the last look at this place.
+function notePlace(p, wx) {
+  const now = Date.now(), key = placeKey(p);
+  const r = noteForecast(seenGet('places', key), placeSnapshot(wx, scoreHour, now), diffPlaces, now);
+  if (r.entry) seenSet('places', key, r.entry);
+  return r.changes ? { key, changes: r.changes, since: r.since } : null;
+}
 
 /* ---------- Formatting for the current place and units ---------- */
 
@@ -160,7 +177,7 @@ $('#popular').innerHTML = POPULAR.map((p, i) => `<button type="button" class="pi
 
 async function loadPlace() {
   const mine = state.place;
-  state.wx = null; state.wxError = null; state.alerts = []; state.airports = null;
+  state.wx = null; state.wxError = null; state.alerts = []; state.airports = null; state.since = null; state.faa = [];
   destroyRadar();
   loadBrief(mine); // headlines do not wait for the forecast
   render();
@@ -168,6 +185,7 @@ async function loadPlace() {
     const wx = await loadWeather(mine.lat, mine.lon);
     if (state.place !== mine) return;
     state.wx = wx;
+    state.since = notePlace(mine, wx);
     render();
     // First forecast of this visit: a short staggered arrival (once per page load). The temperature
     // counts up only on the first visit of the day; a returning visitor reads it at once.
@@ -192,7 +210,12 @@ async function enrich(mine) {
   }, () => []);
   const alerts = (mine.country ? Promise.resolve(mine.country) : near.then((n) => n[0] && n[0].airport.country))
     .then((country) => loadAlerts({ lat: mine.lat, lon: mine.lon, country }))
-    .then((list) => { if (state.place === mine) { state.alerts = list; renderAlerts(); renderBrief(); } });
+    .then((list) => {
+      if (state.place !== mine) return;
+      state.alerts = list;
+      noteBrief('alerts', list.map(alertKey));
+      renderAlerts(); renderBrief();
+    });
   const fly = near.then(async (list) => {
     const fc = list.length ? await loadForecasts(list.map((x) => x.airport)).catch(() => null) : null;
     if (state.place !== mine) return;
@@ -200,8 +223,24 @@ async function enrich(mine) {
     state.airports = list.map((x) => ({ ...x, code: x.airport.code, risk: assessWindow(fc ? fc.forecasts.get(x.airport.code) || [] : [], now, now + 3 * HOUR) }));
     renderToday();
     renderBrief();
+    loadPlans(mine, list.map((x) => x.airport));
   });
   await Promise.all([alerts, fly]);
+}
+
+// What the FAA plans today at the nearby US airports. data.js may not have loadFaaPlans yet (it arrives with the
+// FAA work); without it, or when the request fails, the card simply has no plan lines.
+async function loadPlans(mine, airports) {
+  const us = airports.filter((a) => a.country === 'US');
+  if (!us.length) return;
+  try {
+    const m = await import('./data.js');
+    if (typeof m.loadFaaPlans !== 'function') return;
+    const got = await m.loadFaaPlans(us.map((a) => a.code));
+    if (state.place !== mine || !Array.isArray(got?.plans)) return;
+    state.faa = got.plans;
+    renderToday();
+  } catch {}
 }
 
 // The saved trip that departs within 72 hours (or is under way) leads the page.
@@ -291,6 +330,21 @@ function tripWhen(plan) {
   return `${days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : fmtDay(start, tz)} ${t}`;
 }
 
+// "Since yesterday 18:40, the forecast changed: Tomorrow went Low → Elevated, strong gusts now 14:00–17:00."
+// One line per day, calm and dismissible. Nothing at all when nothing material changed.
+function sinceHTML(cls = '') {
+  const c = state.since, wx = state.wx;
+  if (!c || !wx) return '';
+  const now = Date.now();
+  const lines = c.changes.map((x) => changeLine(x, (id) => dayName(id, now, wx.tz)));
+  return `<div class="since ${cls}" role="note" aria-label="Forecast changes since your last look">
+    <svg class="icon since__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 0 1 13.7-5.6L20 9M20 4v5h-5M20 12a8 8 0 0 1-13.7 5.6L4 15M4 20v-5h5"/></svg>
+    <div class="since__text"><p class="since__lead">${esc(changeLead(c.since, now, viewerTz))} for ${esc(placeName(state.place))}:</p>
+      <ul class="since__list">${lines.map((l) => `<li>${esc(l)}.</li>`).join('')}</ul></div>
+    <button type="button" class="btn btn--icon since__close" data-dismiss="place" aria-label="Dismiss this note"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+  </div>`;
+}
+
 const HERO = {
   trip() {
     const t = state.trip;
@@ -303,6 +357,8 @@ const HERO = {
     const r = t.result, hl = r.headline;
     const level = r.level;
     const estimated = t.plan.legs.some((l) => l.estimated);
+    const o = r.worst ? stopOdds(r.worst, fmt().speed, { named: true }) : null;
+    const said = o && (level !== 'low' || o.cause) ? `${LEVEL_LABEL[level]} · ${o.text}. ` : '';
     return `<p class="hero__eyebrow"><span class="hero__chip">${chip(level, level === 'unknown' ? 'No forecast' : level === 'low' ? 'Low risk' : `${LEVEL_LABEL[level]} risk`)}</span><span class="signage">${eyebrow}</span></p>
       <h1 class="hero__title hero__title--${sizeOf(hl.title)}">${esc(hl.title)}.</h1>
       <p class="hero__line">${esc(hl.body)}</p>
@@ -310,7 +366,7 @@ const HERO = {
         <a class="btn btn--sun" href="${esc(tripUrl(t.trip))}">See the journey ${ARROW}</a>
         <button class="btn btn--glass" type="button" data-copy="${esc(tripUrl(t.trip))}">${LINK}<span>Copy link</span></button>
       </div>
-      <p class="hero__note">${esc(r.confidence.text)}${estimated ? ' Flight times are estimated from distance.' : ''}</p>`;
+      <p class="hero__note">${esc(said)}${esc(r.confidence.text)}${estimated ? ' Flight times are estimated from distance.' : ''}</p>`;
   },
   weather() {
     const { place: p, wx } = state;
@@ -321,6 +377,7 @@ const HERO = {
       : `<a class="btn btn--glass" href="trip.html">Flying soon? Check a trip ${ARROW}</a>`;
     return `<p class="hero__eyebrow signage">${placeLine(p, wx.tz)}</p>
       <h1 class="hero__title hero__title--${sizeOf(said.lead)}">${esc(said.lead)} <span class="hero__action">${esc(said.action)}</span></h1>
+      ${sinceHTML('since--sky')}
       <div class="hero__actions">${tripLink}</div>`;
   },
   loading() {
@@ -408,8 +465,12 @@ function renderToday() {
   $('#saved-places').innerHTML = saved.length > 1
     ? `<span class="sr-only">Your places:</span>${saved.map((x, i) => `<button type="button" class="pill${x.name === p.name && x.region === p.region ? ' is-current' : ''}" data-saved="${i}"${x.name === p.name && x.region === p.region ? ' aria-current="true"' : ''}>${esc(x.name)}</button>`).join('')}`
     : '';
+  // Beside a trip the hero has no room for the place's forecast changes: they lead this section instead.
+  const sinceEl = $('#today-since');
+  sinceEl.innerHTML = document.documentElement.dataset.start === 'weather' ? '' : sinceHTML();
+  sinceEl.hidden = !sinceEl.innerHTML;
   const cards = [commute(wx, f), carry(wx, f), airSun(wx, f), flightsNear(state.airports)].filter(Boolean);
-  $('#means').innerHTML = cards.map((c) => meanCard(c)).join('');
+  $('#means').innerHTML = cards.map((c) => meanCard(c, cardOdds(c, wx, f))).join('');
   if (!$('#days').dataset.for || $('#days').dataset.for !== `${p.lat},${p.lon},${prefs.temp},${prefs.clock}`) {
     $('#days').innerHTML = daysList(wx, f);
     $('#days').dataset.for = `${p.lat},${p.lon},${prefs.temp},${prefs.clock}`;
@@ -417,14 +478,34 @@ function renderToday() {
   if (!radar && !$('#radar').dataset.ready) watchRadar();
 }
 
-function meanCard(c) {
+// How likely and how bad, for the two cards that carry a risk level (js/riskwords.js). Calm with nothing behind
+// it says nothing more; calm with a minor factor says "at most a nuisance".
+function cardOdds(c, wx, f) {
+  if (c.label === 'Your commute' && (c.level === 'elevated' || c.level === 'high')) {
+    const H = nextHours(wx, 12);
+    const risk = assessWindow(H, H[0].t, H[H.length - 1].t);
+    return odds({ level: risk.level, factors: risk.factors, hours: risk.hours, speed: f.speed, where: ' in the next 12 hours' });
+  }
+  if (c.label === 'Flights near you' && (c.level === 'elevated' || c.level === 'high' || c.level === 'calm')) {
+    const known = (state.airports || []).filter((x) => x.risk.level !== 'unknown');
+    if (!known.length) return null;
+    const worst = known.reduce((a, b) => (b.risk.score > a.risk.score ? b : a));
+    const o = odds({ level: worst.risk.level, factors: worst.risk.factors, hours: worst.risk.hours, speed: f.speed, where: ` at ${worst.code} in the next 3 hours` });
+    return o && (worst.risk.level !== 'low' || o.cause) ? o : null;
+  }
+  return null;
+}
+
+function meanCard(c, o = null) {
   const lvl = c.level;
   const risky = lvl === 'elevated' || lvl === 'high';
   const icon = lvl === 'calm' ? riskIcon('low') : risky || lvl === 'unknown' ? riskIcon(lvl) : '';
   const extra = c.label === 'Flights near you' ? nearList() : '';
+  const word = risky ? LEVEL_LABEL[lvl] : 'Low';
   return `<li class="mean mean--${lvl}">
     <h3 class="mean__label">${esc(c.label)}</h3>
     <p class="mean__big">${icon}<span>${esc(c.big)}</span>${risky && c.label !== 'Flights near you' ? `<span class="sr-only"> (${LEVEL_LABEL[lvl].toLowerCase()} risk)</span>` : ''}${risky && c.label === 'Flights near you' ? '<span class="sr-only"> risk</span>' : ''}</p>
+    ${o ? `<p class="mean__odds"><b>${word}</b> · ${esc(o.text)}</p>` : ''}
     <p class="mean__line">${esc(c.line)}</p>${extra}</li>`;
 }
 
@@ -442,8 +523,10 @@ function nearList() {
   return `<ul class="near">${list.map(({ airport: a, km, risk }) => {
     const lvl = risk.level === 'low' ? 'calm' : risk.level;
     const word = risk.level === 'unknown' ? 'No forecast' : risk.level === 'low' ? 'Calm' : LEVEL_LABEL[risk.level];
+    const plans = state.faa.filter((x) => x.airport === a.code || x.airport === a.icao).map((x) => faaPlanLine(x, (ms) => fmt().clock(ms))).filter(Boolean);
     return `<li><a href="flights.html?airport=${a.code}"><span class="code">${a.code}</span><span class="near__name">${esc(shortName(a))}<small>${far(km)}</small></span></a>
-      <span class="near__lvl near__lvl--${lvl}">${riskIcon(risk.level === 'low' ? 'low' : risk.level)}${word}</span></li>`;
+      <span class="near__lvl near__lvl--${lvl}">${riskIcon(risk.level === 'low' ? 'low' : risk.level)}${word}</span>
+      ${plans.map((l) => `<p class="near__plan">${esc(l)}</p>`).join('')}</li>`;
   }).join('')}</ul>`;
 }
 
@@ -484,7 +567,7 @@ function nwsState(p) {
 }
 
 async function loadBrief(mine) {
-  const b = { place: mine, us: isUS(mine), code: stateOf(mine), news: null };
+  const b = { place: mine, us: isUS(mine), code: stateOf(mine), news: null, look: startLook(seenGet('brief', placeKey(mine)), Date.now()) };
   state.brief = b;
   if (!b.code && b.us) b.code = await nwsState(mine);
   if (state.brief !== b) return;
@@ -493,11 +576,50 @@ async function loadBrief(mine) {
   const json = await fetch(`api/news${b.code ? `?state=${b.code}` : ''}`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   if (state.brief !== b) return;
   b.news = { state: US_STATES[json?.state] ? json.state : null, items: cleanHeadlines(json) };
+  if (json) noteBrief('headlines', b.news.items.map((x) => x.url)); // a failed request is not "no headlines"
   renderBrief();
+}
+
+// Records what this look at the brief shows, one kind at a time as each arrives (js/changes.js).
+function noteBrief(kind, ids) {
+  const b = state.brief;
+  if (!b || b.place !== state.place) return;
+  noteKind(b.look, kind, ids, Date.now());
+  seenSet('brief', placeKey(b.place), lookEntry(b.look));
+  renderBriefNew();
+}
+function renderBriefNew() {
+  const el = $('#brief-new'), b = state.brief;
+  const said = b && b.place === state.place ? briefNews(b.look, Date.now()) : null;
+  el.hidden = !said;
+  el.innerHTML = said ? `<p><b>${esc(said.line)}</b><span class="brief__new-since"> · last look ${esc(sinceLabel(said.since, Date.now(), viewerTz))}</span></p>
+    <button type="button" class="btn btn--icon" data-dismiss="brief" aria-label="Dismiss this note"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>` : '';
+}
+// Statehouse votes and Both sides topics as js/civic.js drew them: each item's own key when it carries one
+// (data-key), else its bill and chamber line, or its title and date.
+function civicIds(root) {
+  const key = (el, ...sel) => el.dataset.key || sel.map((q) => el.querySelector(q)?.textContent.trim() || '').join('|');
+  return {
+    votes: [...root.querySelectorAll('.vote')].map((el) => key(el, '.vote__bill', '.civic-meta')),
+    topics: [...root.querySelectorAll('.topic')].map((el) => key(el, '.topic__title', '.civic__eyebrow')),
+  };
 }
 
 const NWS_PAGE = (p) => `https://forecast.weather.gov/MapClick.php?lat=${p.lat.toFixed(4)}&lon=${p.lon.toFixed(4)}`;
 const at = (ms, tz) => `${fmtTime(ms, tz)} ${fmtDay(ms, tz)}`;
+
+// The time an alert starts or ends, with the weekday when it is not today: "18:00", "06:00 Tue".
+function alertWhen(ms, tz) {
+  const t = fmtTime(ms, tz);
+  return dayKey(ms, tz) === dayKey(Date.now(), tz) ? t : `${t} ${new Intl.DateTimeFormat('en-GB', { timeZone: tz, weekday: 'short' }).format(ms)}`;
+}
+// A saved trip leaving from an airport within 100 km of the place, for "during your 16:10 departure".
+function nearDeparture(p) {
+  const t = state.trip;
+  if (t.status !== 'ready') return null;
+  const a = t.plan.stops[0].airport;
+  return distanceKm(a, p) < 100 ? { t: t.plan.start, code: a.code } : null;
+}
 
 function alertItem(a, p, tz) {
   const soon = a.from && a.from > Date.now();
@@ -507,6 +629,7 @@ function alertItem(a, p, tz) {
     <p class="wxnews__when">${esc(when)}</p>
     ${a.area ? `<p class="wxnews__area">${esc(a.area)}</p>` : ''}
     ${a.headline ? `<p class="wxnews__line">${esc(a.headline)}</p>` : ''}
+    <p class="because">${esc(alertReason(a, p, (ms) => alertWhen(ms, tz), nearDeparture(p)))}</p>
     <p class="wxnews__foot"><span>National Weather Service</span><a href="${NWS_PAGE(p)}" rel="noopener">Read it on weather.gov</a></p>
   </li>`;
 }
@@ -514,6 +637,7 @@ function signalItem(s) {
   return `<li class="wxnews wxnews--${s.level}">
     <p class="wxnews__head">${riskIcon(s.level)}<span>${esc(s.title)}</span><span class="sr-only"> (${LEVEL_LABEL[s.level].toLowerCase()} risk)</span></p>
     <p class="wxnews__line">${esc(s.line)}</p>
+    ${s.because ? `<p class="because">${esc(s.because)}</p>` : ''}
     <p class="wxnews__foot"><span>Gatecast forecast check</span><a href="flights.html?airport=${s.code}">Flights at ${s.code}</a></p>
   </li>`;
 }
@@ -577,7 +701,7 @@ function renderBrief() {
   const now = Date.now();
   // Weather news: the place's NWS alerts, then one forecast item only when a nearby airport is at risk.
   const wx = [...alertItems(state.alerts, now).map((a) => alertItem(a, p, state.wx?.tz))];
-  const sig = airportSignal(state.airports);
+  const sig = airportSignal(state.airports, (km) => (prefs.wind === 'mph' ? `${Math.round(km / 1.609)} miles` : `${Math.round(km)} km`));
   if (sig) wx.push(signalItem(sig));
   $('#brief-weather-list').innerHTML = wx.join('');
   $('#brief-weather').hidden = !wx.length;
@@ -588,6 +712,7 @@ function renderBrief() {
   $('#brief-news').hidden = !showNews;
   if (showNews) {
     $('#brief-news-title').textContent = n.state ? `Headlines in ${US_STATES[n.state]}` : 'Weather and travel headlines';
+    $('#brief-news-why').textContent = newsReason(p, b.us, b.code, n.state);
     $('#brief-news-list').innerHTML = headlinesHtml(n.items, now);
     const pictures = n.items.some((x) => x.image);
     $('#brief-news-source').textContent = `Headlines from ${n.state ? 'local' : 'weather and aviation'} newsrooms. We link to their reporting; we don’t copy it.`
@@ -595,12 +720,22 @@ function renderBrief() {
   }
   // Statehouse votes and Both sides: js/civic.js, US places with a known state only. It reveals itself when it
   // has something to show; if the module is missing or fails, the block stays hidden and nothing else breaks.
+  // Political items keep the order they are published in: votes newest first as recorded, Both sides topics newest
+  // first (js/civicmodel.js votesPath and topicsPath). Nothing here reorders them, and nothing is ranked by clicks.
   const civic = $('#civic');
   if (local && civicFor !== b.code) {
     civicFor = b.code;
+    const why = civicReason(p, b.code);
     import('./civic.js')
       .then((m) => m.mountCivic(civic, { state: b.code }))
-      .then(() => { if (civicFor === null) { civic.hidden = true; civic.innerHTML = ''; } }) // left the US meanwhile
+      .then((shown) => {
+        if (civicFor === null) { civic.hidden = true; civic.innerHTML = ''; return; } // left the US meanwhile
+        if (!shown || state.brief !== b) return;
+        civic.insertAdjacentHTML('afterbegin', `<p class="because brief__why-civic">${esc(why)}</p>`);
+        const ids = civicIds(civic);
+        noteBrief('votes', ids.votes);
+        noteBrief('topics', ids.topics);
+      })
       .catch(() => { civic.hidden = true; })
       .finally(syncBrief);
   } else if (!local && civicFor !== null) {
@@ -608,6 +743,7 @@ function renderBrief() {
     civic.hidden = true;
     civic.innerHTML = '';
   }
+  renderBriefNew();
   syncBrief();
 }
 // The brief shows only when one of its blocks has something in it.
@@ -628,7 +764,25 @@ document.addEventListener('click', async (e) => {
     setTimeout(() => { if (label.isConnected) label.textContent = 'Copy link'; }, 2500);
   }
   if (e.target.closest('[data-retry]')) loadPlace();
+  const gone = e.target.closest('[data-dismiss]');
+  if (gone && gone.dataset.dismiss === 'place' && state.since) {
+    seenSet('places', state.since.key, dismiss(seenGet('places', state.since.key)));
+    state.since = null;
+    render();
+    focusQuietly($('#hero h1'));
+  } else if (gone && gone.dataset.dismiss === 'brief' && state.brief) {
+    state.brief.look = dismissLook(state.brief.look, Date.now());
+    seenSet('brief', placeKey(state.brief.place), lookEntry(state.brief.look));
+    renderBriefNew();
+    focusQuietly($('#brief-title'));
+  }
 });
+// After a dismissed note disappears, keyboard focus lands on the heading it belonged to, not on the page top.
+function focusQuietly(el) {
+  if (!el) return;
+  el.setAttribute('tabindex', '-1');
+  el.focus({ preventScroll: true });
+}
 
 /* ---------- Radar (map library and tiles load only when the panel is near the screen) ---------- */
 

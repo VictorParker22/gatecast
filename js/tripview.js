@@ -3,6 +3,7 @@
 import { scoreHour, describeCode, factorPhrase, fmtTime, fmtDay, fmtZone, fmtDuration, LEVEL_LABEL } from './core.js';
 import { esc, weatherIcon, riskIcon, chip, compass, routeMap, hourlyStrip } from './view.js';
 import { hourLabel, markText, drivers, hourSentence, legSentence } from './journey.js';
+import { stopOdds } from './riskwords.js';
 
 const riskWord = (level) => (level === 'unknown' ? 'No forecast' : `${LEVEL_LABEL[level]} risk`);
 const COPY_BTN = (cls) => `<button class="btn btn--ghost ${cls}" type="button" data-share>
@@ -15,10 +16,13 @@ export const isRisky = (level) => level === 'elevated' || level === 'high';
 /* ---------- Verdict ---------- */
 
 // Risk expands: the dark ink panel. Calm collapses: one quiet line on the page's light surface.
-export function verdictHTML(result, trip, startDay, loadedAt) {
+// u (units, optional) prints gusts in the visitor's unit in the how-likely, how-bad phrase (js/riskwords.js).
+export function verdictHTML(result, trip, startDay, loadedAt, u = null) {
   const hl = result.headline;
   const conns = trip.r.length - 2;
-  const meta = `${esc(result.confidence.text)} Forecast loaded ${fmtTime(loadedAt, Intl.DateTimeFormat().resolvedOptions().timeZone)} your time.`;
+  const o = result.worst ? stopOdds(result.worst, u?.speed, { named: true }) : null;
+  const minor = o && result.level === 'low' && o.cause ? ` Low · ${esc(o.text)}.` : '';
+  const meta = `${esc(result.confidence.text)}${minor} Forecast loaded ${fmtTime(loadedAt, Intl.DateTimeFormat().resolvedOptions().timeZone)} your time.`;
   if (!isRisky(result.level)) {
     const level = result.level === 'unknown' ? 'unknown' : 'low';
     return `<section class="tverdict tverdict--calm" aria-labelledby="verdict-title">
@@ -38,6 +42,7 @@ export function verdictHTML(result, trip, startDay, loadedAt) {
         ${riskIcon(result.level)}
         <div class="tverdict__text">
           <p class="tverdict__word">${riskWord(result.level)}</p>
+          ${o ? `<p class="tverdict__odds">${esc(o.text.charAt(0).toUpperCase() + o.text.slice(1))}</p>` : ''}
           <h2 id="verdict-title" tabindex="-1">${esc(hl.title)}</h2>
           <p class="tverdict__reason">${esc(hl.body)}</p>
           <p class="tverdict__meta">${meta}</p>
@@ -155,8 +160,12 @@ export function stopCardHTML(s, hours, u, startDay, index = 0) {
     .filter(Boolean).join(' · ');
   const day = fmtDay(s.dep ?? s.arr, tz);
   const d = h ? describeCode(h.code) : null;
+  // How likely and how bad, beside the chip. A calm stop with nothing behind it stays quiet.
+  const o = stopOdds(s, u.speed);
+  const said = o && (s.level !== 'low' || o.cause) ? o.text.charAt(0).toUpperCase() + o.text.slice(1) : '';
   return `<li class="stop stop--${s.level} tcard" data-stop="${index}">
     <div class="tcard__top"><p class="stop__role">${esc(role)}</p>${chip(s.level, riskWord(s.level))}</div>
+    ${said ? `<p class="tcard__odds"><span class="sr-only">${esc(riskWord(s.level))}: </span>${esc(said)}</p>` : ''}
     <div>
       <h3 class="tcard__title"><span class="code">${esc(a.code)}</span> ${esc(a.city || a.name)}</h3>
       <p class="tcard__sub">${esc(a.name)}</p>
@@ -175,6 +184,7 @@ export function stopCardHTML(s, hours, u, startDay, index = 0) {
     <p class="stop__why">${esc(stopReason(s))}</p>
     ${hours.length ? `<details class="tcard__hours"><summary>Hour by hour <small>${esc(a.code)} local time</small></summary>${hourlyStrip(s, hours, u)}</details>` : ''}
     <div class="stop__live" data-live="${esc(a.code)}"></div>
+    ${a.country === 'US' ? `<div class="stop__plan" data-plan="${esc(a.code)}"></div>` : ''}
   </li>`;
 }
 

@@ -128,3 +128,7 @@
   .fl-board tbody th { font-size: 1.125rem; }
   .fl-board thead th { letter-spacing: 0.02em; }
 }
+
+/* FAA plans for today: quiet lines under the alerts (official wording, linked), never risk-coloured. */
+.fl-wx__plans { display: grid; gap: var(--space-1); }
+.live--plan small { white-space: nowrap; }

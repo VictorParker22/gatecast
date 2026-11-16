@@ -1,11 +1,14 @@
 import {
-  planTrip, assessTrip, estimateFlightMin, fmtTime, fmtDay, fmtDuration, utcToLocalInput, HOUR,
+  planTrip, assessTrip, scoreHour, estimateFlightMin, fmtTime, fmtDay, fmtDuration, utcToLocalInput, HOUR,
 } from './core.js';
 import { loadAirports, airport, searchAirports, loadForecasts, loadAlerts, loadLive } from './data.js';
 import { $, store, prefs, initSettings } from './shell.js';
 import { esc, riskIcon, units } from './view.js';
 import { journeyModel } from './journey.js';
 import { verdictHTML, stripHTML, stopCardHTML, adviceHTML, mapHTML } from './tripview.js';
+import { tripSnapshot, diffTrips, noteForecast, dismiss, changeLine, changeLead } from './changes.js';
+import { faaPlanLine } from './riskwords.js';
+import { seenGet, seenSet } from './seen.js';
 
 /* ---------- State ---------- */
 
@@ -296,7 +299,7 @@ async function run(trip) {
   try {
     const { forecasts, at } = await loadForecasts(aps);
     const result = assessTrip(plan, forecasts, now);
-    last = { trip, plan, result, forecasts, at };
+    last = { trip, plan, result, forecasts, at, since: noteTrip(trip, result, now) };
     render();
     remember(trip);
     done(true);
@@ -323,6 +326,28 @@ function done(focus) {
 const message = (title, body, retry) => `<div class="verdict verdict--unknown">${riskIcon('unknown')}<div><h2 id="verdict-title" tabindex="-1">${esc(title)}</h2><p>${esc(body)}</p>
   ${retry ? '<button class="btn btn--primary" type="button" data-retry>Try again</button>' : ''}</div></div>`;
 
+/* ---------- What changed since the last look at this trip (js/changes.js; kept on this device only) ---------- */
+
+// The same trip means the same airports, departure, layovers and flight times: its shareable address.
+const tripKey = (trip) => toQuery(trip).slice(1);
+function noteTrip(trip, result, now) {
+  const key = tripKey(trip);
+  const r = noteForecast(seenGet('trips', key), tripSnapshot(result, scoreHour, now), diffTrips, now);
+  if (r.entry) seenSet('trips', key, r.entry);
+  return r.changes ? { key, changes: r.changes, since: r.since } : null;
+}
+// One line per stop that changed, calm, dismissible; nothing when nothing material changed.
+function sinceHTML(c) {
+  if (!c) return '';
+  const now = Date.now(), tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return `<div class="since" role="note" aria-label="Forecast changes since your last look">
+    <svg class="icon since__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 0 1 13.7-5.6L20 9M20 4v5h-5M20 12a8 8 0 0 1-13.7 5.6L4 15M4 20v-5h5"/></svg>
+    <div class="since__text"><p class="since__lead">${esc(changeLead(c.since, now, tz))}:</p>
+      <ul class="since__list">${c.changes.map((x) => `<li>${esc(changeLine(x))} <small>local time</small>.</li>`).join('')}</ul></div>
+    <button type="button" class="btn btn--icon since__close" data-dismiss aria-label="Dismiss this note"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+  </div>`;
+}
+
 function render() {
   if (!last) return;
   const { plan, result, forecasts, at, trip } = last;
@@ -331,7 +356,8 @@ function render() {
   const model = journeyModel(result, plan, forecasts);
   const open = [...resultsEl.querySelectorAll('.tcard__hours[open]')].map((d) => d.closest('[data-stop]')?.dataset.stop);
   resultsEl.innerHTML = `
-    ${verdictHTML(result, trip, startDay, at)}
+    ${verdictHTML(result, trip, startDay, at, u)}
+    ${sinceHTML(last.since)}
     ${stripHTML(model, u, prefs, startDay)}
     <section class="tstops" aria-labelledby="tstops-title">
       <h2 id="tstops-title">Stop by stop</h2>
@@ -341,9 +367,17 @@ function render() {
     ${mapHTML(result, model, prefs)}`;
   for (const i of open) resultsEl.querySelector(`[data-stop="${i}"] .tcard__hours`)?.setAttribute('open', '');
   if (last.live) paintLive();
+  if (last.plans) paintPlans();
 }
 
 resultsEl.addEventListener('click', async (e) => {
+  if (e.target.closest('[data-dismiss]') && last?.since) {
+    seenSet('trips', last.since.key, dismiss(seenGet('trips', last.since.key)));
+    last.since = null;
+    resultsEl.querySelector('.since')?.remove();
+    $('#verdict-title')?.focus({ preventScroll: true });
+    return;
+  }
   const btn = e.target.closest('[data-share]');
   if (!btn) return;
   const label = btn.querySelector('span');
@@ -361,6 +395,29 @@ async function enrich(result) {
   if (last !== mine) return;
   last.live = { alerts: new Map(aps.map((a, i) => [a.code, alerts[i]])), ...(live || {}) };
   paintLive();
+  loadPlans(mine, aps);
+}
+
+// What the FAA plans today at the trip's US airports, as a quiet line on each stop card. data.js may not have
+// loadFaaPlans yet; without it, or when the request fails, the cards simply have no plan line.
+async function loadPlans(mine, aps) {
+  const us = aps.filter((a) => a.country === 'US');
+  if (!us.length) return;
+  try {
+    const m = await import('./data.js');
+    if (typeof m.loadFaaPlans !== 'function') return;
+    const got = await m.loadFaaPlans(us.map((a) => a.code));
+    if (last !== mine || !Array.isArray(got?.plans)) return;
+    last.plans = got.plans;
+    paintPlans();
+  } catch {}
+}
+function paintPlans() {
+  for (const el of resultsEl.querySelectorAll('[data-plan]')) {
+    const a = airport(el.dataset.plan);
+    const lines = (last.plans || []).filter((p) => p.airport === a.code || p.airport === a.icao).map((p) => faaPlanLine(p, (ms) => `${fmtTime(ms, a.tz)}`)).filter(Boolean);
+    el.innerHTML = lines.map((l) => `<p class="live">${esc(l)}</p>`).join('');
+  }
 }
 
 const CATEGORY = { MVFR: 'some low cloud or haze', IFR: 'low cloud or poor visibility', LIFR: 'very low cloud or fog' };

@@ -1,0 +1,19 @@
+# Gatecast: every public page may be crawled. The reviewer console and the live-data API are not pages.
+User-agent: *
+Allow: /
+Disallow: /review.html
+Disallow: /api/
+
+# Search and citation crawlers (ChatGPT search, Perplexity): welcome, with the same limits.
+# A named group replaces the * group for that crawler, so the limits are repeated here.
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /review.html
+Disallow: /api/
+
+User-agent: PerplexityBot
+Allow: /
+Disallow: /review.html
+Disallow: /api/
+
+Sitemap: https://gatecast.vercel.app/sitemap.xml

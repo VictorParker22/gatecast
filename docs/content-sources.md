@@ -19,7 +19,7 @@ The owner asked for the call that gives the site the best chance of success. It 
 | Row | Use | Cost | Biggest catch |
 |---|---|---|---|
 | Caught on camera | YouTube embeds from an approved list of official police, sheriff and transport channels plus a few vetted publishers, ranked by YouTube's own view counts | Free | Age-restricted videos cannot play on other sites, so many serious-incident videos are unavailable (which the moderation policy excludes anyway) |
-| State politics | A hand-picked list of statehouse news outlets per state, read through their own feeds, shown as headline, our own one-line summary and a link | About $0 | Nobody sells real "most read" data; rank by our own clicks |
+| State politics | A hand-picked list of statehouse news outlets per state, read through their own feeds, shown as the outlet's headline, its name, the time and a link (nothing copied, no AI summaries) | About $0 | Nobody sells real "most read" data; headlines are shown newest first, never ranked by clicks |
 | Both sides | Built from primary records: what members of Congress said on the record and in official statements, with party from an open dataset | About $0 plus build effort | There is no equivalent record for state legislatures, and no ready-made feed of statements |
 | Tricks worth knowing | Our own short tips written by an AI agent from public facts, plus curated YouTube how-to embeds | Free | Most how-to sites are licensed for non-commercial use only |
 | Food | Spoonacular recipe API | About $29 a month (unconfirmed) | Must delete all its data if the subscription ends |
@@ -48,9 +48,9 @@ The owner asked for the call that gives the site the best chance of success. It 
 **Recommended: a curated outlet list per state, plus free ranking signals.**
 
 - For each state, pick the States Newsroom outlet, the public radio newsroom and one or two newspapers, and read their feeds.
-- Show the headline, a one-line summary we write ourselves, the outlet's name and a link. Do not copy their opening paragraph or description.
+- **Shipped rule:** show the outlet's own headline, the outlet's name, the time and a link to the story, and nothing else from it. The description, opening paragraph and article text are never read, so they can never be shown, and no AI-written summary, rewritten headline or notification text is shown to readers. (An earlier draft of this note planned "our own one-line summary"; that was dropped.)
 - **Preview images (owner decision, 16 November 2026):** show the publisher's own link-preview picture as a hotlinked, credited thumbnail, with an off switch per outlet. Details below.
-- For "most read", use our own click counts. As a starting signal before we have traffic, GDELT (free, commercial use allowed with credit) shows how widely a story is being covered.
+- **Order:** newest first, from the past seven days, at most three per outlet and eight in all (`lib/news.js`). Political items are never ranked by clicks, and the site does not count clicks. If a "widely covered" signal is wanted later, GDELT (free, commercial use allowed with credit) shows how widely a story is being covered, which ranks by coverage rather than by clicks.
 - Open States (free key) adds what is actually moving in the state legislature: bills, votes and who sponsored them, with party.
 
 **Catches**
@@ -135,7 +135,7 @@ One small service, not five. It runs on a schedule and does the same four steps 
 
 1. **Collect** from the approved sources above (channel uploads, outlet feeds, the Congressional Record, government guidance).
 2. **Filter** by fixed rules (source on the approved list, not age-restricted, has a date and place, matches the visitor's state or forecast).
-3. **Draft** with an AI model: the one-line summary, the neutral headline, the question that follows a story, the tip or checklist text. The model writes from extracted facts and keeps the link to each source.
+3. **Draft** with an AI model, for the rows that are our own writing (the tip or checklist text). The model writes from extracted facts and keeps the link to each source. **Never for news:** headlines are shown as the outlet wrote them, Both sides quotes are full and verbatim, and no AI-written summary, headline or notification reaches readers. For Both sides the model only assists the reviewer (`docs/assist.md`).
 4. **Queue for a person.** Nothing reaches the page without approval for camera videos, political quotes and safety content. Low-risk items (recipes, trip ideas) can publish automatically and be spot-checked.
 
 What it needs that the site does not have today: a database for the queue and the approved content, a login for reviewers, and a scheduled job. The existing hosting can run all three.
@@ -148,11 +148,40 @@ What it needs that the site does not have today: a database for the queue and th
 - **Images.** They carry their own rights, separate from the text. An image link in a news feed is not permission. Use licensed photos, written permission, official portraits, or no image. **Exception decided by the owner on 16 November 2026:** in the brief's headlines, the publisher's own link-preview image (feed image or `og:image`) is shown as a hotlinked, credited thumbnail linking to the story, never copied or re-hosted, with a per-outlet off switch in `data/news-sources.json`. This follows common aggregator practice; the residual risks are wire-service photos inside those previews, publishers blocking hotlinking, and visitors' browsers contacting publisher image servers (see "State politics by location").
 - **AI-written text is probably not protected by copyright**, so competitors may copy it. The protection is the service, not the words.
 
+## Terms register for the brief's newsrooms
+
+One row per outlet in `data/news-sources.json` (20, checked 16 November 2026). Gatecast shows only the headline, the outlet's name, the time, a link and the hotlinked preview image, so it does not republish any story; the register is for the day ads or sponsorship arrive, and for takedowns. "Images" is the outlet's `"images"` switch in `data/news-sources.json` (all on today).
+
+**How far to trust this:** terms pages were looked for from this environment on 16 November 2026. Where a page was found and read, the row says what it says; where it was found but not read, or not found, the row says **unknown**. Nothing here is legal advice. Before any ads, read each page, and for "unknown" rows ask the outlet.
+
+| Outlet | State | Terms or republishing page | Commercial use of the feed | Images | Notes |
+|---|---|---|---|---|---|
+| New York Focus | NY | Not found (site refused automated requests) | Unknown | On | Nonprofit newsroom; ask before ads |
+| City & State New York | NY | `cityandstateny.com/about/terms-of-use/` (found, not read) | Unknown | On | Commercial publisher |
+| WAMC | NY | Not found | Unknown | On | Public radio. Some public-media feeds are licensed for personal, non-commercial use only (NPR's archived permissions page, WNYC's terms); check WAMC's |
+| New Jersey Monitor | NJ | Not read (site refused automated requests) | Unknown for the feed; **no ads against republished stories** | On | States Newsroom outlet. States Newsroom's republishing guidelines (as published by Maryland Matters) forbid selling ads against its stories. Linking out is not republishing, but keep sponsor lines away from these headlines until confirmed |
+| NJ Spotlight News | NJ | Not found | Unknown | On | Public media (NJ PBS) |
+| CalMatters | CA | `calmatters.org/about/republish/` (read) | Unknown for the feed | On | Republishing page says not to edit the article, "including the headline": we show headlines unedited |
+| KQED | CA | Not found (site did not answer) | Unknown | On | Public radio; see the WAMC note |
+| Ohio Capital Journal | OH | Not read (site refused automated requests) | Unknown for the feed; **no ads against republished stories** | On | States Newsroom outlet; see the New Jersey Monitor note |
+| Statehouse News Bureau | OH | `ideastream.org/terms-of-use` (found, not read) | Unknown | On | Public radio (Ideastream); see the WAMC note |
+| The Texas Tribune | TX | `texastribune.org/republishing-guidelines/` and `/terms-of-service/` (found, not read in full) | Unknown | On | Nonprofit newsroom |
+| KUT News | TX | `kut.org/privacy-terms-of-use` (read; nothing on feeds found) | Unknown | On | Public radio; see the WAMC note |
+| Florida Phoenix | FL | Not read (site refused automated requests) | Unknown for the feed; **no ads against republished stories** | On | States Newsroom outlet; see the New Jersey Monitor note |
+| WFSU News | FL | Not found | Unknown | On | Public radio; see the WAMC note |
+| Capitol News Illinois | IL | `capitolnewsillinois.com/media-center/republish-guidelines/` and `/about-us/terms/` (read) | Unknown for the feed | On | News organisations may republish in full under CC BY-ND 4.0 |
+| NPR Illinois | IL | Not found | Unknown | On | Public radio; see the WAMC note |
+| Pennsylvania Capital-Star | PA | Not read (site refused automated requests) | Unknown for the feed; **no ads against republished stories** | On | States Newsroom outlet; see the New Jersey Monitor note |
+| Spotlight PA | PA | Not found | Unknown | On | Nonprofit newsroom |
+| Yale Climate Connections | national | `yaleclimateconnections.org/use-policy/` (read) | **Non-commercial** licence for republishing (CC BY-NC-ND 4.0); images excluded | On | Headline-and-link is not republishing, but the licence is non-commercial: confirm before ads. Its use policy says images are not covered, which is a reason to consider switching its pictures off |
+| NOAA | national | Not read (site refused automated requests) | US government work, generally public domain | On | Some NOAA images are credited to third parties and keep their own rights |
+| Simple Flying | national | `valnetinc.com/en/terms-of-use` (found, not read) | Unknown | On | Commercial publisher (Valnet) |
+
 ## To verify before launch
 
 1. YouTube API terms on showing ranked view counts and on ads beside embeds.
 2. Spoonacular's current price and data-retention terms.
-3. States Newsroom's republishing terms as they apply to headline-and-link display.
+3. States Newsroom's republishing terms as they apply to headline-and-link display, and every "unknown" row in the terms register above.
 4. The display format for news and quotes, with a media lawyer, including the hotlinked preview images and what to do when a wire service objects.
 5. Travelpayouts' affiliate terms, if flight prices are wanted.
 

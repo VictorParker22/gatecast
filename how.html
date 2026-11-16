@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <script>
+    try { document.querySelector('meta[name="color-scheme"]').content = localStorage.getItem("color-scheme") ?? "light dark"; } catch (e) {}
+  </script>
+  <title>How Gatecast works — Gatecast</title>
+  <meta name="description" content="How Gatecast chooses the news in The brief, how it works out a weather verdict, where every piece of data comes from, what it never does, and how to report an error.">
+  <!-- Search and share basics. Copy lives here and in the other pages' heads; the share image is rendered from docs/og/og-template.html. -->
+  <link rel="canonical" href="https://gatecast.vercel.app/how.html">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ecebe6">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#07090d">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Gatecast">
+  <meta property="og:title" content="How Gatecast works — Gatecast">
+  <meta property="og:description" content="How Gatecast chooses the news in The brief, how it works out a weather verdict, where every piece of data comes from, what it never does, and how to report an error.">
+  <meta property="og:url" content="https://gatecast.vercel.app/how.html">
+  <meta property="og:image" content="https://gatecast.vercel.app/vendor/og/gatecast-og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Gatecast: weather and the news worth knowing, with flight and trip checks.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="How Gatecast works — Gatecast">
+  <meta name="twitter:description" content="How Gatecast chooses the news in The brief, how it works out a weather verdict, where every piece of data comes from, what it never does, and how to report an error.">
+  <meta name="twitter:image" content="https://gatecast.vercel.app/vendor/og/gatecast-og.png">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23111418'/%3E%3Cpath d='M9 25V14a7 7 0 0 1 14 0v11M16 18v7' stroke='%23fff' stroke-width='2.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="preload" href="vendor/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="vendor/fonts/barlow-condensed-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="styles/tokens.css">
+  <link rel="stylesheet" href="styles/app.css">
+  <link rel="stylesheet" href="styles/how.css">
+  <!-- Only the settings popover (theme, units, clock) needs script; the page itself is plain HTML. -->
+  <script type="module">
+    import { initSettings } from './js/shell.js';
+    initSettings();
+  </script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <a class="brand" href="./" aria-label="Gatecast home">
+      <svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8"/><g transform="translate(4 5)"><path d="M5 20V9a7 7 0 0 1 14 0v11"/><path d="M12 13v7"/></g></svg>
+      <span class="brand__name">Gatecast</span>
+    </a>
+    <nav class="site-nav" aria-label="Main">
+      <ul>
+        <li><a href="./">Today</a></li>
+        <li><a href="trip.html">Trips</a></li>
+        <li><a href="flights.html">Flights</a></li>
+      </ul>
+    </nav>
+    <button class="btn btn--ghost site-header__settings" type="button" popovertarget="settings" id="settings-btn">
+      <svg viewBox="0 0 24 24" aria-hidden="true" class="icon"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>
+      <span>Units &amp; display</span>
+    </button>
+  </header>
+
+  <div id="settings" class="settings" popover aria-labelledby="settings-title"></div>
+
+  <main id="main" class="guide">
+    <section class="hero hero--compact guide__hero" aria-labelledby="how-title">
+      <p class="guide__eyebrow signage">About</p>
+      <h1 id="how-title">How Gatecast works</h1>
+      <p class="hero__lede">Gatecast is weather and the news worth knowing, with flight and trip checks. This page says how the news and the weather verdicts are chosen, where every piece comes from, what we never do, and how to tell us when we get something wrong.</p>
+    </section>
+
+    <nav class="guide__toc" aria-labelledby="toc-title">
+      <h2 id="toc-title" class="signage">On this page</h2>
+      <ol>
+        <li><a href="#brief">How The brief is chosen</a></li>
+        <li><a href="#verdict">How a weather verdict is worked out</a></li>
+        <li><a href="#sources">Where the data comes from</a></li>
+        <li><a href="#never">What Gatecast never does</a></li>
+        <li><a href="#corrections">Corrections and contact</a></li>
+      </ol>
+    </nav>
+
+    <section class="guide__section" id="brief" aria-labelledby="brief-title">
+      <h2 id="brief-title">How The brief is chosen</h2>
+      <p>The brief on the Today page is built from three things: the place you chose, the weather there, and your saved trips. It shows only the parts that have something in them. There is no hidden profile: the place and trips are stored in your browser, not on our servers.</p>
+      <div class="guide__grid">
+        <article class="guide__card">
+          <h3>Weather news</h3>
+          <p>Active National Weather Service alerts for your place, most severe first, each linked to weather.gov. Then at most one forecast item, and only when an airport near you is at Elevated or High risk in the next three hours. A calm day adds nothing.</p>
+        </article>
+        <article class="guide__card">
+          <h3>Headlines</h3>
+          <p>From a hand-picked list of 20 newsrooms (listed <a href="#newsrooms">below</a>). For a US place in a state on the list you get that state’s newsrooms; otherwise a short list of weather and aviation newsrooms. Stories from the past seven days, newest first, at most three from any one outlet and eight in all.</p>
+          <p>Political items are never ranked by clicks. Gatecast does not count clicks: the order is time.</p>
+        </article>
+        <article class="guide__card">
+          <h3>Nothing copied</h3>
+          <p>Each headline is the outlet’s own words, its name, the time and a link to the story. We never read or show the description, the opening paragraph or the article. There are no AI-written summaries or rewritten headlines.</p>
+        </article>
+        <article class="guide__card">
+          <h3>Pictures</h3>
+          <p>The picture beside a headline is the publisher’s own link-preview image, credited “Image: <i>outlet</i>”. Your browser loads it straight from the publisher’s site (we never copy, store or resize it), and no referrer is sent. That means the publisher’s server sees your IP address. Any outlet can be switched to text only, and a picture that fails to load becomes the outlet’s initials.</p>
+        </article>
+        <article class="guide__card">
+          <h3>Your statehouse</h3>
+          <p>Recent floor votes on bills in your state, copied as recorded from Open States: the bill, its official title, the result and the split by party, linked to the official record. Committee votes, procedural motions and votes older than 120 days are left out, and we add no words of our own.</p>
+        </article>
+        <article class="guide__card">
+          <h3>Both sides</h3>
+          <p>One full, dated, linked quote from a named Democrat and one from a named Republican on the same topic, under a neutral fact with its source. We do not paraphrase or grade either. A person approves every topic before it appears, and the database refuses to publish a topic without a statement from each side. Every publish, withdrawal and deletion is logged with who did it.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="guide__section" id="verdict" aria-labelledby="verdict-title">
+      <h2 id="verdict-title">How a weather verdict is worked out</h2>
+      <p>Gatecast looks at the hourly forecast for the hours that matter: for a trip, the hours you are at each airport, from an hour before you land to an hour after you leave; for a flight, the time around departure and landing; for an airport, the next three hours. Each hour gets points for weather that tends to slow airports down: thunderstorms, freezing rain, snow, fog and low visibility, strong gusts and very heavy rain. The worst factor counts in full and each further one adds a third of its points. The worst hour sets the level.</p>
+      <ul class="guide__levels" aria-label="Risk levels">
+        <li><span class="chip chip--low"><svg class="risk-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.8 2.8L16 9.5"/></svg><span>Low</span></span> under 30 points</li>
+        <li><span class="chip chip--elevated"><svg class="risk-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5 21.5 20h-19z"/><path d="M12 10v4.5M12 17.3h.01"/></svg><span>Elevated</span></span> 30 to 59</li>
+        <li><span class="chip chip--high"><svg class="risk-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.2 3h7.6L21 8.2v7.6L15.8 21H8.2L3 15.8V8.2z"/><path d="M12 7.5v5.5M12 16.3h.01"/></svg><span>High</span></span> 60 and above</li>
+      </ul>
+      <p>At a connection, weather where your inbound flight leaves counts at half weight, because a late inbound flight is what breaks a connection, and a short layover adds points. A short layover on its own is pointed out in words, not counted as weather risk.</p>
+      <p><strong>These thresholds are judgement calls.</strong> They have not yet been back-tested against real delay records, and they will change when they are.</p>
+      <p>A trip verdict also says how far ahead it is: up to three days the forecast is usually good, up to a week timing can still shift, and beyond that it is an outlook. A sharper confidence label, from how many forecast model runs agree, is planned but not built yet.</p>
+      <details class="guide__more">
+        <summary>The points, exactly</summary>
+        <table class="guide__table">
+          <caption class="sr-only">Points each forecast hour gets, by weather</caption>
+          <thead><tr><th scope="col">What the forecast shows in an hour</th><th scope="col">Points</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Thunderstorms with hail</th><td class="num">85</td></tr>
+            <tr><th scope="row">Gusts of 90 km/h or more</th><td class="num">85</td></tr>
+            <tr><th scope="row">Freezing rain</th><td class="num">75</td></tr>
+            <tr><th scope="row">Heavy snow (2 cm an hour or more)</th><td class="num">75</td></tr>
+            <tr><th scope="row">Thunderstorms</th><td class="num">70</td></tr>
+            <tr><th scope="row">Dense fog (visibility under 400 m)</th><td class="num">70</td></tr>
+            <tr><th scope="row">Gusts of 70 km/h or more</th><td class="num">65</td></tr>
+            <tr><th scope="row">Steady snow (0.5 cm an hour or more)</th><td class="num">50</td></tr>
+            <tr><th scope="row">Fog (visibility under 1 km)</th><td class="num">50</td></tr>
+            <tr><th scope="row">Gusts of 55 km/h or more</th><td class="num">40</td></tr>
+            <tr><th scope="row">Very heavy rain (10 mm an hour or more)</th><td class="num">40</td></tr>
+            <tr><th scope="row">Light snow</th><td class="num">30</td></tr>
+            <tr><th scope="row">Poor visibility (under 3 km)</th><td class="num">25</td></tr>
+            <tr><th scope="row">Heavy rain (4 mm an hour or more)</th><td class="num">20</td></tr>
+            <tr><th scope="row">Gusts of 40 km/h or more</th><td class="num">15</td></tr>
+          </tbody>
+        </table>
+        <p>Layover at a connection: under 45 minutes adds 35 points, under an hour 25, under 90 minutes 12, under two hours 5, and three hours or more takes 10 away. Rain is not counted when snow or freezing rain already is.</p>
+      </details>
+    </section>
+
+    <section class="guide__section" id="sources" aria-labelledby="sources-title">
+      <h2 id="sources-title">Where the data comes from</h2>
+      <p>Every source is free and public. Each has limits, and we would rather show nothing than guess.</p>
+      <dl class="guide__sources">
+        <div><dt>Open-Meteo</dt><dd>Forecasts up to 16 days, place search and air quality, called from your browser. Licensed CC BY 4.0. Its free tier is for non-commercial use and is limited per network address, so the forecast can be busy at times.</dd></div>
+        <div><dt>National Weather Service</dt><dd>Weather alerts, and which state a US place is in. US only.</dd></div>
+        <div><dt>NOAA Aviation Weather Center</dt><dd>The latest observation at an airport (METAR), through our server. The raw report is one tap deeper.</dd></div>
+        <div><dt>FAA NAS Status</dt><dd>Delay programs in force at US airports now, and what the FAA plans for today: ground stops and delay programs it expects (from its daily operations plan) and de-icing. The FAA publishes these times in UTC; we show them in the airport’s local time. A planned item is what the FAA expects, not a certainty. These feeds are not documented and can change, so if one stops working the line simply disappears. Raw airport notices such as night closures are left out. US only.</dd></div>
+        <div><dt>adsb.lol and adsbdb</dt><dd>A flight’s live position from community aircraft receivers (adsb.lol, ODbL) and its route (adsbdb). Aircraft out of receiver range do not show. Neither gives scheduled times, gates, delays or cancellations, so we do not show those; the landing time is our estimate from distance and speed.</dd></div>
+        <div><dt>RainViewer</dt><dd>Past radar on the Today page, free for personal and small-scale use, over OpenStreetMap map tiles.</dd></div>
+        <div><dt>Open States</dt><dd>Statehouse floor votes, collected once an hour, a few states at a time. Votes can arrive late, and we link the official record on every one.</dd></div>
+        <div id="newsrooms"><dt>Newsrooms</dt><dd>
+          The headlines and preview pictures come from these outlets’ public feeds, checked on 16 November 2026:
+          <ul class="guide__outlets">
+            <li><b>New York:</b> New York Focus, City &amp; State New York, WAMC</li>
+            <li><b>New Jersey:</b> New Jersey Monitor, NJ Spotlight News</li>
+            <li><b>California:</b> CalMatters, KQED</li>
+            <li><b>Ohio:</b> Ohio Capital Journal, Statehouse News Bureau</li>
+            <li><b>Texas:</b> The Texas Tribune, KUT News</li>
+            <li><b>Florida:</b> Florida Phoenix, WFSU News</li>
+            <li><b>Illinois:</b> Capitol News Illinois, NPR Illinois</li>
+            <li><b>Pennsylvania:</b> Pennsylvania Capital-Star, Spotlight PA</li>
+            <li><b>Weather and travel, everywhere else:</b> Yale Climate Connections, NOAA, Simple Flying</li>
+          </ul>
+          Other states do not have local headlines yet.
+        </dd></div>
+        <div><dt>Your location</dt><dd>Asked for only when you press “Use my location”. It is rounded to about a kilometre, kept in your browser and sent only to the weather services that need it (Open-Meteo, and the National Weather Service in the US). The place name comes from the nearest airport in a list bundled with the site.</dd></div>
+      </dl>
+    </section>
+
+    <section class="guide__section" id="never" aria-labelledby="never-title">
+      <h2 id="never-title">What Gatecast never does</h2>
+      <ul class="guide__never">
+        <li>Show news text written by AI. An AI assistant may help a reviewer check quotes against their sources, but nothing it writes is saved unless a person saves it, and nothing it writes is shown to readers as news.</li>
+        <li>Sell your data. There are no accounts; your place and trips stay in your browser.</li>
+        <li>Rank political items by clicks, or grade newsrooms as left, right or trustworthy.</li>
+        <li>Show gates, scheduled times, delays or cancellations it cannot know. Delay information comes only from the FAA and is labelled as the FAA’s; the landing time is always marked as an estimate.</li>
+        <li>Pretend to be official. Gatecast is a planning aid: check your airline for the status of your flight.</li>
+      </ul>
+    </section>
+
+    <section class="guide__section" id="corrections" aria-labelledby="corrections-title">
+      <h2 id="corrections-title">Corrections and contact</h2>
+      <p>If something on Gatecast is wrong, misleading or out of date, please tell us. For now reports go through GitHub, where they are public: <a class="guide__report" href="https://github.com/VictorParker22/gatecast/issues/new?template=bug_report.yml" rel="noopener">Report an error</a>. Say which page, what you saw and what it should say. We fix errors as soon as we can; a public list of corrections is planned.</p>
+      <p>Security problems should not go in a public report. Use <a href="https://github.com/VictorParker22/gatecast/security/advisories/new" rel="noopener">GitHub’s private vulnerability reporting</a> instead. There is no email address yet.</p>
+      <p>Newsrooms: if you would like your pictures or headlines removed, report it the same way and we will switch your outlet off.</p>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>Gatecast is a planning aid, not an official source. Check your airline for the status of your flight. <a href="how.html" aria-current="page">How Gatecast works</a>.</p>
+    <p>Forecasts: <a href="https://open-meteo.com/" rel="noopener">Open-Meteo</a> (CC BY 4.0). Radar: <a href="https://www.rainviewer.com/" rel="noopener">RainViewer</a>. Map: © <a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a> contributors. Live aircraft: <a href="https://adsb.lol/" rel="noopener">adsb.lol</a> (ODbL). Routes: <a href="https://www.adsbdb.com/" rel="noopener">adsbdb</a>. Observations: NOAA. US status and plans: FAA. Alerts: National Weather Service. Headlines and their pictures belong to the newsrooms named beside them.</p>
+  </footer>
+</body>
+</html>

@@ -1,6 +1,6 @@
 // Flights page: live flight tracking with weather at both ends, and an airport weather view.
 import { assessWindow, describeCode, distanceKm, factorPhrase, fmtTime, fmtDay, fmtZone, fmtDuration, HOUR, LEVEL_LABEL } from './core.js';
-import { loadAirports, airport, searchAirports, loadForecasts, loadAlerts, loadLive, loadFlight, loadNearby } from './data.js';
+import { loadAirports, airport, searchAirports, loadForecasts, loadAlerts, loadLive, loadFlight, loadNearby, loadFaaPlans } from './data.js';
 import { $, prefs, initSettings } from './shell.js';
 import { esc, weatherIcon, riskIcon, chip, units, compass, routeMap, hourlyStrip } from './view.js';
 import { flightNames, freshness, endsVerdict } from './flightstatus.js';
@@ -195,11 +195,38 @@ function alertRows(airports, many) {
   return rows;
 }
 
+// What the FAA plans today (operations plan, NAS Status airport events): one quiet line each, never a verdict.
+// Programs already in force, or already listed by the FAA status rows above, are left to those rows; de-icing
+// shows while it is reported.
+function planRows(airports, many) {
+  const fp = state && state.plans;
+  if (!fp || !fp.plans.length) return [];
+  const rows = [];
+  for (const a of airports) {
+    if (a.country !== 'US') continue;
+    const tz = a.tz, today = fmtDay(Date.now(), tz);
+    const t = (iso) => { const ms = Date.parse(iso); return `${fmtTime(ms, tz)}${fmtDay(ms, tz) !== today ? ` ${fmtDay(ms, tz)}` : ''}`; };
+    for (const p of fp.plans.filter((x) => x.airport === a.code)) {
+      if (p.status === 'active' && p.kind !== 'deicing') continue;
+      const listed = (state.live && state.live.faa && state.live.faa.airports[a.code]) || [];
+      if (p.from === 'airport-events' && listed.some((r) => (p.kind === 'ground_stop' ? /ground stop/i : /delay program/i).test(r.type))) continue;
+      const what = p.kind === 'other' ? `“${p.text}”` : p.summary;
+      const when = p.kind === 'deicing' ? (p.start ? `since ${t(p.start)}` : '')
+        : p.start && p.end ? `${t(p.start)}–${t(p.end)}` : p.start ? `after ${t(p.start)}` : p.end ? `until ${t(p.end)}` : '';
+      const zone = when ? ` ${fmtZone(Date.parse(p.start || p.end), tz)}` : '';
+      const label = p.status === 'planned' ? 'FAA plan' : 'FAA';
+      rows.push(`<p class="live live--plan"><span><b>${many ? `${a.code} · ` : ''}${label}:</b> ${esc(what)}${when ? `${p.kind === 'deicing' ? ' ' : ', '}${esc(when + zone)}` : ''}<small>, ${p.link ? `<a href="${esc(p.link)}" rel="noopener">FAA NAS Status</a>` : 'FAA NAS Status'}</small></span></p>`);
+    }
+  }
+  return rows;
+}
+
 // The weather block shared by both modes: one verdict line, alerts, then cards.
 // Calm collapses (one grey line, cards behind "Details"); risk expands (that airport's card first, open).
 function weatherBlock(ends, u, { id, link, cardTitle, many }) {
   const v = endsVerdict(ends);
   const alerts = alertRows(ends.map((e) => e.a), many);
+  const plans = planRows(ends.map((e) => e.a), many);
   let title = v.title;
   if (v.kind === 'calm' && alerts.length) title = many ? 'The forecast looks calm at both ends' : `The forecast looks calm at ${ends[0].code}`;
   const level = v.kind === 'risk' ? v.order[0].level : v.kind === 'calm' ? 'low' : 'unknown';
@@ -219,6 +246,7 @@ function weatherBlock(ends, u, { id, link, cardTitle, many }) {
         : ends.map((w) => brief(w, u)).join('<span aria-hidden="true"> · </span><span class="sr-only">, </span>')}</p>
     </div></div>
     ${alerts.length ? `<div class="fl-wx__alerts">${alerts.join('')}</div>` : ''}
+    ${plans.length ? `<div class="fl-wx__plans">${plans.join('')}</div>` : ''}
     <div class="fl-wx__cards">${cards}</div>
   </section>`;
 }
@@ -253,13 +281,14 @@ async function showFlight(q, quiet = false) {
   const aps = [from, to].filter(Boolean);
   const fc = aps.length ? await loadForecasts(aps).catch(() => null) : null;
   const same = state && state.kind === 'flight' && state.q === q;
-  state = { kind: 'flight', q, f, from, to, fc, live: same ? state.live : null, alerts: same ? state.alerts : null };
+  state = { kind: 'flight', q, f, from, to, fc, live: same ? state.live : null, alerts: same ? state.alerts : null, plans: same ? state.plans : null };
   if (quiet) { resultsEl.setAttribute('aria-live', 'off'); paint(renderFlight()); return; }
   resultsEl.innerHTML = renderFlight();
   settle();
-  Promise.all([loadLive(aps), Promise.all(aps.map(loadAlerts))]).then(([live, alerts]) => {
+  const us = aps.filter((a) => a.country === 'US').map((a) => a.code);
+  Promise.all([loadLive(aps), Promise.all(aps.map(loadAlerts)), us.length ? loadFaaPlans(us) : null]).then(([live, alerts, plans]) => {
     if (!state || state.q !== q) return;
-    state.live = live; state.alerts = new Map(aps.map((a, i) => [a.code, alerts[i]]));
+    state.live = live; state.alerts = new Map(aps.map((a, i) => [a.code, alerts[i]])); state.plans = plans;
     resultsEl.setAttribute('aria-live', 'off');
     paint(renderFlight());
   });
@@ -381,12 +410,12 @@ async function showAirport(code) {
   // Without a forecast the observation, alerts and nearby aircraft are still worth showing.
   let fc = null, fcError = null;
   try { fc = await loadForecasts([a]); } catch (err) { fcError = err.message; }
-  state = { kind: 'airport', a, fc, fcError, live: null, alerts: null, nearby: undefined };
+  state = { kind: 'airport', a, fc, fcError, live: null, alerts: null, nearby: undefined, plans: null };
   resultsEl.innerHTML = renderAirport();
   settle();
-  const [live, alerts, nearby] = await Promise.all([loadLive([a]), loadAlerts(a), loadNearby(a)]);
+  const [live, alerts, nearby, plans] = await Promise.all([loadLive([a]), loadAlerts(a), loadNearby(a), a.country === 'US' ? loadFaaPlans([a.code]) : null]);
   if (!state || state.a !== a) return;
-  state.live = live; state.alerts = new Map([[a.code, alerts]]); state.nearby = nearby;
+  state.live = live; state.alerts = new Map([[a.code, alerts]]); state.nearby = nearby; state.plans = plans;
   resultsEl.setAttribute('aria-live', 'off');
   paint(renderAirport());
 }

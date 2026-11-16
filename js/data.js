@@ -1,4 +1,4 @@
-// Data access: airport list, Open-Meteo forecasts, NWS alerts, and the optional live proxy.
+// Data access: airport list, Open-Meteo forecasts, NWS alerts, FAA plans, and the optional live proxy.
 import { HOUR } from './core.js';
 
 /* ---------- Airports ---------- */
@@ -130,6 +130,34 @@ export async function loadLive(airports) {
     airports.some((a) => a.country === 'US') ? fetch('api/faa').then((r) => (r.ok ? r.json() : null)).catch(() => null) : null,
   ]);
   return { metar, faa };
+}
+
+// What the FAA plans today for US airports (ground stops, delay programs, de-icing), through /api/faa-plans.
+// codes: IATA or ICAO codes; the server keeps US ones only. Resolves to { plans, checkedAt } and never throws:
+// on a static host, a failed request or an odd answer it is { plans: [], checkedAt: null }.
+// Each plan: { airport, kind: 'ground_stop' | 'delay_program' | 'deicing' | 'other', text (the FAA's wording),
+// summary (plain reading of it), start, end (ISO UTC or null), status: 'planned' | 'active', link,
+// from: 'operations-plan' (a forecast line) | 'airport-events' (a program the FAA has issued), source }.
+const PLAN_KINDS = new Set(['ground_stop', 'delay_program', 'deicing', 'other']);
+const isoOr = (s) => (typeof s === 'string' && Number.isFinite(Date.parse(s)) ? s : null);
+export async function loadFaaPlans(codes) {
+  const none = { plans: [], checkedAt: null };
+  const list = [...new Set((codes || []).map((c) => String(c || '').toUpperCase()).filter((c) => /^[A-Z0-9]{3,4}$/.test(c)))].slice(0, 10);
+  if (!list.length) return none;
+  try {
+    const res = await fetch(`api/faa-plans?airports=${list.join(',')}`);
+    if (!res.ok || !res.headers.get('content-type')?.includes('json')) return none;
+    const json = await res.json();
+    const plans = (Array.isArray(json?.plans) ? json.plans : [])
+      .filter((p) => p && typeof p.airport === 'string' && PLAN_KINDS.has(p.kind) && typeof p.text === 'string' && p.text.trim())
+      .map((p) => ({
+        airport: p.airport, kind: p.kind, text: p.text, summary: typeof p.summary === 'string' && p.summary ? p.summary : p.text,
+        start: isoOr(p.start), end: isoOr(p.end), status: p.status === 'active' ? 'active' : 'planned',
+        link: typeof p.link === 'string' && /^https:\/\//.test(p.link) ? p.link : null,
+        from: p.from === 'airport-events' ? 'airport-events' : 'operations-plan', source: 'FAA NAS Status',
+      }));
+    return { plans, checkedAt: isoOr(json?.checkedAt) };
+  } catch { return none; }
 }
 
 /* ---------- Places and local weather (weather home page) ---------- */

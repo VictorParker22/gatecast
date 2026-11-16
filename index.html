@@ -14,8 +14,31 @@
       document.documentElement.dataset.start = gcStart;
     } catch (e) {}
   </script>
-  <title>Gatecast — will the weather mess up your trip?</title>
-  <meta name="description" content="Will the weather mess up your trip? Gatecast checks the forecast at every airport on your journey, tells you what today's weather means where you are, and shows live flight status.">
+  <title>Gatecast — weather and the news worth knowing</title>
+  <meta name="description" content="Weather and the news worth knowing, with flight and trip checks: the forecast and what it means where you are, headlines from newsrooms near you, and a plain answer on whether the weather threatens your trip.">
+  <!-- Search and share basics. Copy lives here and in how.html; the share image is rendered from docs/og/og-template.html. -->
+  <link rel="canonical" href="https://gatecast.vercel.app/">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ecebe6">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#07090d">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Gatecast">
+  <meta property="og:title" content="Gatecast — weather and the news worth knowing">
+  <meta property="og:description" content="Weather and the news worth knowing, with flight and trip checks: the forecast and what it means where you are, headlines from newsrooms near you, and a plain answer on whether the weather threatens your trip.">
+  <meta property="og:url" content="https://gatecast.vercel.app/">
+  <meta property="og:image" content="https://gatecast.vercel.app/vendor/og/gatecast-og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Gatecast: weather and the news worth knowing, with flight and trip checks.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Gatecast — weather and the news worth knowing">
+  <meta name="twitter:description" content="Weather and the news worth knowing, with flight and trip checks: the forecast and what it means where you are, headlines from newsrooms near you, and a plain answer on whether the weather threatens your trip.">
+  <meta name="twitter:image" content="https://gatecast.vercel.app/vendor/og/gatecast-og.png">
+  <script type="application/ld+json">
+  {"@context": "https://schema.org", "@graph": [
+    {"@type": "WebSite", "@id": "https://gatecast.vercel.app/#website", "url": "https://gatecast.vercel.app/", "name": "Gatecast", "description": "Weather and the news worth knowing, with flight and trip checks.", "inLanguage": "en", "publisher": {"@id": "https://gatecast.vercel.app/#organization"}},
+    {"@type": "Organization", "@id": "https://gatecast.vercel.app/#organization", "name": "Gatecast", "url": "https://gatecast.vercel.app/", "sameAs": ["https://github.com/VictorParker22/gatecast"]}
+  ]}
+  </script>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23111418'/%3E%3Cpath d='M9 25V14a7 7 0 0 1 14 0v11M16 18v7' stroke='%23fff' stroke-width='2.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
   <link rel="preload" href="vendor/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="vendor/fonts/barlow-condensed-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin>
@@ -28,6 +51,9 @@
   <!-- The whole module graph, fetched in parallel instead of one import level at a time. -->
   <link rel="modulepreload" href="js/weather.js">
   <link rel="modulepreload" href="js/today.js">
+  <link rel="modulepreload" href="js/changes.js">
+  <link rel="modulepreload" href="js/riskwords.js">
+  <link rel="modulepreload" href="js/seen.js">
   <link rel="modulepreload" href="js/core.js">
   <link rel="modulepreload" href="js/data.js">
   <link rel="modulepreload" href="js/shell.js">
@@ -130,6 +156,7 @@
         <h2 class="today__title" id="today-title">Today</h2>
         <div class="today__places" id="saved-places"></div>
       </div>
+      <div class="since-slot" id="today-since" hidden></div>
       <h3 class="sr-only">What it means</h3>
       <ul class="means" id="means"></ul>
 
@@ -152,13 +179,25 @@
          their summary or opening paragraph. Pictures are the outlet's own link-preview image, hotlinked from its
          site and credited (owner decision, 16 Nov 2026). Statehouse votes and Both sides come from js/civic.js. -->
     <section class="brief" id="brief" aria-labelledby="brief-title" hidden>
-      <h2 class="brief__title" id="brief-title">The brief</h2>
+      <div class="brief__head">
+        <h2 class="brief__title" id="brief-title">The brief</h2>
+        <details class="brief__about">
+          <summary>Why am I seeing this?</summary>
+          <div class="brief__about-body">
+            <p>The brief is picked from four things only: the place you chose (kept on this device), a saved trip on this device, official National Weather Service alerts for that place, and the US state it is in. Each item says which of them put it there.</p>
+            <p>Headlines, statehouse votes and Both sides are listed newest first, as published or recorded. They are never ranked by clicks or popularity, and Gatecast keeps no record of what you read.</p>
+            <p><a href="how.html">How Gatecast works</a></p>
+          </div>
+        </details>
+      </div>
+      <div class="brief__new" id="brief-new" role="status" hidden></div>
       <section class="brief__block" id="brief-weather" aria-labelledby="brief-weather-title" hidden>
         <h3 class="brief__label" id="brief-weather-title">Weather news</h3>
         <ul class="wxnews-list" id="brief-weather-list"></ul>
       </section>
       <section class="brief__block" id="brief-news" aria-labelledby="brief-news-title" hidden>
         <h3 class="brief__label" id="brief-news-title">Headlines</h3>
+        <p class="because" id="brief-news-why"></p>
         <ol class="heads" id="brief-news-list"></ol>
         <p class="brief__source" id="brief-news-source"></p>
       </section>
@@ -167,7 +206,7 @@
   </main>
 
   <footer class="site-footer">
-    <p>Gatecast is a planning aid, not an official source. Check your airline for the status of your flight.</p>
+    <p>Gatecast is a planning aid, not an official source. Check your airline for the status of your flight. <a href="how.html">How Gatecast works</a>.</p>
     <p>Forecasts: <a href="https://open-meteo.com/" rel="noopener">Open-Meteo</a> (CC BY 4.0). Radar: <a href="https://www.rainviewer.com/" rel="noopener">RainViewer</a>. Map: © <a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a> contributors. Live aircraft: <a href="https://adsb.lol/" rel="noopener">adsb.lol</a> (ODbL). Routes: <a href="https://www.adsbdb.com/" rel="noopener">adsbdb</a>. Observations: NOAA. US status: FAA. Alerts: National Weather Service. Headlines and their pictures belong to the newsrooms named beside them; each links to the story, and pictures load from the newsroom’s own site.</p>
   </footer>
 </body>
