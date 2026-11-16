@@ -257,7 +257,7 @@ function renderHero() {
         <div class="hero-wx__cond">${weatherIcon(now.code, now.day, 'wx--hero')}<p>${esc(describeCode(now.code).text)}</p></div>
       </div>
       <h1>${esc(headline(wx, f))}</h1>
-      <p class="hero-wx__meta">Feels like ${f.temp(now.feels)} · High ${f.temp(today.max)} · Low ${f.temp(today.min)} · Wind ${f.speed(now.wind)} ${compass(now.dir)}</p>
+      <p class="hero-wx__meta"><span class="nw">Feels like ${f.temp(now.feels)}</span> · <span class="nw">High ${f.temp(today.max)}</span> · <span class="nw">Low ${f.temp(today.min)}</span> · <span class="nw">Wind ${f.speed(now.wind)} ${compass(now.dir)}</span></p>
     </div>
     <ul class="hero-wx__parts" aria-label="The day ahead">
       ${dayparts(wx).map((part) => `<li><span>${part.name}</span>${weatherIcon(part.code, part.day)}<b>${f.temp(part.temp)}</b><span>${esc(part.text)}</span></li>`).join('')}
@@ -386,7 +386,7 @@ const BODY = {
     const hours = wx.hours.slice(0, n);
     const cols = hours.map((h, i) => {
       const sr = `${f.time(h.t)}: ${describeCode(h.code).text}, ${f.temp(h.temp)}, ${h.pop ?? 0}% chance of rain or snow`;
-      return `<li title="${esc(sr)}"><b>${f.temp(h.temp)}</b>${weatherIcon(h.code, h.day)}<span class="hcol__pop"><i style="--v:${h.pop ?? 0}"></i>${h.pop ?? 0}%</span><span>${i === 0 ? 'Now' : f.time(h.t)}</span><span class="sr-only">${esc(sr)}</span></li>`;
+      return `<li${i === 0 ? ' class="is-now"' : ''} title="${esc(sr)}"><span class="hcol__time">${i === 0 ? 'Now' : f.time(h.t)}</span><b>${f.temp(h.temp)}</b>${weatherIcon(h.code, h.day)}<span class="hcol__pop"><i style="--v:${h.pop ?? 0}"></i>${h.pop ?? 0}%</span><span class="sr-only">${esc(sr)}</span></li>`;
     }).join('');
     let curve = '';
     if (size === 'l') {
@@ -410,7 +410,7 @@ const BODY = {
     return `<ol class="days">${days.map((x, i) => {
       const name = i === 0 ? 'Today' : new Intl.DateTimeFormat('en-GB', { timeZone: f.tz, weekday: 'short', day: 'numeric' }).format(x.t + 12 * HOUR);
       const wet = (x.pop ?? 0) >= 20;
-      return `<li class="day"><span class="day__name">${name}</span>
+      return `<li class="day${i === 0 ? ' is-today' : ''}"><span class="day__name">${name}</span>
         <span class="day__sky">${weatherIcon(x.code, 1)}<span class="sr-only">${esc(describeCode(x.code).text)}</span></span>
         <span class="day__pop">${wet ? `${x.pop}%` : ''}<span class="sr-only">${wet ? ' chance of rain or snow' : 'Dry'}</span></span>
         <span class="day__min"><span class="sr-only">Low </span>${f.temp(x.min)}</span>
@@ -431,15 +431,18 @@ const BODY = {
     const { wx } = current, f = fmt(), now = wx.now, today = wx.days[0];
     const UV = (v) => (v == null ? '' : v < 3 ? 'low' : v < 6 ? 'moderate' : v < 8 ? 'high' : v < 11 ? 'very high' : 'extreme');
     const AQI = (v) => (v <= 50 ? 'good' : v <= 100 ? 'moderate' : v <= 150 ? 'poor for sensitive groups' : v <= 200 ? 'unhealthy' : 'very unhealthy');
-    const stat = (k, v, note = '') => `<div><dt>${k}</dt><dd>${v}${note ? ` <small>${note}</small>` : ''}</dd></div>`;
-    const pressure = prefs.temp === 'f' ? `${(now.pressure * 0.02953).toFixed(2)} inHg` : `${Math.round(now.pressure)} hPa`;
+    // value, then an optional small unit, then an optional small note
+    const stat = (k, v, unit = '', note = '') => `<div><dt>${k}</dt><dd>${v}${unit ? ` <span class="stats__unit">${unit}</span>` : ''}${note ? ` <small>${note}</small>` : ''}</dd></div>`;
+    const split = (text) => { const i = String(text).indexOf(' '); return i < 0 ? [text, ''] : [text.slice(0, i), text.slice(i + 1)]; };
+    const pressure = prefs.temp === 'f' ? [(now.pressure * 0.02953).toFixed(2), 'inHg'] : [Math.round(now.pressure), 'hPa'];
+    const vis = split(f.u.vis(now.vis));
     const items = [
-      stat('Wind', `${f.speed(now.wind)} ${compass(now.dir)}`, `gusts ${f.speed(now.gust)}`),
+      stat('Wind', f.u.speedVal(now.wind), `${f.u.speedUnit} ${compass(now.dir)}`, `gusts ${f.speed(now.gust)}`),
       stat('Humidity', `${Math.round(now.humidity)}%`),
-      stat('UV index', today.uv == null ? '–' : Math.round(today.uv), UV(today.uv)),
-      wx.air ? stat('Air quality', wx.air.aqi, AQI(wx.air.aqi)) : stat('Visibility', f.u.vis(now.vis)),
+      stat('UV index', today.uv == null ? '–' : Math.round(today.uv), '', UV(today.uv)),
+      wx.air ? stat('Air quality', wx.air.aqi, '', AQI(wx.air.aqi)) : stat('Visibility', vis[0], vis[1]),
       stat('Sunrise', f.time(today.sunrise)), stat('Sunset', f.time(today.sunset)),
-      wx.air ? stat('Visibility', f.u.vis(now.vis)) : '', stat('Pressure', pressure),
+      wx.air ? stat('Visibility', vis[0], vis[1]) : '', stat('Pressure', pressure[0], pressure[1]),
     ].filter(Boolean);
     return `<dl class="stats">${items.slice(0, size === 's' ? 4 : 8).join('')}</dl>`;
   },
@@ -452,7 +455,7 @@ const BODY = {
     return `<h3 class="quiz__q">${esc(q.question)}</h3>
       <p class="quiz__from">From the forecast on your board. One tap, no sign-up.</p>
       <div class="quiz__opts">${q.options.map((o, i) => `<button type="button" data-quiz="${i}"${done ? ' disabled' : ''} class="${done && i === q.correct ? 'is-correct' : done && i === picked ? 'is-wrong' : ''}">${esc(o)}${done && i === q.correct ? '<span class="sr-only"> (correct)</span>' : ''}</button>`).join('')}</div>
-      <p class="quiz__result" role="status">${done ? `${picked === q.correct ? 'Right.' : 'Not quite.'} ${esc(q.explain)}` : ''}</p>
+      <p class="quiz__result" role="status" tabindex="-1">${done ? `${picked === q.correct ? 'Right.' : 'Not quite.'} ${esc(q.explain)}` : ''}</p>
       ${size !== 's' ? '<p class="tile__note">A new question from your forecast every day.</p>' : ''}`;
   },
 
@@ -524,7 +527,9 @@ boardEl.addEventListener('click', (e) => {
     stats.answered += 1; store.set('gatecast:stats', stats);
     paint('quiz'); renderPedestal();
     react(tileEl('quiz'), 'just-answered');
-    announce($('.quiz__result', tileEl('quiz')).textContent);
+    const result = $('.quiz__result', tileEl('quiz'));
+    result.focus({ preventScroll: true }); // repainting the box dropped focus; put it on the answer
+    announce(result.textContent);
   }
 });
 boardEl.addEventListener('change', (e) => {
@@ -650,12 +655,17 @@ function endDrag(e, cancelled) {
     d.lift.settle(d.el, reveal);
     return;
   }
-  saveBoard();
   if (overShelf) {
+    // Pinning is not moving: put the boxes back where they were before the drag crossed them.
+    if (board.order.join() !== d.startOrder) {
+      board.order = d.startOrder.split(',');
+      flip(allTiles(), applyOrder, { scale: false });
+    }
     toggleShelf(d.id, true);
     d.lift.flyTo($(`[data-jump="${d.id}"]`, shelfEl), d.el, reveal);
     return;
   }
+  saveBoard();
   d.lift.settle(d.el, reveal);
   if (board.order.join() !== d.startOrder) {
     const vis = visibleOrder();

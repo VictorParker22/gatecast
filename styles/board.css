@@ -139,7 +139,6 @@ html:has(> body.page-weather) { scroll-padding-bottom: 6rem; } /* keeps focused 
 .is-dragging-tile, .is-dragging-tile * { cursor: grabbing !important; user-select: none; }
 .tile__body { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; flex: 1; }
 .tile__note { font-size: var(--text-sm); color: var(--color-text-muted); margin-top: auto; }
-.drag-chip { position: fixed; top: 0; left: 0; z-index: 20; pointer-events: none; padding: var(--space-2) var(--space-3); border-radius: var(--radius-pill); background: var(--color-on-sun); color: var(--color-on-ink); font-size: var(--text-sm); font-weight: 600; box-shadow: var(--shadow-2); }
 
 /* Next 24 hours */
 .hours2 { overflow-x: auto; scrollbar-width: thin; }
@@ -152,9 +151,9 @@ html:has(> body.page-weather) { scroll-padding-bottom: 6rem; } /* keeps focused 
 .hours2__list { display: grid; grid-template-columns: repeat(var(--n), minmax(3rem, 1fr)); }
 .hours2__list li { display: grid; justify-items: center; gap: var(--space-2); padding: var(--space-2) 0; border-radius: var(--radius-md); font-size: var(--text-sm); color: var(--color-text-muted); }
 /* Time leads each column (it is the index); "Now" is marked by weight and a soft well, not colour alone. */
-.hours2__list li > span:not(.hcol__pop):not(.sr-only) { order: -1; font-size: var(--text-xs); white-space: nowrap; }
-.hours2__list li:first-child { background: var(--color-surface-sunken); }
-.hours2__list li:first-child > span:not(.hcol__pop):not(.sr-only) { font-weight: 700; color: var(--color-text); }
+.hcol__time { font-size: var(--text-xs); white-space: nowrap; }
+.hours2__list li.is-now { background: var(--color-surface-sunken); }
+.hours2__list .is-now .hcol__time { font-weight: 700; color: var(--color-text); }
 .hours2__list b { font-family: var(--font-display); color: var(--color-text); font-size: 1.0625rem; font-weight: 600; line-height: 1; }
 .hours2__list .wx { width: 1.5rem; height: 1.5rem; color: var(--color-text); }
 .hcol__pop { display: grid; justify-items: center; gap: var(--space-1); font-size: var(--text-xs); }
@@ -164,7 +163,7 @@ html:has(> body.page-weather) { scroll-padding-bottom: 6rem; } /* keeps focused 
 .board .day { grid-template-columns: 4.5rem 1.5rem 2.25rem 2.25rem minmax(2.5rem, 1fr) 2.25rem; column-gap: var(--space-2); min-height: 2.875rem; }
 @container (min-width: 30rem) { .board .day { grid-template-columns: 5.5rem 1.5rem 2.75rem 2.5rem minmax(3rem, 1fr) 2.5rem; column-gap: var(--space-3); } }
 .board .day__name { font-weight: 500; white-space: nowrap; }
-.board .day:first-child .day__name { font-weight: 700; }
+.board .day.is-today .day__name { font-weight: 700; }
 .board .day__min, .board .day__max { font-family: var(--font-display); text-align: right; }
 .board .day__max { font-weight: 600; }
 .board .day__bar { height: 0.375rem; }
@@ -268,3 +267,7 @@ html:has(> body.page-weather) { scroll-padding-bottom: 6rem; } /* keeps focused 
   .sheet__grid { grid-template-columns: minmax(0, 1fr); }
   .sheet__btn { min-height: 3.25rem; }
 }
+
+/* Keep a value and its unit together when a line wraps. */
+.nw { white-space: nowrap; }
+.stats__unit { font-size: var(--text-sm); font-weight: 500; color: var(--color-text-muted); }
