@@ -17,7 +17,8 @@ export function loadAirports() {
       }));
       byCode = new Map(list.map((a) => [a.code, a]));
       return list;
-    });
+    })
+    .catch((err) => { airportsPromise = null; throw err; }); // a later call may try again
   return airportsPromise;
 }
 export const airport = (code) => byCode.get(String(code || '').toUpperCase()) || null;
@@ -150,7 +151,8 @@ const kmBetween = (aLat, aLon, bLat, bLon) => {
   return 12742 * Math.asin(Math.sqrt(h));
 };
 // Nearest airports from the bundled list, so naming a spot needs no third-party lookup.
-// minRank 1 keeps airports with airline service; 2 keeps only large ones.
+// minRank 1 keeps airports with airline service; 2 keeps only large ones. Call loadAirports() first:
+// until the list has loaded this returns nothing.
 export function nearestAirports(lat, lon, n = 3, minRank = 0) {
   return list
     .filter((a) => a.rank >= minRank)
@@ -163,10 +165,17 @@ const CURRENT = 'temperature_2m,apparent_temperature,relative_humidity_2m,weathe
 const DAILY = 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,sunrise,sunset,uv_index_max,wind_gusts_10m_max';
 
 // Current conditions, 48 hours and 10 days for one spot, plus air quality when available.
-export async function loadWeather(lat, lon) {
+// A request already on its way for the same spot is shared, so index.html can start the saved place's
+// forecast while the rest of the page's scripts are still loading.
+const inflight = new Map();
+export function loadWeather(lat, lon) {
   const key = `wx:${lat},${lon}`;
   const hit = cacheGet(key);
-  if (hit) return hit;
+  if (hit) return Promise.resolve(hit);
+  if (!inflight.has(key)) inflight.set(key, fetchWeather(lat, lon, key).finally(() => inflight.delete(key)));
+  return inflight.get(key);
+}
+async function fetchWeather(lat, lon, key) {
   const url = new URL('https://api.open-meteo.com/v1/forecast');
   url.search = new URLSearchParams({
     latitude: lat, longitude: lon, current: CURRENT, hourly: HOURLY, daily: DAILY,

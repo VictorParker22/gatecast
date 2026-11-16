@@ -64,6 +64,8 @@
 .wx--hero { width: 3.5rem; height: 3.5rem; stroke-width: 1.4; }
 .sky--day .wx--hero { color: var(--color-sun); }
 .hero-wx h1 { font-size: clamp(1.75rem, 1.2rem + 2vw, 2.5rem); line-height: 1.1; letter-spacing: -0.02em; font-weight: 600; max-width: 16em; text-wrap: balance; }
+/* The action is the second sentence: its own line, a little quieter than the lead. */
+.hero-wx__action { display: block; margin-top: 0.3em; font-size: 0.72em; font-weight: 500; letter-spacing: -0.01em; color: var(--color-on-sky-muted); }
 .hero-wx__meta { color: var(--color-on-sky-muted); text-wrap: balance; }
 /* The four parts of the day: a quiet ruled strip, one column each, separated by hairlines. */
 .hero-wx__parts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid color-mix(in oklab, var(--color-on-sky-muted) 45%, transparent); }
