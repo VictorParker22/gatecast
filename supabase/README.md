@@ -13,11 +13,15 @@ Gatecast's database lives in the Supabase project `gatecast` (`hfdwmzuedjcsaxgzh
 | `migrations/20261116090000_reviewer_console.sql` | **Written, not applied yet.** What the reviewer console needs beyond the queue: internal notes, a topic's review history, hiding a vote, collector health (see below) |
 | `functions/collect/index.ts` | Edge Function that reads up to four states per run from Open States and writes passage votes into `state_votes`. Copies the public record only: official title, counts, party split, date and links |
 | `functions/assist/` | Edge Function behind the reviewer console's assistant (Claude). See `docs/assist.md` |
+| `migrations/20261116160000_weird_community.sql` | **Written, not applied yet.** Weird news: reader votes (`weird_votes`, the Weird-o-meter), guestbook tips (`weird_tips`), the editor's picks (`weird_picks`), their limits, history and a daily retention job. See `docs/community.md` |
+| `functions/community/` | Edge Function for anonymous visitors: `POST /vote`, `GET /ratings`, `POST /tip`. Hashes the visitor's address with a secret salt; never stores it. See `docs/community.md` |
+| `paused/weird_favourites.sql` | **Paused, do not apply.** Reader favourites and the 140-character hook line, waiting for the owner's plan. Kept out of `migrations/` so `supabase db push` skips it |
 
 Which pages read it:
 
 - **Today page** (`js/civic.js`): "Your statehouse" (the visitor's state's latest votes) and "Both sides" (published topics), with the publishable key in `js/config.js`.
-- **Reviewer console** (`review.html`, `js/review.js`): reviewers sign in with an emailed link and work the queue.
+- **Reviewer console** (`review.html`, `js/review.js`): reviewers sign in with an emailed link and work the queue, the guestbook tips and the editor's picks.
+- **Weird news front page** (`js/community.js`): the Weird-o-meter and the guestbook, through the `community` function. The editor's picks are read server-side by `lib/picks-db.js` with the publishable key.
 
 ## Who can read and write what
 
@@ -27,6 +31,20 @@ The publishable key in `js/config.js` is public by design. Row-level security in
 - **Reviewers** (signed in and listed in `public.reviewers`) read everything in the queue, write drafts, publish, withdraw and reject.
 - **The collector** runs inside Supabase with the service role key. It writes votes; like any request with that key it could write queue drafts, but the triggers stop it publishing or changing anything published, and it cannot name a reviewer.
 - **The project owner** (SQL editor) is unrestricted. This is the only way to add a reviewer or flip a switch.
+
+Weird news (once `20261116160000_weird_community.sql` is applied):
+
+| Table or function | Visitors (publishable key) | Reviewers | `community` function (service role) |
+|---|---|---|---|
+| `weird_votes` | nothing | nothing | nothing directly: only through `weird_cast_vote` |
+| `weird_ratings(ids)` | call it: counts, and averages from 50 votes | same | same |
+| `weird_cast_vote(...)` | no | no | call it (one vote per voter per story, 60 per voter per hour) |
+| `weird_tips` | nothing | read (not the address hash); set status only, signed by a trigger | nothing directly: only through `weird_submit_tip` |
+| `weird_submit_tip(...)` | no | no | call it (5 per sender per UTC day, 200 per day in all) |
+| `weird_picks` | read published picks (public columns only) | read all, add, edit, publish, withdraw; delete when not published | nothing |
+| `weird_pick_activity(pick)` | no | read a pick's history | no |
+
+Votes and tips are only ever written by the definer functions, which check every value again and enforce the limits in the database; no API role has a direct grant on `weird_votes`, and the service role has none on any of the three tables. Every definer function sets `search_path = ''` and names every object with its schema. Rate counters, vote totals kept after 90 days and the picks' history live in `private`, which the API cannot reach.
 
 ## The `state_votes` switch
 
@@ -71,9 +89,28 @@ Secrets live in Supabase (Project → Edge Functions → Secrets), never in this
 
 - `Open-States`: the Open States API key, read by `collect`.
 - `ANTHROPIC_API_KEY`: the Anthropic key, read by `assist`.
+- `COMMUNITY_SALT`: a long random secret, read by `community`, which hashes visitors' addresses with it. **The function refuses to run without it** (at least 16 characters; use 32+ random characters, e.g. `openssl rand -hex 32`). Set it once and leave it: changing it makes every visitor a new voter, so they could vote again on stories they already rated, and the per-day tip hashes stop matching for the rest of that day.
+- `COMMUNITY_ALLOWED_ORIGINS` (optional): extra browser origins for `community`, comma-separated, for a custom domain.
 - `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_URL`: provided by Supabase to every function.
 
 The cron job authenticates with the project's anon key, which is public; the repository copy still leaves it out.
+
+
+## Weird news: going live
+
+1. Apply `migrations/20261116160000_weird_community.sql` (SQL editor or `supabase db push`). It is safe to run twice. It creates the tables, functions, policies and the `weird-community-retention` cron job (daily, 04:23 UTC).
+2. Set the secret: `supabase secrets set COMMUNITY_SALT=$(openssl rand -hex 32) --project-ref hfdwmzuedjcsaxgzhzmu` (or Project → Edge Functions → Secrets).
+3. Deploy the function with JWT checks off, because visitors are not signed in:
+
+   ```sh
+   supabase functions deploy community --no-verify-jwt --project-ref hfdwmzuedjcsaxgzhzmu
+   ```
+
+4. Check it: `curl "https://hfdwmzuedjcsaxgzhzmu.supabase.co/functions/v1/community/ratings?ids=0123456789abcdef" -H "apikey: <publishable key>"` should answer `{"ratings":{"0123456789abcdef":{"count":0,"average":null}}}`. A `503 not_configured` means the salt is missing or too short.
+
+Until step 1, the console's Tips and Picks views say they arrive with the migration, and the site falls back to `data/weird-picks.json`.
+
+To remove a vote or tip by hand (for example after abuse), use the SQL editor: `delete from public.weird_tips where id = '<id>';`. To see today's tip volume: `select hits from private.weird_rate where key = 'tip:all' order by window_start desc limit 1;`.
 
 ---
 

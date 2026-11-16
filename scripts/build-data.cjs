@@ -11,8 +11,8 @@ const SRC = 'https://raw.githubusercontent.com/mwgg/Airports/master/airports.jso
 const SIZES = 'https://raw.githubusercontent.com/davidmegginson/ourairports-data/main/airports.csv';
 const SITE = 'https://gatecast.vercel.app/';
 // Public pages, in sitemap order. review.html is left out on purpose (noindex, disallowed in robots.txt).
-const SITEMAP_PAGES = ['', 'trip.html', 'flights.html', 'how.html'];
-const STATIC_FILES = ['index.html', 'flights.html', 'trip.html', 'review.html', 'how.html', 'robots.txt'];
+const SITEMAP_PAGES = ['', 'library.html', 'trip.html', 'flights.html', 'how.html'];
+const STATIC_FILES = ['index.html', 'library.html', 'flights.html', 'trip.html', 'review.html', 'how.html', 'robots.txt'];
 
 // sitemap.xml for the public pages, all with the build day as lastmod (YYYY-MM-DD, UTC).
 function sitemapXml(day = new Date().toISOString().slice(0, 10)) {
@@ -48,6 +48,7 @@ async function build() {
   for (const file of STATIC_FILES) fs.copyFileSync(path.join(root, file), path.join(out, file));
   fs.writeFileSync(path.join(out, 'sitemap.xml'), sitemapXml());
   fs.mkdirSync(path.join(out, 'data'), { recursive: true });
+  fs.copyFileSync(path.join(root, 'data', 'books.json'), path.join(out, 'data', 'books.json'));
 
   const res = await fetch(SRC);
   if (!res.ok) throw new Error('airport list download failed: ' + res.status);

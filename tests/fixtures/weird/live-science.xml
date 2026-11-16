@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- TEST FIXTURE, hand-written for tests/weird.test.mjs. Modelled on the shape of Live Science's general
+     feed (livescience.com/feeds.xml): RSS 2.0, every topic mixed, a <category> per item and an image
+     enclosure. NOT real stories: headlines and "fixture-" paths are made up. -->
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/">
+<channel>
+  <title>Latest from Live Science</title>
+  <link>https://www.livescience.com</link>
+  <item>
+    <title><![CDATA[Strange lights over the desert baffle airline pilots]]></title>
+    <link>https://www.livescience.com/space/fixture-desert-lights</link>
+    <description><![CDATA[NEVER-SHOW]]></description>
+    <pubDate>Sun, 16 Nov 2026 07:00:00 +0000</pubDate>
+    <category><![CDATA[Strange news]]></category>
+    <enclosure url="https://cdn.mos.cms.futurecdn.net/fixture/lights.jpg" type="image/jpeg" length="0" />
+  </item>
+  <item>
+    <title><![CDATA[New exoplanet found orbiting twin stars]]></title>
+    <link>https://www.livescience.com/space/fixture-exoplanet</link>
+    <pubDate>Sun, 16 Nov 2026 06:00:00 +0000</pubDate>
+    <category><![CDATA[Space]]></category>
+  </item>
+  <item>
+    <title><![CDATA[Octopus seen 'punching' fish that crowd its hunting spot]]></title>
+    <link>https://www.livescience.com/strange-news/fixture-octopus-punch</link>
+    <pubDate>Sat, 15 Nov 2026 07:00:00 +0000</pubDate>
+    <category><![CDATA[Animals]]></category>
+  </item>
+  <item>
+    <title><![CDATA[Doctors find tapeworm living in man's brain]]></title>
+    <link>https://www.livescience.com/health/fixture-tapeworm</link>
+    <pubDate>Sat, 15 Nov 2026 05:00:00 +0000</pubDate>
+    <category><![CDATA[Strange news]]></category>
+  </item>
+</channel>
+</rss>

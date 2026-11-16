@@ -1,6 +1,8 @@
-// Today (index.html): a sky hero that adapts to the visitor (a trip within 72 hours, the weather where they are,
-// or a first visit), a glass card with the weather here and the next 8 hours, then what today means, 10 days
-// and the rain radar. Pure wording and rules live in js/today.js and js/boardcontent.js.
+// The weather half of the front page (index.html): the "Weather box" (an old program window with the live sky inside:
+// the weather here now, the next 8 hours, the nearby airports and alerts), "Since you last looked", the brief (state
+// headlines, NWS alerts, statehouse votes), the "Flying?" box (a saved trip within 72 hours, or a From/To form) and the
+// weather desk (what today means, 10 days, the rain radar). The weird news half is js/front.js.
+// Pure wording and rules live in js/today.js and js/boardcontent.js.
 import { planTrip, assessTrip, assessWindow, scoreHour, describeCode, distanceKm, fmtTime, fmtDay, fmtZone, HOUR, LEVEL_LABEL } from './core.js';
 import { headlineParts, dayKey, skyOf } from './boardcontent.js';
 import { upcomingTrip, mightBeSoon, tripQuery, commute, carry, airSun, flightsNear, nextHours, stateOf, isUS, relTime, cleanHeadlines, arrangeHeadlines, monogram, tileTone, alertItems, airportSignal, alertReason, newsReason, civicReason, US_STATES } from './today.js';
@@ -10,7 +12,7 @@ import { seenGet, seenSet } from './seen.js';
 import { loadAirports, airport, searchPlaces, nearestAirports, loadWeather, loadForecasts, loadAlerts } from './data.js';
 import { $, store, prefs, initSettings } from './shell.js';
 import { initSky, setSky } from './sky.js';
-import { esc, weatherIcon, riskIcon, chip, units, compass } from './ui.js';
+import { esc, weatherIcon, riskIcon, chip, units } from './ui.js';
 import { enter } from './motion.js';
 
 const POPULAR = [
@@ -27,10 +29,10 @@ for (const k of ['gatecast:board', 'gatecast:stats', 'gatecast:quiz', 'gatecast:
 
 const sky = $('#sky');
 const heroEl = $('#hero');
-const nowEl = $('#now');
-const firstEl = $('#first');
 const todayEl = $('#today');
-const finder = $('#finder');
+const findEl = $('#wx-find');
+const changeBtn = $('#wx-change');
+const FIRST_HTML = heroEl.innerHTML; // the first-visit prompt as index.html wrote it
 
 // Everything the page shows comes from this; render() decides what goes where.
 const state = {
@@ -80,7 +82,8 @@ function setPlace(p) {
   store.set('gatecast:place', p);
   const saved = [p, ...store.get('gatecast:places', []).filter((x) => x.name !== p.name || x.region !== p.region)].slice(0, 4);
   store.set('gatecast:places', saved);
-  window.scrollTo(0, 0); // the answer for the new place is at the top of the page
+  openFinder(false);
+  $('#wxbox').scrollIntoView({ block: 'nearest' }); // the answer for the new place is in the weather box
   loadPlace();
 }
 function locateError(msg) {
@@ -172,6 +175,25 @@ listEl.addEventListener('pointerdown', (e) => {
 input.addEventListener('blur', () => setTimeout(closeList, 100));
 $('#place-form').addEventListener('submit', (e) => e.preventDefault());
 $('#popular').innerHTML = POPULAR.map((p, i) => `<button type="button" class="pill" data-popular="${i}">${esc(p.name)}</button>`).join('');
+
+// "Change city" opens the search panel under the title bar; choosing a place (or Escape) closes it again.
+// On a first visit it stays open: there is nothing else to show yet.
+function openFinder(open, focus = false) {
+  const keep = !state.place;
+  const show = open || keep;
+  findEl.hidden = !show;
+  changeBtn.setAttribute('aria-expanded', String(show));
+  changeBtn.hidden = keep;
+  if (show && focus) input.focus();
+}
+changeBtn.addEventListener('click', () => openFinder(findEl.hidden, true));
+findEl.addEventListener('keydown', (e) => { if (e.key === 'Escape' && listEl.hidden && state.place) { openFinder(false); changeBtn.focus(); } });
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('[data-change-place]')) return;
+  openFinder(true);
+  $('#wxbox').scrollIntoView({ block: 'center' });
+  input.focus({ preventScroll: true });
+});
 
 /* ---------- Loading ---------- */
 
@@ -279,20 +301,20 @@ function firstCountToday() {
 /* ---------- Render ---------- */
 
 function render() {
-  const { place, wx, wxError, trip } = state;
-  const mode = trip.status === 'ready' || trip.status === 'checking' || trip.status === 'pending' ? 'trip'
-    : place && wxError ? 'error' : place && wx ? 'weather' : place ? 'loading' : 'first';
+  const { place, wx, wxError } = state;
+  const mode = place && wxError ? 'error' : place && wx ? 'weather' : place ? 'loading' : 'first';
   document.documentElement.dataset.start = mode;
-  // First visit: the search sits in the hero beside the location button; otherwise it lives in the header.
-  const slot = mode === 'first' ? $('#find-first') : $('#find-header');
-  if (finder.parentElement !== slot) slot.append(finder);
-  firstEl.hidden = mode !== 'first';
+  if (!place) openFinder(true); else if (changeBtn.hidden) openFinder(false);
+  $('#wx-place').textContent = place ? ` · ${(place.name === 'Your location' ? 'Your area' : place.name).toUpperCase()}` : '';
   renderSky();
   heroEl.innerHTML = HERO[mode]();
   heroEl.dataset.mode = mode;
-  renderNow(mode);
+  renderSince();
+  renderFly();
   renderToday();
   renderBrief();
+  // The edition strip (js/front.js) names the place.
+  document.dispatchEvent(new CustomEvent('gatecast:place', { detail: place ? { name: place.name === 'Your location' ? '' : place.name } : null }));
 }
 
 function renderSky() {
@@ -300,7 +322,7 @@ function renderSky() {
   if (!wx) return;
   const now = wx.now, today = wx.days[0];
   const kind = skyOf(now.code, now.day);
-  sky.className = `sky sky--${kind}`;
+  sky.className = `sky sky--${kind} wxbox__screen`;
   // The animated sky follows the same conditions as the flat colour behind it.
   const hrs = wx.hours.slice(0, 3);
   setSky({
@@ -310,16 +332,9 @@ function renderSky() {
   });
 }
 
-// Long sentences get a smaller poster size so the hero never runs past four or five lines.
-const sizeOf = (text) => (text.length <= 26 ? 'l' : text.length <= 44 ? 'm' : 's');
 const ARROW = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
 const LINK = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>';
 const tripUrl = (t) => `trip.html${tripQuery(t)}`;
-
-function placeLine(p, tz) {
-  const now = Date.now(), f = fmt(tz);
-  return `${esc(p.name === 'Your location' ? 'Where you are' : p.name)} · ${esc(fmtDay(now, tz))} · ${f.clock(now)} ${esc(fmtZone(now, tz))}`;
-}
 
 // When the trip leaves, in the first airport's own time: "Today 09:15 GMT", "Tomorrow 07:40 CET", "Thu 19 Nov 06:00 EST".
 function tripWhen(plan) {
@@ -345,113 +360,122 @@ function sinceHTML(cls = '') {
   </div>`;
 }
 
+// Since the last look: one calm, dismissible note under the weather box's screen.
+function renderSince() {
+  const el = $('#wx-since');
+  el.innerHTML = state.wx ? sinceHTML() : '';
+  el.hidden = !el.innerHTML;
+}
+
+const TICK = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5 5-5.5"/></svg>';
+
+// What goes on the weather box's screen.
 const HERO = {
-  trip() {
-    const t = state.trip;
-    const eyebrow = t.plan ? `Your trip · ${esc(tripWhen(t.plan))} · ${t.route.map(esc).join(' · ')}` : 'Your trip';
-    if (t.status !== 'ready') {
-      return `<p class="hero__eyebrow signage">${eyebrow}</p>
-        <h1 class="hero__title hero__title--m">Checking your trip…</h1>
-        <p class="hero__line">Lining up the forecast at each airport with the hours you are there.</p>`;
-    }
-    const r = t.result, hl = r.headline;
-    const level = r.level;
-    const estimated = t.plan.legs.some((l) => l.estimated);
-    const o = r.worst ? stopOdds(r.worst, fmt().speed, { named: true }) : null;
-    const said = o && (level !== 'low' || o.cause) ? `${LEVEL_LABEL[level]} · ${o.text}. ` : '';
-    return `<p class="hero__eyebrow"><span class="hero__chip">${chip(level, level === 'unknown' ? 'No forecast' : level === 'low' ? 'Low risk' : `${LEVEL_LABEL[level]} risk`)}</span><span class="signage">${eyebrow}</span></p>
-      <h1 class="hero__title hero__title--${sizeOf(hl.title)}">${esc(hl.title)}.</h1>
-      <p class="hero__line">${esc(hl.body)}</p>
-      <div class="hero__actions">
-        <a class="btn btn--sun" href="${esc(tripUrl(t.trip))}">See the journey ${ARROW}</a>
-        <button class="btn btn--glass" type="button" data-copy="${esc(tripUrl(t.trip))}">${LINK}<span>Copy link</span></button>
-      </div>
-      <p class="hero__note">${esc(said)}${esc(r.confidence.text)}${estimated ? ' Flight times are estimated from distance.' : ''}</p>`;
-  },
   weather() {
-    const { place: p, wx } = state;
-    const said = headlineParts(wx, fmt());
-    const t = state.trip;
-    const tripLink = t.status === 'failed'
-      ? `<a class="btn btn--glass" href="${esc(tripUrl(t.trip))}">Your trip: ${t.route.map(esc).join(' · ')} ${ARROW}</a>`
-      : `<a class="btn btn--glass" href="trip.html">Flying soon? Check a trip ${ARROW}</a>`;
-    return `<p class="hero__eyebrow signage">${placeLine(p, wx.tz)}</p>
-      <h1 class="hero__title hero__title--${sizeOf(said.lead)}">${esc(said.lead)} <span class="hero__action">${esc(said.action)}</span></h1>
-      ${sinceHTML('since--sky')}
-      <div class="hero__actions">${tripLink}</div>`;
+    const { wx } = state, f = fmt(), now = wx.now;
+    const said = headlineParts(wx, f);
+    const hours = nextHours(wx, 8).map((h, i) => {
+      const pop = h.pop ?? 0;
+      const sr = `${i === 0 ? 'Now' : f.time(h.t)}: ${describeCode(h.code).text}, ${f.temp(h.temp)}, ${pop}% chance of rain or snow`;
+      // Column labels are the hour alone, as on a departure board: "20", or "8PM" on a 12-hour clock.
+      const c = f.clock(h.t), label = i === 0 ? 'NOW' : /^\d\d:00$/.test(c) ? c.slice(0, 2) : c.replace(/:00/, '').replace(/\s?([ap]m)$/i, (m, x) => x.toUpperCase());
+      return `<li><span class="sr-only">${esc(sr)}</span><span class="wxnow__h" aria-hidden="true">${esc(label)}</span><b aria-hidden="true">${f.temp(h.temp)}</b><span class="wxnow__pop" aria-hidden="true">${pop}%</span></li>`;
+    }).join('');
+    return `<div class="wxnow__main"><p class="wxnow__temp now__temp">${f.temp(now.temp)}</p>
+        <p class="wxnow__cond"><b>${esc(describeCode(now.code).text)}</b><span>${esc(said.lead)}${said.action ? ` ${esc(said.action)}` : ''}</span></p></div>
+      <ol class="wxnow__hours" aria-label="Next 8 hours">${hours}</ol>
+      <div class="wxnow__foot">${airportsLine()}${sunLine(wx, f)}</div>`;
   },
   loading() {
-    return `<p class="hero__eyebrow signage">${esc(state.place.name === 'Your location' ? 'Where you are' : state.place.name)}</p>
-      <h1 class="hero__title hero__title--m hero__title--quiet">Getting the forecast…</h1>`;
+    return `<p class="wxnow__wait">Getting the forecast for ${esc(placeName(state.place))}…</p>`;
   },
   error() {
     const rate = state.wxError === 'rate';
-    return `<p class="hero__eyebrow signage">${esc(state.place.name === 'Your location' ? 'Where you are' : state.place.name)}</p>
-      <h1 class="hero__title hero__title--m">${rate ? 'The forecast service is busy' : 'We could not load the forecast'}</h1>
-      <p class="hero__line">${rate ? 'The free forecast service has hit its request limit for this network. Try again in a little while.' : 'Check your connection and try again.'}</p>
-      <div class="hero__actions"><button class="btn btn--sun" type="button" data-retry>Try again</button>
-        <a class="btn btn--glass" href="trip.html">Check a trip instead ${ARROW}</a></div>`;
+    return `<div class="wxfirst"><p class="wxfirst__title">${rate ? 'The forecast service is busy' : 'We could not load the forecast'}</p>
+      <p class="wxfirst__line">${rate ? 'The free forecast service has hit its request limit for this network. Try again in a little while.' : 'Check your connection and try again.'}</p>
+      <button class="bev bev--sun" type="button" data-retry>Try again</button></div>`;
   },
-  first() {
-    return `<h1 class="hero__title hero__title--l">Will the weather mess up your trip?</h1>
-      <p class="hero__line">Gatecast checks every airport on your journey against the forecast, and tells you what today’s weather means where you are.</p>`;
-  },
+  first() { return FIRST_HTML; },
 };
 
-/* ---------- The glass card: weather here now, the next 8 hours, the trip at a glance ---------- */
+// The airports near the place over the next 3 hours: calm reads as a quiet line with a tick; any risk is a chip
+// (word, shape and colour). The full list with distances and FAA plans is on the weather desk below.
+function airportsLine() {
+  const list = state.airports;
+  if (list == null) return '<p class="wxnow__air">Checking the airports near you…</p>';
+  const known = list.filter((x) => x.risk.level !== 'unknown');
+  if (!known.length) return '';
+  const risky = known.filter((x) => x.risk.level === 'elevated' || x.risk.level === 'high');
+  if (!risky.length) return `<p class="wxnow__air">${TICK}<span>${esc(known.map((x) => x.code).join(', '))} calm for 3 hours</span></p>`;
+  const worst = risky.reduce((a, b) => (b.risk.score > a.risk.score ? b : a));
+  return `<p class="wxnow__air wxnow__air--risk">${chip(worst.risk.level, LEVEL_LABEL[worst.risk.level])}<span>at ${esc(risky.map((x) => x.code).join(', '))} in the next 3 hours</span></p>`;
+}
+// "Air 34 · UV 2 · Sunset 16:35": only what the forecast included.
+function sunLine(wx, f) {
+  const today = wx.days?.[0], tomorrow = wx.days?.[1], now = Date.now(), parts = [];
+  if (wx.air && wx.air.aqi != null) parts.push(`Air ${Math.round(wx.air.aqi)}`);
+  const up = today?.sunset != null && now < today.sunset;
+  if (up && today.uv != null) parts.push(`UV ${Math.round(today.uv)}`);
+  if (up) parts.push(`Sunset ${f.clock(today.sunset)}`);
+  else if (tomorrow?.sunrise != null) parts.push(`Sunrise ${f.clock(tomorrow.sunrise)}`);
+  return parts.length ? `<p class="wxnow__sun">${esc(parts.join(' · '))}</p>` : '';
+}
 
-function renderNow(mode) {
-  const { place, wx, wxError, trip } = state;
-  const parts = [];
-  const WAIT = '<div class="now__wait" aria-hidden="true"><span></span><span></span><span></span></div>';
-  if (place && wx) parts.push(nowCard(mode));
-  else if (place && wxError) {
-    // In the weather modes the hero carries the error; beside a trip, say it here.
-    if (mode === 'trip') parts.push(`<p class="now__msg">${wxError === 'rate' ? 'The forecast service is busy, so the weather here is not shown yet.' : 'The weather here did not load.'}</p><button class="btn btn--glass" type="button" data-retry>Try again</button>`);
-  } else if (place) parts.push(WAIT);
-  else if (mode === 'first') parts.push(FIRST_CARD);
-  else if (mode === 'trip') {
-    parts.push(`<div class="now__ask"><p class="now__title signage">Weather where you are</p><p>Share your location or search for a city to see today’s weather here.</p>
-      <button type="button" class="btn btn--glass" data-locate>${LOCATE_ICON} Use my location</button></div>`);
+/* ---------- Flying? Check your trip ---------- */
+
+// A saved trip within 72 hours (or under way) shows its verdict here; otherwise a From / To / Leaving form that
+// opens the trip page with the check filled in.
+function renderFly() {
+  const t = state.trip, body = $('#fly-body'), form = $('#fly-form');
+  let html = '';
+  if (t.status === 'pending' || t.status === 'checking') {
+    html = `<p class="flytrip__when">YOUR TRIP${t.route ? ` · ${t.route.map(esc).join(' · ')}` : ''}</p><p class="flytrip__body">Checking the forecast at each airport for the hours you are there…</p>`;
+  } else if (t.status === 'failed') {
+    html = `<a class="flytrip" href="${esc(tripUrl(t.trip))}"><span class="flytrip__route">${t.route.map(esc).join(' · ')}</span><span class="flytrip__go">Open ${ARROW}</span></a>
+      <p class="flytrip__body">The forecast for this trip did not load just now.</p>`;
+  } else if (t.status === 'ready') {
+    const r = t.result, hl = r.headline, level = r.level;
+    const word = level === 'unknown' ? 'No forecast' : level === 'low' ? 'Low' : LEVEL_LABEL[level];
+    const estimated = t.plan.legs.some((l) => l.estimated);
+    const o = r.worst ? stopOdds(r.worst, fmt().speed, { named: true }) : null;
+    const said = o && (level !== 'low' || o.cause) ? `${LEVEL_LABEL[level]} · ${o.text}. ` : '';
+    html = `<p class="flytrip__when">YOUR TRIP · ${esc(tripWhen(t.plan).toUpperCase())}</p>
+      <a class="flytrip" href="${esc(tripUrl(t.trip))}"><span class="flytrip__route">${t.route.map(esc).join(' · ')}</span>${chip(level, word)}</a>
+      <p class="flytrip__title">${esc(hl.title)}.</p>
+      <p class="flytrip__body">${esc(hl.body)}</p>
+      ${tripStrip(t)}
+      <div class="flytrip__actions"><a class="bev bev--ink" href="${esc(tripUrl(t.trip))}">See the journey ${ARROW}</a>
+        <button class="bev" type="button" data-copy="${esc(tripUrl(t.trip))}">${LINK}<span>Copy link</span></button></div>
+      <p class="flytrip__note">${esc(said)}${esc(r.confidence.text)}${estimated ? ' Flight times are estimated from distance.' : ''}</p>`;
   }
-  if (trip.status === 'ready') parts.push(tripStrip(trip));
-  nowEl.hidden = !parts.length;
-  nowEl.setAttribute('aria-label', place && wx ? `Weather in ${placeName(place)} now` : mode === 'first' ? 'What Gatecast tells you' : 'Your trip');
-  nowEl.innerHTML = parts.join('');
-}
-// First visit: what the page will show, so the card is useful before Gatecast knows where you are.
-const FIRST_CARD = `<p class="now__title signage">What you get</p>
-  <ul class="now__why">
-    <li><b>Your trip in one sentence</b><span>Every airport and connection checked against the forecast for the hours you are there.</span></li>
-    <li><b>Today where you are</b><span>What the weather means for your commute, what to take, and the airports near you.</span></li>
-    <li><b>Free, no account</b><span>Your places and trips stay on this device.</span></li>
-  </ul>`;
-const LOCATE_ICON = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>';
-
-function nowCard(mode) {
-  const { place: p, wx } = state, f = fmt(), now = wx.now;
-  // In the trip hero the local headline has nowhere else to go, so it is the card's sentence.
-  const sentence = mode === 'trip' ? headlineParts(wx, f).lead
-    : `Feels like ${f.temp(now.feels)}. Wind ${f.speed(now.wind)} ${compass(now.dir)}${(now.gust ?? 0) >= 40 ? `, gusts ${f.speed(now.gust)}` : ''}.`;
-  const hours = nextHours(wx, 8).map((h, i) => {
-    const pop = h.pop ?? 0;
-    const sr = `${i === 0 ? 'Now' : f.time(h.t)}: ${describeCode(h.code).text}, ${f.temp(h.temp)}, ${pop}% chance of rain or snow`;
-    return `<li><span class="sr-only">${esc(sr)}</span><span class="now__h" aria-hidden="true">${i === 0 ? 'Now' : f.clock(h.t)}</span>
-      <b aria-hidden="true">${f.temp(h.temp)}</b><span class="now__bar" aria-hidden="true"><i style="--v:${pop}"></i></span><span class="now__pop" aria-hidden="true">${pop}%</span></li>`;
-  }).join('');
-  return `<div class="now__head"><p class="now__title signage">${mode === 'weather' ? 'Here now' : `Here now · ${esc(p.name === 'Your location' ? 'your area' : p.name)}`}</p><p class="now__time num">${f.clock(Date.now())}</p></div>
-    <div class="now__main"><p class="now__temp">${f.temp(now.temp)}</p>
-      <div class="now__cond">${weatherIcon(now.code, now.day, 'wx--now')}<p><b>${esc(describeCode(now.code).text)}</b><span>${esc(sentence)}</span></p></div></div>
-    <div class="now__hours"><p class="now__sub">Next 8 hours <span>· chance of rain or snow</span></p><ol class="now__list">${hours}</ol></div>`;
+  body.innerHTML = html;
+  body.hidden = !html;
+  form.hidden = Boolean(html);
 }
 
+// Your trip at a glance: each stop with its word and shape; calm stops stay grey.
 function tripStrip(t) {
   const stops = t.result.stops;
   const word = (s) => (s.level === 'unknown' ? 'No forecast' : s.level === 'low' ? 'Calm' : LEVEL_LABEL[s.level]);
-  return `<div class="strip"><p class="now__sub">Your trip, stop by stop</p>
-    <ol class="strip__list">${stops.map((s) => `<li class="strip__stop strip__stop--${s.level === 'low' ? 'calm' : s.level}">
-      <span class="code">${s.airport.code}</span><span class="strip__lvl">${s.level === 'low' ? riskIcon('low') : riskIcon(s.level)}${word(s)}</span></li>`).join('<li class="strip__leg" aria-hidden="true"></li>')}</ol></div>`;
+  return `<ol class="strip__list" aria-label="Your trip, stop by stop">${stops.map((s) => `<li class="strip__stop strip__stop--${s.level === 'low' ? 'calm' : s.level}">
+      <span class="code">${s.airport.code}</span><span class="strip__lvl">${riskIcon(s.level === 'low' ? 'low' : s.level)}${word(s)}</span></li>`).join('<li class="strip__leg" aria-hidden="true"></li>')}</ol>`;
 }
+
+$('#fly-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const code = (id) => $(id).value.trim().toUpperCase();
+  const from = code('#fly-from'), to = code('#fly-to'), when = $('#fly-when').value;
+  const err = $('#fly-error');
+  const bad = !/^[A-Z]{3}$/.test(from) ? ['#fly-from', 'Type the three-letter code of the airport you leave from, like JFK.']
+    : !/^[A-Z]{3}$/.test(to) ? ['#fly-to', 'Type the three-letter code of the airport you fly to, like LHR.']
+      : from === to ? ['#fly-to', 'From and To are the same airport.']
+        : !/^\d{4}-\d\d-\d\dT\d\d:\d\d$/.test(when) ? ['#fly-when', 'Pick the date and time you leave.'] : null;
+  for (const id of ['#fly-from', '#fly-to', '#fly-when']) $(id).removeAttribute('aria-invalid');
+  err.hidden = !bad;
+  err.textContent = bad ? bad[1] : '';
+  if (bad) { $(bad[0]).setAttribute('aria-invalid', 'true'); $(bad[0]).focus(); return; }
+  location.href = `trip.html${tripQuery({ r: [from, to], t: when, l: [], d: [] })}`;
+});
 
 /* ---------- Today in <place> ---------- */
 
@@ -465,10 +489,6 @@ function renderToday() {
   $('#saved-places').innerHTML = saved.length > 1
     ? `<span class="sr-only">Your places:</span>${saved.map((x, i) => `<button type="button" class="pill${x.name === p.name && x.region === p.region ? ' is-current' : ''}" data-saved="${i}"${x.name === p.name && x.region === p.region ? ' aria-current="true"' : ''}>${esc(x.name)}</button>`).join('')}`
     : '';
-  // Beside a trip the hero has no room for the place's forecast changes: they lead this section instead.
-  const sinceEl = $('#today-since');
-  sinceEl.innerHTML = document.documentElement.dataset.start === 'weather' ? '' : sinceHTML();
-  sinceEl.hidden = !sinceEl.innerHTML;
   const cards = [commute(wx, f), carry(wx, f), airSun(wx, f), flightsNear(state.airports)].filter(Boolean);
   $('#means').innerHTML = cards.map((c) => meanCard(c, cardOdds(c, wx, f))).join('');
   if (!$('#days').dataset.for || $('#days').dataset.for !== `${p.lat},${p.lon},${prefs.temp},${prefs.clock}`) {
@@ -547,7 +567,7 @@ function daysList(wx, f) {
 function renderAlerts() {
   const { alerts, wx } = state;
   // One line per alert up here; the full alert (area, times, link to weather.gov) is in The brief below.
-  $('#alerts').innerHTML = (alerts || []).map((al) => `<p class="live live--alert">${riskIcon('elevated')}<span><b>${esc(al.event)}</b>${al.ends ? ` until ${fmtTime(Date.parse(al.ends), wx?.tz)} ${esc(fmtDay(Date.parse(al.ends), wx?.tz))}` : ''}. <a href="#brief-weather">Details below</a> <small>National Weather Service</small></span></p>`).join('');
+  $('#alerts').innerHTML = (alerts || []).map((al) => `<p class="live live--alert">${riskIcon('elevated')}<span><b>${esc(al.event)}</b>${al.ends ? ` until ${fmtTime(Date.parse(al.ends), wx?.tz)} ${esc(fmtDay(Date.parse(al.ends), wx?.tz))}` : ''}. <a href="#brief-weather">Details in the brief</a> <small>National Weather Service</small></span></p>`).join('');
 }
 
 /* ---------- The brief: weather news, headlines from the state's newsrooms, statehouse votes and Both sides ---------- */
@@ -697,7 +717,7 @@ if (newsList) {
 let civicFor = null;
 function renderBrief() {
   const el = $('#brief'), b = state.brief, p = state.place;
-  if (!p || !b || b.place !== p) { el.hidden = true; return; }
+  if (!p || !b || b.place !== p) { el.hidden = true; syncBrief(); return; }
   const now = Date.now();
   // Weather news: the place's NWS alerts, then one forecast item only when a nearby airport is at risk.
   const wx = [...alertItems(state.alerts, now).map((a) => alertItem(a, p, state.wx?.tz))];
@@ -748,9 +768,14 @@ function renderBrief() {
 }
 // The brief shows only when one of its blocks has something in it.
 function syncBrief() {
-  const el = $('#brief');
-  el.hidden = !(state.place && state.brief && state.brief.place === state.place)
+  const el = $('#brief'), p = state.place;
+  el.hidden = !(p && state.brief && state.brief.place === p)
     || ($('#brief-weather').hidden && $('#brief-news').hidden && $('#civic').hidden);
+  const empty = $('#near-empty');
+  empty.hidden = !el.hidden;
+  empty.textContent = !p ? 'Pick a place in the weather box and the brief fills with real headlines, official alerts and statehouse votes from there.'
+    : 'Nothing in the brief for this place right now: no official alerts, and no headlines we can place here.';
+  $('#near-kicker').textContent = p ? `NEAR YOU · ${(p.name === 'Your location' ? 'WHERE YOU ARE' : p.name).toUpperCase()}` : 'NEAR YOU · REAL HEADLINES, ALERTS AND VOTES';
 }
 
 /* ---------- Actions: copy the trip link, try again ---------- */
@@ -769,7 +794,7 @@ document.addEventListener('click', async (e) => {
     seenSet('places', state.since.key, dismiss(seenGet('places', state.since.key)));
     state.since = null;
     render();
-    focusQuietly($('#hero h1'));
+    focusQuietly($('#wx-h'));
   } else if (gone && gone.dataset.dismiss === 'brief' && state.brief) {
     state.brief.look = dismissLook(state.brief.look, Date.now());
     seenSet('brief', placeKey(state.brief.place), lookEntry(state.brief.look));
@@ -859,6 +884,7 @@ function rerender() {
 async function start() {
   initSettings(rerender);
   initSky($('#sky-canvas'));
+  openFinder(!state.place);
   // Links to boxes on the old board (#tile-radar and friends) land on the matching section.
   if (location.hash.startsWith('#tile-')) {
     jumpTo = { '#tile-radar': '#radar-panel', '#tile-days': '#days-panel' }[location.hash] || null;

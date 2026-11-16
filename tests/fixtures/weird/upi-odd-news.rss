@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- TEST FIXTURE, hand-written for tests/weird.test.mjs. Modelled on the shape of UPI's Odd News RSS 2.0 feed
+     (rss.upi.com/news/odd_news.rss). Except for the moose story, which is a real UPI story also listed in
+     data/weird-picks.json, these are NOT real stories: the "fixture-" paths and headlines are made up. -->
+<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/" xmlns:atom="http://www.w3.org/2005/Atom">
+<channel>
+  <title>Odd News - UPI.com</title>
+  <link>https://www.upi.com/Odd_News/</link>
+  <description>Odd News from UPI</description>
+  <atom:link href="https://rss.upi.com/news/odd_news.rss" rel="self" type="application/rss+xml" />
+  <item>
+    <title>Watch: Bear raids kitchen cabinets in Tennessee cabin</title>
+    <link>https://www.upi.com/Odd_News/2026/11/15/fixture-bear-kitchen-cabinets/1001/</link>
+    <description><![CDATA[NEVER-SHOW the outlet's own summary text.]]></description>
+    <pubDate>Sat, 15 Nov 2026 14:10:00 -0500</pubDate>
+    <guid isPermaLink="false">fixture-1001</guid>
+    <category>Odd News</category>
+  </item>
+  <item>
+    <title>Look: Giant pumpkin weighing 2,000 pounds sets state record</title>
+    <link>https://www.upi.com/Odd_News/2026/11/14/fixture-giant-pumpkin/1002/</link>
+    <description>NEVER-SHOW</description>
+    <pubDate>Fri, 14 Nov 2026 09:05:00 -0500</pubDate>
+    <media:content url="https://cdnph.upi.com/fixture/pumpkin.jpg" medium="image" width="800" height="533" />
+    <category>Odd News</category>
+  </item>
+  <item>
+    <title>Man arrested after riding lawn mower through drive-thru</title>
+    <link>https://www.upi.com/Odd_News/2026/11/13/fixture-lawn-mower-drive-thru/1003/</link>
+    <pubDate>Thu, 13 Nov 2026 16:00:00 -0500</pubDate>
+    <media:content url="https://cdnph.upi.com/fixture/mower.jpg" medium="image" />
+  </item>
+  <item>
+    <title>Lottery player wins $100,000 with numbers from fortune cookie</title>
+    <link>https://www.upi.com/Odd_News/2026/11/12/fixture-fortune-cookie-lottery/1004/</link>
+    <pubDate>Wed, 12 Nov 2026 11:20:00 -0500</pubDate>
+  </item>
+  <item>
+    <title>Lottery player wins $100,000 with fortune cookie numbers</title>
+    <link>https://www.upi.com/Odd_News/2026/11/12/fixture-fortune-cookie-lottery/1004/?utm_source=rss&amp;utm_medium=feed</link>
+    <pubDate>Wed, 12 Nov 2026 11:25:00 -0500</pubDate>
+  </item>
+  <item>
+    <title>Moose caught on camera sliding down icy Alaska driveway</title>
+    <link>https://www.upi.com/Odd_News/2026/11/11/moose-ice-driveway-anchorage/2421794423445/</link>
+    <pubDate>Tue, 11 Nov 2026 10:31:00 -0500</pubDate>
+    <media:content url="https://cdnph.upi.com/fixture/moose.jpg" medium="image" />
+  </item>
+  <item>
+    <title>Town council bans garden gnomes from front lawns</title>
+    <link>https://www.upi.com/Odd_News/2026/11/10/fixture-garden-gnome-ban/1006/</link>
+    <pubDate>Mon, 10 Nov 2026 08:00:00 -0500</pubDate>
+  </item>
+  <item>
+    <title>Teen charged with stealing goat from petting zoo</title>
+    <link>https://www.upi.com/Odd_News/2026/11/09/fixture-goat-petting-zoo/1007/</link>
+    <pubDate>Sun, 09 Nov 2026 12:00:00 -0500</pubDate>
+  </item>
+  <item>
+    <title>Old story outside the two-week window</title>
+    <link>https://www.upi.com/Odd_News/2026/10/20/fixture-old-story/1008/</link>
+    <pubDate>Tue, 20 Oct 2026 12:00:00 -0400</pubDate>
+  </item>
+</channel>
+</rss>

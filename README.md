@@ -2,13 +2,13 @@
 
 [![CI](https://github.com/VictorParker22/gatecast/actions/workflows/ci.yml/badge.svg)](https://github.com/VictorParker22/gatecast/actions/workflows/ci.yml)
 
-Gatecast tells you, in one plain sentence, whether the weather is likely to disrupt your flight or connection. Enter your airports, departure time and layover, and it lines up the forecast at every stop with the hours you are actually there, rates each airport Low, Elevated or High, and says why. Around that sits a local weather home page and live flight status. It is a static site with no framework, built on free, keyless data sources, with a small server only for the sources that cannot be called from a browser.
+Gatecast is a late-90s weird-news front page, modern underneath: odd news from real outlets, each one the outlet's own headline linked to the original, with the weather where you are on top (a live sky in an old program window) and a virtual library for the curious, The Stacks. Readers can rate the lead on the Weird-o-meter and send tips through the guestbook. The flight and trip tools stay as a small utility: enter your airports, departure time and layover, and Gatecast lines up the forecast at every stop with the hours you are there, rates each airport Low, Elevated or High, and says why. It is a static site with no framework and no build step, built on free, keyless data sources, with a small server only for the sources that cannot be called from a browser.
 
 <p align="center">
   <img src="docs/screenshots/board-desktop.png" alt="Gatecast before the redesign: a blue sky header above a board of weather boxes." width="640">
 </p>
 
-More screenshots, including the connection checker, are in [`docs/screenshots/`](docs/screenshots/).
+The screenshot above and those in [`docs/screenshots/`](docs/screenshots/) show the site before the weird-news redesign of 16 Nov 2026; new ones will replace them once the redesign is live. The visual system is described in [`docs/design-system.md`](docs/design-system.md).
 
 ## Contents
 

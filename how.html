@@ -8,7 +8,7 @@
     try { document.querySelector('meta[name="color-scheme"]').content = localStorage.getItem("color-scheme") ?? "light dark"; } catch (e) {}
   </script>
   <title>How Gatecast works — Gatecast</title>
-  <meta name="description" content="How Gatecast chooses the news in The brief, how it works out a weather verdict, where every piece of data comes from, what it never does, and how to report an error.">
+  <meta name="description" content="How Gatecast picks its weird news, how The brief and the weather verdicts are worked out, how reader votes and tips are handled, where every piece of data comes from, and how to report an error.">
   <!-- Search and share basics. Copy lives here and in the other pages' heads; the share image is rendered from docs/og/og-template.html. -->
   <link rel="canonical" href="https://gatecast.vercel.app/how.html">
   <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ecebe6">
@@ -16,15 +16,15 @@
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Gatecast">
   <meta property="og:title" content="How Gatecast works — Gatecast">
-  <meta property="og:description" content="How Gatecast chooses the news in The brief, how it works out a weather verdict, where every piece of data comes from, what it never does, and how to report an error.">
+  <meta property="og:description" content="How Gatecast picks its weird news, how The brief and the weather verdicts are worked out, how reader votes and tips are handled, where every piece of data comes from, and how to report an error.">
   <meta property="og:url" content="https://gatecast.vercel.app/how.html">
   <meta property="og:image" content="https://gatecast.vercel.app/vendor/og/gatecast-og.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="Gatecast: weather and the news worth knowing, with flight and trip checks.">
+  <meta property="og:image:alt" content="Gatecast: weird news from real outlets, the weather on top, and a library of strange true stories.">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="How Gatecast works — Gatecast">
-  <meta name="twitter:description" content="How Gatecast chooses the news in The brief, how it works out a weather verdict, where every piece of data comes from, what it never does, and how to report an error.">
+  <meta name="twitter:description" content="How Gatecast picks its weird news, how The brief and the weather verdicts are worked out, how reader votes and tips are handled, where every piece of data comes from, and how to report an error.">
   <meta name="twitter:image" content="https://gatecast.vercel.app/vendor/og/gatecast-og.png">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23111418'/%3E%3Cpath d='M9 25V14a7 7 0 0 1 14 0v11M16 18v7' stroke='%23fff' stroke-width='2.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
   <link rel="preload" href="vendor/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
@@ -48,9 +48,10 @@
     </a>
     <nav class="site-nav" aria-label="Main">
       <ul>
-        <li><a href="./">Today</a></li>
-        <li><a href="trip.html">Trips</a></li>
-        <li><a href="flights.html">Flights</a></li>
+        <li><a href="./"><svg class="site-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h13v14H6a2 2 0 0 1-2-2zM17 9h3v8a2 2 0 0 1-2 2M7 9h7M7 12.5h7M7 16h4"/></svg><span>Front page</span></a></li>
+        <li><a href="library.html"><svg class="site-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V5h4v15M10 20V3h4v17M16 20l2.5-14 3.5.7L19.5 20M3 20h19"/></svg><span>Library</span></a></li>
+        <li><a href="trip.html"><svg class="site-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="1"/><path d="M9 7V4h6v3M3 12h18"/></svg><span>Trips</span></a></li>
+        <li><a href="flights.html"><svg class="site-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 13.5l19-7-4 13-5-4.5-3 3.5v-5l12-7"/></svg><span>Flights</span></a></li>
       </ul>
     </nav>
     <button class="btn btn--ghost site-header__settings" type="button" popovertarget="settings" id="settings-btn">
@@ -65,12 +66,14 @@
     <section class="hero hero--compact guide__hero" aria-labelledby="how-title">
       <p class="guide__eyebrow signage">About</p>
       <h1 id="how-title">How Gatecast works</h1>
-      <p class="hero__lede">Gatecast is weather and the news worth knowing, with flight and trip checks. This page says how the news and the weather verdicts are chosen, where every piece comes from, what we never do, and how to tell us when we get something wrong.</p>
+      <p class="hero__lede">Gatecast is weird news from real outlets, with the weather on top, a library of strange true stories, and flight and trip checks when you need them. This page says how the stories and the weather verdicts are chosen, how reader votes and tips work, where every piece comes from, what we never do, and how to tell us when we get something wrong.</p>
     </section>
 
     <nav class="guide__toc" aria-labelledby="toc-title">
       <h2 id="toc-title" class="signage">On this page</h2>
       <ol>
+        <li><a href="#weird">How the weird news is chosen</a></li>
+        <li><a href="#community">Reader votes and tips</a></li>
         <li><a href="#brief">How The brief is chosen</a></li>
         <li><a href="#verdict">How a weather verdict is worked out</a></li>
         <li><a href="#sources">Where the data comes from</a></li>
@@ -79,9 +82,23 @@
       </ol>
     </nav>
 
+    <section class="guide__section" id="weird" aria-labelledby="weird-title">
+      <h2 id="weird-title">How the weird news is chosen</h2>
+      <p>Every story comes from a real news outlet. We show its own headline, its name, the time and a link to the full story on its site. We don’t copy the article, rewrite the headline or add AI summaries. Pictures are the outlet’s own preview images, loaded from its site and credited, and a few outlets are shown without pictures.</p>
+      <p>The outlets are UPI Odd News, Smithsonian Magazine, Atlas Obscura, ScienceDaily, Mental Floss, Live Science, SoraNews24, Sky News and Oddity Central. General-interest outlets only appear when a story is genuinely odd, and their quizzes, lists and podcasts are left out.</p>
+      <p>Our rule is simple: the strangeness has to be in the situation, not in someone’s misfortune. Automatic checks leave out stories about deaths, injuries and illness, animals being harmed, mental illness, children, crime and court cases, disasters, sexual content, and ordinary people who went viral. The checks can only remove stories, never add them, and when in doubt they leave a story out.</p>
+      <p>The editor’s picks come first. A person chose each one, and any rating or note on it is the editor’s own. After the picks, stories are newest day first, and within a day the oddest first. Nothing is ranked by clicks.</p>
+    </section>
+
+    <section class="guide__section" id="community" aria-labelledby="community-title">
+      <h2 id="community-title">Reader votes and tips</h2>
+      <p>The Weird-o-meter and the guestbook don’t use accounts or cookies. To count one vote per person per story and to stop floods, we keep a scrambled code (a salted SHA-256 hash) made from your network address, never the address itself. A vote’s code is deleted 90 days after you last voted on that story, while your rating stays in the story’s total. A tip’s code changes every day and is erased after 7 days, and the tip itself is deleted after 90 days.</p>
+      <p>The readers’ average appears only once 50 people have voted on a story. We never open the links you send; a person checks every one before anything is published. Your reading streak is kept on your device only.</p>
+    </section>
+
     <section class="guide__section" id="brief" aria-labelledby="brief-title">
       <h2 id="brief-title">How The brief is chosen</h2>
-      <p>The brief on the Today page is built from three things: the place you chose, the weather there, and your saved trips. It shows only the parts that have something in them. There is no hidden profile: the place and trips are stored in your browser, not on our servers.</p>
+      <p>The brief on the front page is built from three things: the place you chose, the weather there, and your saved trips. It shows only the parts that have something in them. There is no hidden profile: the place and trips are stored in your browser, not on our servers.</p>
       <div class="guide__grid">
         <article class="guide__card">
           <h3>Weather news</h3>
@@ -158,7 +175,7 @@
         <div><dt>NOAA Aviation Weather Center</dt><dd>The latest observation at an airport (METAR), through our server. The raw report is one tap deeper.</dd></div>
         <div><dt>FAA NAS Status</dt><dd>Delay programs in force at US airports now, and what the FAA plans for today: ground stops and delay programs it expects (from its daily operations plan) and de-icing. The FAA publishes these times in UTC; we show them in the airport’s local time. A planned item is what the FAA expects, not a certainty. These feeds are not documented and can change, so if one stops working the line simply disappears. Raw airport notices such as night closures are left out. US only.</dd></div>
         <div><dt>adsb.lol and adsbdb</dt><dd>A flight’s live position from community aircraft receivers (adsb.lol, ODbL) and its route (adsbdb). Aircraft out of receiver range do not show. Neither gives scheduled times, gates, delays or cancellations, so we do not show those; the landing time is our estimate from distance and speed.</dd></div>
-        <div><dt>RainViewer</dt><dd>Past radar on the Today page, free for personal and small-scale use, over OpenStreetMap map tiles.</dd></div>
+        <div><dt>RainViewer</dt><dd>Past radar on the front page, free for personal and small-scale use, over OpenStreetMap map tiles.</dd></div>
         <div><dt>Open States</dt><dd>Statehouse floor votes, collected once an hour, a few states at a time. Votes can arrive late, and we link the official record on every one.</dd></div>
         <div id="newsrooms"><dt>Newsrooms</dt><dd>
           The headlines and preview pictures come from these outlets’ public feeds, checked on 16 November 2026:

@@ -3,6 +3,7 @@
 // how to read replies from the database and the assistant. No DOM and no network, so it is unit-tested with
 // plain Node. The database (row rules and triggers) stays the authority; these checks only explain early.
 import { STATE_NAMES, stateCode, safeUrl, fmtDate, SIDE_LABEL } from './civicmodel.js';
+import { normaliseStoryUrl } from './community.js';
 
 /* ---------- Views, statuses and counts ---------- */
 
@@ -15,6 +16,8 @@ export const VIEWS = {
   all: { title: 'All topics', status: null, empty: 'No topics yet. Start one with New topic.' },
   votes: { title: 'Statehouse votes', empty: 'No votes to show. Votes appear here once the collector has run and the reviewer-console migration is applied, or while the switch is on.' },
   collector: { title: 'Collector', empty: 'No collector runs recorded.' },
+  tips: { title: 'Tips', empty: 'No new tips. Links visitors send from the guestbook appear here.' },
+  picks: { title: 'Picks', empty: 'No picks yet. Start one with New pick, or accept a tip.' },
 };
 
 export function counts(topics) {
@@ -331,4 +334,153 @@ export function assistTopic(t) {
     title: t?.title ?? '', place: t?.place ?? 'US', neutral_fact: t?.neutral_fact ?? '', neutral_fact_source: t?.neutral_fact_source ?? '',
     statements: (t?.statements || []).map((s) => ({ side: s.side, speaker: s.speaker, role: s.role ?? null, quote: s.quote, said_on: s.said_on ?? null, source_url: s.source_url })),
   };
+}
+
+/* ---------- Weird news: tips and picks ---------- */
+
+export const CATEGORY_LABEL = {
+  people: 'Weird People', animals: 'Strange Animals', laws: 'Odd Laws', records: 'World Records',
+  unexplained: 'Unexplained', weather: 'Weird Weather', other: 'Other',
+};
+export const PICK_STATUS_LABEL = { draft: 'Draft', published: 'Published', withdrawn: 'Withdrawn' };
+export const TIP_STATUS_LABEL = { new: 'New', accepted: 'Accepted', rejected: 'Rejected' };
+export const PICK_LIMITS = { url: 2048, title: 300, outlet: 120, note: 200 };
+
+export const WEIRD_OFF = 'Tips and picks arrive when the weird-community migration is applied.';
+
+// PAUSED addition (owner, 16 Nov 2026): the hook-line checklist. Pure and tested, but no page uses it yet; the
+// pick form keeps the plain 200-character note until the owner has planned the hook (140 characters, see
+// supabase/paused/weird_favourites.sql).
+export const HOOK_MAX = 140;
+// The hook: the editor's own words under the headline. Phrases that promise more than a story can deliver.
+export const CLICKBAIT = ['you won’t believe', 'shocking', 'what happened next', 'will blow your mind', 'doctors hate'];
+const plainQuotes = (s) => String(s ?? '').replace(/[‘’ʼ′]/g, "'").toLowerCase();
+
+// The live checklist beside the hook field. Each check is { id, ok, label, detail, hard }. Only the length is
+// a hard rule (the database enforces it); the rest are warnings the reviewer sees and may overrule.
+export function hookChecks(text, max = HOOK_MAX) {
+  const s = String(text ?? '').trim();
+  const n = [...s].length;
+  const low = plainQuotes(s);
+  const bait = CLICKBAIT.filter((p) => low.includes(plainQuotes(p)));
+  const caps = (s.match(/[\p{L}]+/gu) || []).filter((w) => [...w].length > 3 && w === w.toUpperCase() && w !== w.toLowerCase());
+  const marks = (s.match(/[?!？！]/g) || []).length;
+  return [
+    { id: 'length', hard: true, ok: n <= max, label: `At most ${max} characters`, detail: `${n} / ${max}` },
+    { id: 'clickbait', hard: false, ok: !bait.length, label: 'No clickbait phrases', detail: bait.length ? `Found: ${bait.map((b) => `“${b}”`).join(', ')}` : '' },
+    { id: 'caps', hard: false, ok: !caps.length, label: 'No shouting (all-caps words over 3 letters)', detail: caps.length ? `Found: ${[...new Set(caps)].join(', ')}` : '' },
+    { id: 'marks', hard: false, ok: marks <= 1, label: 'At most one ? or !', detail: marks > 1 ? `${marks} found` : '' },
+  ];
+}
+export const HOOK_GUIDANCE = 'Make them wonder, but tell the truth: the answer must be in the story.';
+
+// A story link as the pick form accepts it: https, a dotted host name (not an address or a local name).
+export function pickUrlProblem(raw) {
+  const s = String(raw ?? '').trim();
+  if (!s) return 'Paste the story’s link.';
+  if (s.length > PICK_LIMITS.url) return 'That link is too long.';
+  let u;
+  try { u = new URL(s); } catch { return 'Use the full link, starting https://'; }
+  if (u.protocol !== 'https:') return 'Use the story’s https:// link.';
+  if (u.username || u.password || (u.port && u.port !== '443')) return 'Use the story’s plain https:// link.';
+  const h = u.hostname.toLowerCase();
+  if (!/^[a-z0-9.-]+\.([a-z]{2,63}|xn--[a-z0-9-]+)$/.test(h) || /(^|\.)(localhost|local|internal|lan|test|example|invalid)$/.test(h)) return 'Link to a public website.';
+  return null;
+}
+
+// Field -> message, mirroring the database checks.
+export function pickErrors(f) {
+  const e = {};
+  const urlProblem = pickUrlProblem(f.url);
+  if (urlProblem) e.url = urlProblem;
+  if (!len(f.title)) e.title = 'Add the outlet’s headline.';
+  else if (len(f.title) > PICK_LIMITS.title) e.title = 'Keep the headline to 300 characters.';
+  if (!len(f.outlet)) e.outlet = 'Name the outlet.';
+  else if (len(f.outlet) > PICK_LIMITS.outlet) e.outlet = 'Keep the outlet to 120 characters.';
+  if (!/^\d{4}-\d\d-\d\d$/.test(String(f.published ?? ''))) e.published = 'Add the day the outlet published it.';
+  if (!Object.hasOwn(CATEGORY_LABEL, f.category)) e.category = 'Choose a category.';
+  if (f.rating !== '' && f.rating != null && !/^[1-5]$/.test(String(f.rating))) e.rating = 'Rate it 1 to 5, or leave it unrated.';
+  if ([...String(f.note ?? '').trim()].length > PICK_LIMITS.note) e.note = `Keep the note to ${PICK_LIMITS.note} characters.`;
+  return e;
+}
+
+// Trimmed values ready to send. The link is stored normalised (no tracking parameters, fragment or trailing
+// slash), the same form story ids are made from, so one story is one pick.
+export function cleanPick(f) {
+  const url = String(f.url ?? '').trim();
+  return {
+    url: normaliseStoryUrl(url) || url,
+    title: String(f.title ?? '').replace(/\s+/g, ' ').trim(),
+    outlet: String(f.outlet ?? '').replace(/\s+/g, ' ').trim(),
+    published: f.published || null,
+    category: f.category,
+    rating: /^[1-5]$/.test(String(f.rating ?? '')) ? Number(f.rating) : null,
+    note: String(f.note ?? '').replace(/\s+/g, ' ').trim() || null,
+  };
+}
+
+// Why a pick cannot be published yet, or null.
+export function pickBlock(p) {
+  if (!p) return 'Choose a pick.';
+  if (p.status === 'published') return 'Already published.';
+  const e = pickErrors({ ...p, rating: p.rating ?? '' });
+  const first = Object.values(e)[0];
+  return first ? `Edit the pick first: ${first}` : null;
+}
+
+export function matchesPick(p, q) {
+  const words = fold(q).split(/\s+/).filter(Boolean);
+  if (!words.length) return true;
+  const hay = fold([p?.title, p?.outlet, p?.url, p?.note, CATEGORY_LABEL[p?.category]].join(' \u0001 '));
+  return words.every((w) => hay.includes(w));
+}
+export function matchesTip(t, q) {
+  const words = fold(q).split(/\s+/).filter(Boolean);
+  if (!words.length) return true;
+  const hay = fold([t?.url, t?.note].join(' \u0001 '));
+  return words.every((w) => hay.includes(w));
+}
+
+// Drafts first (most recently changed first), then published (newest story first), then withdrawn.
+const PICK_ORDER = { draft: 0, published: 1, withdrawn: 2 };
+export function picksForView(picks, q = '') {
+  return (Array.isArray(picks) ? picks : []).filter((p) => p && matchesPick(p, q)).sort((a, b) =>
+    (PICK_ORDER[a.status] ?? 3) - (PICK_ORDER[b.status] ?? 3)
+    || (a.status === 'published' ? String(b.published ?? '').localeCompare(String(a.published ?? '')) : 0)
+    || ms(b.updated_at) - ms(a.updated_at));
+}
+
+// New tips only, oldest first: a queue.
+export function tipsForView(tips, q = '') {
+  return (Array.isArray(tips) ? tips : []).filter((t) => t && t.status === 'new' && matchesTip(t, q))
+    .sort((a, b) => ms(a.created_at) - ms(b.created_at));
+}
+
+// "upi.com" for a tip's link, or '' when it is not a link.
+export function tipHost(url) {
+  try { return new URL(String(url)).hostname.replace(/^www\./, ''); } catch { return ''; }
+}
+
+// What "Accept" puts in a new pick draft: the link only. The headline, outlet and date come from the story
+// itself, and the note is the editor's own words, never the visitor's.
+export function pickFromTip(tip) {
+  return { url: normaliseStoryUrl(tip?.url) || String(tip?.url ?? ''), title: '', outlet: '', published: '', category: 'other', rating: '', note: '' };
+}
+
+// A refused pick save as one sentence.
+export function pickSaveError(status, body) {
+  if (body?.code === '23505' || status === 409) return 'That story is already a pick. Search the Picks list for it.';
+  if (body?.code === '23514') return 'The database refused one of the values. Check the link, the note length and the rating.';
+  return errorText(body, status);
+}
+
+const PICK_ACTION = { published: 'Published', withdrawn: 'Withdrawn', edited: 'Edited while published', deleted: 'Deleted' };
+export function pickTimeline(pick, activity) {
+  if (!pick) return [];
+  const out = [];
+  if (pick.created_at) out.push({ at: pick.created_at, text: 'Created as a draft' });
+  if (Array.isArray(activity)) {
+    for (const a of activity) if (a?.at && PICK_ACTION[a.action]) out.push({ at: a.at, text: PICK_ACTION[a.action] + (a.actor_email ? ` by ${a.actor_email}` : '') });
+  } else if (pick.published_at) out.push({ at: pick.published_at, text: 'Published' });
+  return out.sort((a, b) => ms(a.at) - ms(b.at));
 }

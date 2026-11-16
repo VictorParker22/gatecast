@@ -1,99 +1,84 @@
 # Gatecast design system
 
-The visual language and components of the Gatecast site. Tokens live in `styles/tokens.css`; components in `styles/app.css` reference only semantic tokens.
+The visual language and components of the Gatecast site. Tokens live in `styles/tokens.css`; shared components in `styles/app.css`; the front page in `styles/home.css`.
 
-The direction is "a departure board for weather" (`docs/redesign.md`): the interface is monochrome (ink, concrete and paper), colour only ever means risk, and codes, times and big numbers are set like airport signage. The foundation below is shipped; page layouts are being rebuilt on top of it.
+The direction (approved 16 Nov 2026) is **a late-90s weird-news front page, modern underneath**: newsprint paper, hard 2px ink edges, offset shadows, beveled buttons that press in, a slab masthead, pixel-type datelines, starbursts and stickers, and a ticker. Underneath it stays accessible, fast and responsive: semantic HTML, 44px targets, visible focus, 4.5:1 text, `prefers-reduced-motion` respected, no framework and no build step. The approved boards are `WeirdHome` (1440px) and `WeirdPhone` (390px); the front page is built to them and checked against them (see "Fidelity" below).
 
 ## Principles
 
-1. **Verdict first, evidence second.** Every screen answers "will weather disrupt my trip?" in one sentence before showing any numbers.
+1. **Real sources only.** Every story is the outlet's own headline, linked to the original. Nothing on the page is invented: no summaries we did not write as the editor, no ratings the editor did not give, no reader numbers that do not exist, no stand-in photos.
 2. **Never colour alone.** A risk level is always a word, a shape and a colour together.
-3. **Local time, always labelled.** Each airport shows its own clock with the zone, and a written date when the day changes.
-4. **Plain words.** No METAR, IFR or ATC terms in the main view. Raw data sits one tap deeper.
-5. **Tokens only.** Components never contain a colour value; they take it from a semantic token.
-6. **Colour only means risk.** Everything else is ink, concrete, paper and greys. Teal, amber and rose appear only for Low, Elevated and High, so a colour on screen is always news about the weather on the trip. Links, buttons, focus rings, charts and the current-page mark are ink (white in dark).
-7. **Calm collapses, risk expands.** When nothing threatens the trip, say so in one quiet line (grey text with the tick shape, `--color-calm`) and get out of the way. When something does, that stop or banner opens up with a tint, the reason, the hours that matter and what to do.
+3. **Risk colours are reserved.** Teal (Low), amber (Elevated) and rose (High) appear only in the rounded risk chips and risk panels (verdict, alert and stop cards). The decorative palette contains no red, amber/orange or teal, so a risk colour on screen is always news about the weather.
+4. **Square print, round risk.** Everything is square-cornered (2–3px at most) except risk chips, which stay pill-shaped so they read as a different kind of thing.
+5. **Decoration is decoration.** Halftone dots, press lines, starbursts and stickers never carry information that is not also in text; they are `aria-hidden` and they never cover text.
+6. **Plain words.** No METAR, IFR or ATC terms in the main view. Raw data sits one tap deeper.
+7. **Tokens only.** Components take colour from tokens. Fixed decorative inks (sun, lime, the night bands) are tokens too.
+8. **Calm collapses, risk expands.** When nothing threatens a trip, say so in one quiet line (grey text with the tick shape) and get out of the way.
 
 ## Tokens
 
-### Colour
+### Colour: the newsprint system (`--np-*`)
 
-Light is concrete and paper with ink type; dark is near-black with white type. Contrast is measured against both `--color-bg` and `--color-surface`.
+Light is the **day edition** (newsprint paper, ink type); dark is the **night edition** (warm near-black paper, cream type and cream rules). Contrast below is on paper / card.
+
+| Token | Day | Night | Use |
+|---|---|---|---|
+| `--np-paper` | `#F3EEE2` | `#1B1813` | Page (with a faint press-line texture, `--np-print`) |
+| `--np-card` | `#FFFDF7` | `#26221B` | Paper cards, windows, popover |
+| `--np-sunken` | `#E9E1CE` | `#322C23` | Image slots, tracks, the since-you-looked note |
+| `--np-ink` | `#15120E` | `#F3EEE2` | Headlines, borders, rules (16.1 / 18.4; 15.3 / 13.7) |
+| `--np-text` | `#3B362E` | `#E4DCCB` | Body copy, pixel datelines (10.3 / 11.8; 13.0 / 11.6) |
+| `--np-muted` | `#4A443A` | `#CEC4B1` | Meta, captions (8.3 / 9.5; 10.2 / 9.2) |
+| `--np-rule` | `#8C8475` | `#6E6658` | Dashed separators only (decorative, never text) |
+| `--np-cobalt` | `#1C36C7` | `#93A2FF` | Masthead, primary buttons, title bars, link hover, focus ring (7.6 / 8.6; 7.5 / 6.7) |
+| `--np-on-cobalt` | `#FFFFFF` | `#15120E` | Text on cobalt (8.7; 7.9) |
+| `--np-sun` | `#FFD23F` | same | Fill only (stickers, "Change city", the ticker label, Also odd head). Text on it is `--np-on-sun` `#15120E` (12.9) |
+| `--np-lime` | `#C8F03C` | same | Fill only ("Real sources only" burst, Library tab, meter lights). Text `--np-on-lime` `#15120E` (14.2) |
+| `--np-night` | `#15120E` | `#0D0B08` | Always-dark bands: edition strip, ticker, streak, "How we pick", current tab. Text `--np-on-night` white, accent `--np-sun` (12.9) |
+| `--np-border` | `2px solid var(--np-ink)` | | The edge of every card, window and button |
+| `--np-shadow` / `-lg` / `-hover` | `4px` / `6px` / `8px` offset, no blur | black in night | Print offset shadow |
+| `--np-bevel` / `--np-bevel-in` | inset light top-left, dark bottom-right / swapped | | Raised and pressed button edges |
+| `--np-halftone`, `--np-halftone-lite`, `--np-print` | dot and line textures | lighter in night | Decorative textures only |
+| `--np-tint-<category>` | pale cobalt / sun / paper / lime / grey | dark equivalents | Background of a story's typographic fallback tile |
+
+**Decorative palette rule.** Cobalt, sun, lime, paper, ink and their tints are the only decorative colours. No red, amber/orange or teal anywhere outside risk — this includes book spines on the library shelf and category stickers.
+
+**Semantic tokens** used by every component are mapped onto the newsprint system: `--color-bg` = paper, `--color-surface` = card, `--color-surface-sunken` = sunken, `--color-text` = ink, `--color-text-muted` = muted, `--color-accent` = ink (primary marks), `--color-focus` = cobalt, `--color-control-border` = ink, `--color-border` (`#C9C2B2` / `#4A443A`) for hairlines inside cards.
+
+### Colour: risk (unchanged)
 
 | Token | Light | Dark | Use |
 |---|---|---|---|
-| `--color-bg` | `#ECEBE6` | `#07090D` | Page background (concrete / night) |
-| `--color-surface` | `#FFFFFF` | `#111418` | Cards, form, popover |
-| `--color-surface-sunken` | `#E0DFD9` | `#1B1F25` | Wells, hover rows, empty bar track |
-| `--color-border` | `#D6D4CC` | `#2A2F37` | Hairlines |
-| `--color-text` | `#111418` | `#E9EDF5` | Body text (15.5:1 on bg / 18.5:1 on surface light; 17.0:1 / 15.7:1 dark) |
-| `--color-text-muted` | `#4F545B` | `#A9B0BA` | Labels, captions (6.4:1 / 7.6:1 light; 9.1:1 / 8.5:1 dark) |
-| `--color-calm` | = text-muted | = text-muted | Calm / low states rendered quietly (grey text plus the tick shape) |
-| `--color-accent` | `#111418` (ink) | `#FFFFFF` | Primary button, links, focus ring, current nav mark, charts. Never a hue |
-| `--color-on-accent` | `#FFFFFF` | `#07090D` | Text on the accent |
-| `--color-control-border` | `#7E838A` | `#6E757F` | Non-text control edges (3.2:1 / 3.8:1 light; 4.3:1 / 4.0:1 dark) |
-| `--color-live` | = text | = text | "In the air" status; monochrome, the pulsing dot carries the meaning |
-| `--color-map-land` / `--color-map-sea` | `#D6D4CC` / `#E0DFD9` | `#2F343C` / `#0C0F14` | Inline route map |
 | `--risk-low` | `#0B6B5F` | `#5FD3C0` | Low risk (teal, tick in circle) |
 | `--risk-elevated` | `#8F4E00` | `#F2B450` | Elevated risk (amber, triangle) |
 | `--risk-high` | `#A81C48` | `#FF8AA8` | High risk (rose, octagon) |
 
-Risk contrast (text-size use, all at least 4.5:1):
+On the new card colour: light 6.3 / 6.3 / 7.1, dark 8.7 / 8.6 / 7.1. Risk tints are derived, not stored: `color-mix(in oklab, var(--risk) 14%, var(--color-surface))`. A component sets `--risk` once from its level modifier (`.chip--high`, `.stop--high`, `.verdict--high`, `.hour--high`); `--calm` sets it to `--color-calm`. Teal, amber and rose stay apart for people with red-green colour blindness.
 
-| Level | Light on bg / surface / chip tint | Dark on bg / surface / chip tint |
-|---|---|---|
-| Low | 5.4 / 6.4 / 5.2 | 11.0 / 10.2 / 8.2 |
-| Elevated | 5.4 / 6.5 / 5.2 | 10.8 / 10.0 / 8.1 |
-| High | 6.0 / 7.2 / 5.8 | 9.0 / 8.3 / 6.8 |
+#### Sky (inside the weather box)
 
-Body text on the 11% verdict tint stays above 15:1 (light) and 13:1 (dark); muted text on it above 6.3:1 and 7.0:1.
-
-Risk tints are derived, not stored: `color-mix(in oklab, var(--risk) 14%, var(--color-surface))` for fills and 40-45% for borders. A component sets `--risk` once from its level modifier (`.chip--high`, `.stop--high`, `.verdict--high`, `.hour--high`); the `--calm` modifier (`.chip--calm`, `.stop--calm`, `.verdict--calm`) sets it to `--color-calm`.
-
-Teal, amber and rose were chosen over green, yellow and red so the three levels stay apart for people with red-green colour blindness.
-
-#### Sky, glass and fixed surfaces
-
-| Token | Value | Use |
-|---|---|---|
-| `--sky-day` … `--sky-storm` | `#1D5FD6`, `#141B3A`, `#5A6B82`, `#33415F`, `#4D6585`, `#272C42` | Flat fallback colour behind the animated sky, one per condition. Not UI colour |
-| `--color-on-sky` / `--color-on-sky-muted` | `#FFFFFF` / `#E6EEFF` | Text on the sky |
-| `--glass-bg` | `rgba(9,11,16,0.42)` | Frosted panel fill, only over the animated sky (white text on it is about 10.9:1 over `--sky-day`) |
-| `--glass-border` | `rgba(255,255,255,0.16)` | Frosted panel edge |
-| `--glass-blur` | `22px` | `backdrop-filter: blur()` radius for glass |
-| `--color-sun` / `--color-on-sun` | `#FFFFFF` / `#111418` | Legacy name: the white emphasis on the sky (`.btn--sun`, sky focus ring, current nav mark on the sky). No longer yellow |
-| `--color-ink-surface` | `#111418` / `#252A31` | Ink emphasis panel ("Get ready", primary sheet action) |
-| `--color-on-ink` / `--color-on-ink-muted` | `#FFFFFF` / `#C3C8CF` | Text on the ink panel |
-
-The raw palette (`--paper-*`, `--ink-*`, `--teal-*`, `--amber-*`, `--rose-*`) is for tokens.css only. The old `--cobalt-*` values are gone; the radar "you are here" marker reads `--ink-900`.
+`--sky-day` … `--sky-storm` (`#1D5FD6`, `#141B3A`, `#5A6B82`, `#33415F`, `#4D6585`, `#272C42`) are the flat fallback behind the live WebGL sky in the weather box. The box's screen always runs in the dark colour scheme so its risk chips and focus ring resolve to their dark values. `--glass-*` remains for the frosted glass buttons that sit on the sky.
 
 ### Typography
 
-Two faces, both self-hosted from `vendor/fonts/` (SIL Open Font License), so no visitor data goes to a font service:
+Four faces, all self-hosted from `vendor/fonts/` (SIL Open Font License; latin subsets), so no visitor data goes to a font service:
 
-- **Inter** (`--font-sans`, variable 100-900) for sentences: body, headings that are sentences, labels, buttons.
-- **Barlow Condensed** (`--font-display`, static 600 and 700, latin and latin-ext) for signage: airport codes, flight numbers, times, temperatures and other big numbers, the verdict headline, risk chips, status pills, the nav and the wordmark. Often uppercase with `--tracking-caps` (0.06em). Weights other than 600/700 snap to the nearest of those two.
+- **Inter** (`--font-sans` / `--font-body`) for sentences: body, card headlines, buttons, labels.
+- **Barlow Condensed** (`--font-display` / `--font-sign`, 600, 700, 800) for signage: tabs, stickers, section labels, airport codes, temperatures in lists, risk chips.
+- **Alfa Slab One** (`--font-slab`) for big headlines only: the masthead, the lead story, section heads, page titles, the big temperature, the brand wordmark.
+- **VT323** (`--font-pixel`) for pixel type: the edition strip, datelines and meta, the ticker, window title bars, the streak counter. **Never below 17px.** It is drawn on a pixel grid, so it is used at 17, 18, 19, 20 and 22px as on the boards (the board sizes are kept rather than snapped to 16/20/24 so the measured fidelity holds).
 
-Headings (`h1`-`h3`) default to Inter 700; only the verdict and flight headlines are set in Barlow. Tabular numerals are on everywhere so times and temperatures line up. `--font-mono` remains only for raw METAR text.
+Display sizes interpolate linearly between the two boards: `size = clamp(phone, intercept + slope·100vw, desktop)` with `slope = (desktop − phone) / (1440 − 390)`. For example the masthead is 46px at 390 and 144px at 1440: `clamp(2.875rem, 0.6rem + 9.3333vw, 9rem)`, and never wider than its column (`min(…, 100cqi / 5.95)`, GATECAST being 5.95em wide). Body text stays fixed at 16–19px.
 
-| Token | Size | Use |
-|---|---|---|
-| `--text-2xl` | 2 to 3.5rem, fluid | Page headline |
-| `--text-xl` | 1.5 to 2.125rem, fluid | Section headline |
-| `--text-lg` | 1.25rem | Card headings |
-| `--text-md` | 1rem | Body |
-| `--text-sm` | 0.875rem | Labels, secondary text |
-| `--text-xs` | 0.75rem | Captions, hourly strip |
-| `--tracking-caps` | 0.06em | Letter-spacing for uppercase signage |
-
-Utilities in `app.css`: `.signage` (Barlow 700, uppercase, tracked), `.num` (Barlow 600, tabular), `.code` (Barlow 700, airport and flight codes), `.glass` (frosted panel; only inside `.sky`).
+Preloads on the front page: Alfa Slab One, VT323, Inter and Barlow 800 (the first screen). Inner pages preload nothing new.
 
 ### Spacing, shape, motion
 
-- Spacing: 4px base, `--space-1` (4px) to `--space-7` (48px).
-- Radius: `--radius-sm` 6px (inputs, focus ring), `--radius-md` 16px (cards, panels, popover), `--radius-lg` 20px (form, verdict, flight card, board tiles), `--radius-xl` 28px (sheet, shelf), `--radius-pill` 999px (buttons, chips, segmented options, pills).
-- Elevation: `--shadow-1` (resting card), `--shadow-2` (popover, suggestion list).
-- Motion: `--duration-fast` 120ms for hover and press, `--duration-base` 240ms for results entering. All motion is removed under `prefers-reduced-motion`.
+- Spacing: 4px base on an 8px rhythm, `--space-1` (4) to `--space-9` (96). Section gaps on the front page run 20px (phone) to 64px (desktop).
+- Frame: `--frame` = `min(100% − 2 × --gutter, 80rem)`; 1280px of content with 24px gutters (16px on phones), measured from the boards.
+- Radius: `--radius-sm`/`-md` 2px, `-lg`/`-xl` 3px, `--radius-pill` 999px for risk chips only.
+- Elevation: offset print shadows (`--np-shadow*`), never blurred.
+- Motion: buttons lift 1px on hover and press 2px in; cards lift 2px. The masthead burst turns once every 22s; the ticker scrolls at about 60px/s. Under `prefers-reduced-motion` the burst and ticker stand still (the ticker becomes a scrollable row and its pause button is removed) and nothing transitions.
 - `--tap-target` 44px minimum for anything interactive.
 
 ## Components
@@ -143,13 +128,13 @@ Text input with `role="combobox"` and a `listbox` of suggestions.
 | No match | "No airport found" row, error on submit |
 | Invalid | Rose border, `aria-invalid`, message in the form's alert region |
 
-### Buttons (`.btn`)
+### Buttons (`.btn`, `.bev`)
 
-All pill-shaped, at least 44px tall. `--primary` (one per view: "Check my trip"; ink with white text in light, white with ink text in dark), `--ghost` (secondary, bordered), `--text` (inline action, underlined ink), `--icon` (44px square, needs `aria-label`), `--glass` (white text on frosted glass, only over the sky), `--sun` (white with ink text, the primary action on the sky). `.pill` is used for example and recent trips; `.pill.is-current` is filled ink.
+Beveled 90s buttons, at least 44px tall, square (2px), 2px ink border, a raised bevel and a 3px offset shadow; they lift 1px on hover and press 2px in on click. `--primary` (cobalt, one per view), `--sun` (sun fill, ink text), `--ink` (night fill, white text), `--ghost` (paper), `--text` (flat underlined link-style action), `--icon` (44px square, needs `aria-label`), `--glass` (on the sky only). `.bev` is the same look for links and buttons outside the `.btn` family. `.pill` is a square tag for places and examples; `.pill.is-current` is pressed in (night with sun type).
 
 ### Settings popover (`.settings`, `.segmented`)
 
-Native `popover` opened from the header. Three segmented radio groups: temperature, wind and distance, appearance. Appearance defaults to "Match device"; the override is kept out of the main interface because most visitors never need it.
+Native `popover` opened from the header, drawn as a program window: a cobalt title bar in VT323, a paper body, ink border and offset shadow. Segmented radio groups (temperature, wind and distance, clock, appearance) are beveled square options; the checked one is pressed in. Appearance defaults to "Match device" (day or night edition).
 
 ### Route map (`.map`)
 
@@ -159,9 +144,9 @@ Inline SVG, no tiles or map library. Land outline from Natural Earth, great-circ
 
 Current observation ("Right now: …") with the raw METAR behind a disclosure, active National Weather Service alerts, and FAA delay programmes. Alerts use the elevated tint with its icon.
 
-### Sky header (`.sky`, `.hero-wx`)
+### Weather box (`.wxbox`, `.sky`)
 
-The top of the weather page is one flat colour chosen by the current conditions (`--sky-day`, `--sky-night`, `--sky-cloud`, `--sky-rain`, `--sky-snow`, `--sky-storm`), each dark enough for white text. It holds the navigation, the location bar, the place and time, a very large temperature, one headline sentence that says what the weather is doing and when it changes, and the four parts of the day ahead. It is the only part of the page the visitor cannot move.
+An old program window in the masthead: a cobalt title bar ("WEATHER BOX · NEW YORK" in VT323) with a sun "Change city" button that opens the place search under it; then the screen, which holds the live WebGL sky (the flat `--sky-*` colour is its fallback) with scan lines, the big slab temperature, the condition and one plain sentence (`headlineParts()`), the next 8 hours, the nearby airports (a quiet tick line when calm, a risk chip when not) and air/UV/sunset. NWS alerts, "Since you last looked" and the newest weird-weather story sit under the screen.
 
 ### Animated sky (`js/sky.js`, `js/sky/shaders.js`, `styles/sky.css`)
 
@@ -186,43 +171,34 @@ All motion lives in its own layer so it can be tuned or removed without touching
 
 Everything becomes an instant change under `prefers-reduced-motion`, and only transform, opacity and (sparingly) filter are animated.
 
-### Board and boxes (`.board`, `.tile`)
+### Front page pieces (`index.html`, `styles/home.css`, `js/front.js`)
 
-Everything below the sky is a box on a six-column grid. Each box has three sizes: small (2 columns), medium (3) and large (6); two-column and one-column layouts apply on tablets and phones. A bigger box shows more: more hours, more days, more stats, more cities, more checklist items.
+- **Edition strip** (`.edition`): a night band in VT323 sun: "NEW YORK EDITION · MONDAY 16 NOVEMBER 2026 · VOL. 1 · NO. 320". The place is the one chosen in the weather box, the date is in the visitor's locale, and "No." is simply the day of the year (`editionLine()`); nothing in it is presented as a fact about an issue. On phones it is the short form above the masthead.
+- **Masthead** (`.masthead`): kicker with a double rule, the GATECAST `h1` (the page's only h1), a one-line lede, and the lime "Real sources only" starburst. The starburst has its own grid cell beside the lede, so it never covers the wordmark at any width (a deliberate change from the board, where it overlaps the last letters); it turns slowly and stands still under reduced motion.
+- **Tabs** (`.tabbar`): the site nav followed by section tabs, one per category with stories (`#sections`), which filter the grid.
+- **Ticker** (`.ticker`): real headlines from `/api/weird`, each a link. It pauses on hover and keyboard focus and with a labelled pause/play button (`aria-pressed`); under reduced motion it never moves and becomes a scrollable row.
+- **Lead** (`.lead`): the first story (the API puts editor's picks first): a "TODAY'S LEAD · CATEGORY" tag, a sticker, the outlet's headline in Alfa Slab One, the publisher's preview image (lazy, credited, hotlinked) or a typographic tile, a sun starburst ("Editor's pick" for picks, otherwise "Straight from" + the outlet's monogram), the editor's note only if there is one (never a written summary), a pixel dateline, "Read it at <outlet>", the editor's rating pips only if non-null, and the Weird-o-meter.
+- **Weird-o-meter** (`.meter`): five real 44px buttons with `aria-pressed`; the needle swings to the visitor's vote at once; the note says the readers' average appears only after 50 votes, with the count so far (`meterNote()`); a failed vote restores the previous state with a calm inline message. Votes go through `js/community.js`.
+- **Also odd** and **reading streak** (`.also`, `.streak`): the next four stories (each row is the link's hit area); the streak counts calendar days on this device only, in hit-counter digits, and says so.
+- **Believe it or not** (`.believe`, `.grid`, `.card`): filter chips with counts from the API, a grid of cards (`repeat(auto-fill, minmax(268px, 1fr))`; cards use `subgrid` rows so pictures, headlines, datelines and footers line up across a row), "Show N more". Cards carry a category sticker, "VIDEO AT SOURCE" when the outlet labelled it a video, the publisher image or a **typographic fallback tile** (category tint, halftone, the outlet's monogram in outline slab — never a fake photo), the headline link, a pixel dateline, editor pips if any, and "Read at <outlet>". On phones cards become rows with a 92px square thumbnail.
+- **The brief** and **Flying?** (`.nearyou`, `.flybox`): the existing brief (NWS alerts, state headlines, statehouse votes) beside a trip box that shows a saved trip's verdict (risk chip, stop strip, "See the journey") or a From / To / Leaving form that opens `trip.html` with the check filled in.
+- **Weather desk** (`#today`): what today means, 10 days and the radar for the place in the weather box.
+- **The Stacks teaser** (`.libteaser`, `.shelf`, `.spine`): a CSS wooden shelf with typographic spines (In Cold Blood, Zodiac, Stiff, The Ghost Map, Bad Blood, I'll Be Gone in the Dark) linking to `library.html`; spine colours follow the decorative palette rule.
+- **Guestbook and How we pick** (`.guestbook`, `.about`): a tip form (https link, optional note, a visually hidden `website` honeypot) sent through `js/community.js` ("Thanks — a person reads every tip."), beside the editorial rules.
+- **Badges** (`.badge`): 88×31-style buttons in the footer, real links only (Open-Meteo, how.html, the guestbook, the library).
+- **Favourites** (`.favs`): built but paused by the owner; hidden by `FAVOURITES = false` in `js/front.js`.
 
-| Control | What it does |
-|---|---|
-| Grip (six dots) | Drag to reorder with mouse, pen or touch. Dropping on the shelf adds the box to it. Pressing it opens the options panel. |
-| Resize (arrows) | Cycles small, medium, large. |
-| Options (three dots) | Opens the options panel. |
+### Fidelity
 
-Changes animate with view transitions, which are switched off under `prefers-reduced-motion`. Every move is announced to screen readers ("10 days moved to position 3 of 8"). The arrangement is saved on the device.
-
-Two boxes use fixed emphasis surfaces: the quick question (`--color-sun`, now white with ink text, so it stands out in dark and sits flush in light) and "Get ready" (`--color-ink-surface`).
-
-### Options panel (`.sheet`)
-
-A native modal `<dialog>` styled as frosted glass: a translucent surface with a strong backdrop blur over a lightly blurred page. Actions: keep on shelf, bigger, smaller, move earlier, move later, copy a link, hide. Move earlier and later are the keyboard and screen-reader route to reordering. Unavailable actions are disabled, not hidden.
-
-### Shelf (`.shelf`)
-
-A compact frosted pill pinned to the bottom of the screen holding shortcuts to the boxes the visitor has kept. Selecting one scrolls to that box and outlines it briefly.
-
-### Pedestal (`.pedestal`)
-
-A quiet line inside the sky, under the forecast, that introduces the board: a one-line explanation, the visitor's day streak, shelf count and questions answered, and the reset and show-hidden controls. It is deliberately not a card, so it does not compete with the forecast.
-
-### Quick question (`.quiz__*`)
-
-One question a day made from the forecast on the page, answered with one tap. The correct option gets a tick and inverted colours; a wrong pick is struck through with a cross, so the result never depends on colour alone.
+The front page is checked against the board renders with a bounding-box script at 1440×900 and 390×844 (x and width within ±2px; type sizes and line heights exact), and swept from 320 to 2560px plus 200% zoom and reduced motion for horizontal scroll, sibling overlaps, clipped text and 44px targets. Differences that remain are intentional: real data lengths, the starburst's reserved cell, and the phone weather box keeping the next 8 hours.
 
 ### Site navigation (`.site-nav`)
 
-Three links, in this order: **Today** (`./`), **Trips** (`trip.html`), **Flights** (`flights.html`), set in Barlow Condensed uppercase. The current page is marked with `aria-current="page"` and shown with a bolder label plus a 3px ink underline (white on the sky), never colour alone. On narrow screens the links move to their own row and the settings button ("Units & display", a native popover) collapses to its icon.
+Four beveled tabs, in this order: **Front page** (`./`), **Library** (`library.html`, lime when not current), **Trips** (`trip.html`), **Flights** (`flights.html`), Barlow Condensed 800 uppercase, 48px tall. The current page has `aria-current="page"` and is pressed in (night fill, sun type), never colour alone. Below 46rem the same list becomes a tab bar fixed to the bottom of the screen (icon + word, 74px tall plus the safe-area inset; the current tab is sun), and the page gets matching bottom padding. The settings button ("Units & display") collapses to its icon on phones.
 
 ### Brand (`.brand`, `.brand__mark`, `.brand__name`)
 
-The mark is a gate arch with a centre line, drawn as a stroke icon: `<path d="M5 20V9a7 7 0 0 1 14 0v11"/><path d="M12 13v7"/>` on a 24-unit grid, placed with `translate(4 5)` inside a 32-unit rounded square (`rx="8"`). On paper pages the square is `--color-accent` (ink in light, white in dark) and the glyph `--color-on-accent`; over the sky the square is transparent and the glyph white. The wordmark is "Gatecast" set in Barlow Condensed 700 uppercase with 0.08em tracking (the HTML text stays "Gatecast"; the link's `aria-label` is "Gatecast home"). The favicon is the same mark: an `#111418` square with a white glyph.
+The mark is a gate arch with a centre line, drawn as a stroke icon: `<path d="M5 20V9a7 7 0 0 1 14 0v11"/><path d="M12 13v7"/>` on a 24-unit grid, placed with `translate(4 5)` inside a 32-unit rounded square (`rx="8"`). The square is cobalt with a 2px ink edge and the glyph `--np-on-cobalt`. The wordmark is "Gatecast" set in Alfa Slab One uppercase in cobalt with a 1px sun and 2px ink offset (on the front page the masthead `h1` is the big version: GATECAST, cobalt, 3px sun and 6px ink shadows) (the HTML text stays "Gatecast"; the link's `aria-label` is "Gatecast home"). The favicon is the same mark: an `#111418` square with a white glyph.
 
 ### Location bar and welcome (`.locbar`, `.welcome`)
 
@@ -274,9 +250,12 @@ Gatecast talks like a friend who knows the weather: someone who has read the for
 | Say what a percentage refers to ("chance of rain or snow in that hour") | Show a bare "40%" |
 | Add a new colour as a raw value, then a semantic token | Put a hex value in `app.css` |
 | Keep one primary button per view | Add a second filled button |
-| Use ink (`--color-accent`) for links, actions, charts and "you are here" | Use a hue for anything that is not a risk level |
-| Set codes, times and big numbers in `--font-display` | Set sentences in Barlow Condensed (the verdict headline is the one exception) |
-| Use `.glass` and `--glass-*` over the animated sky | Put glass on paper pages |
+| Use cobalt, sun, lime, paper and ink for decoration | Use red, amber/orange or teal anywhere outside risk |
+| Keep risk chips round and everything else square | Round a card, button or sticker |
+| Set big headlines in Alfa Slab One and datelines in VT323 at 17px+ | Set sentences in slab or pixel type, or VT323 below 17px |
+| Show the editor's note and rating only when they exist | Write a summary, a rating or a reader number that is not real |
+| Give starbursts and stickers their own space | Let decoration cover a headline or the wordmark |
+| Use `.glass` and `--glass-*` over the animated sky | Put glass on paper |
 
 ## Audit (15 Nov 2026)
 
