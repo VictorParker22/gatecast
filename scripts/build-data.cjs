@@ -34,7 +34,7 @@ async function airportRanks() {
 (async () => {
   fs.rmSync(out, { recursive: true, force: true });
   for (const dir of ['styles', 'js', 'vendor']) fs.cpSync(path.join(root, dir), path.join(out, dir), { recursive: true });
-  for (const page of ['index.html', 'flights.html', 'trip.html']) fs.copyFileSync(path.join(root, page), path.join(out, page));
+  for (const page of ['index.html', 'flights.html', 'trip.html', 'review.html']) fs.copyFileSync(path.join(root, page), path.join(out, page));
   fs.mkdirSync(path.join(out, 'data'), { recursive: true });
 
   const res = await fetch(SRC);

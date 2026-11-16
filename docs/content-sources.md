@@ -76,11 +76,11 @@ The owner asked for the call that gives the site the best chance of success. It 
 
 **Where it is stored: the review queue**
 
-The database is a Supabase project. Its definition is in `supabase/migrations/`. Nothing on the site reads it yet.
+The database is a Supabase project. Its definition is in `supabase/migrations/` and its functions in `supabase/functions/`; `supabase/README.md` explains each piece. The Today page reads published topics through the public key (`js/civic.js`), and reviewers work the queue in the reviewer console, `review.html`.
 
 - `topics`: one neutral fact with its source link, a place (`US` or a state code) and a status of draft, published or rejected.
 - `statements`: the quotes attached to a topic, each with a side, speaker, date and source link.
-- `reviewers`: who may publish. The owner adds a row in the Supabase SQL editor after signing in once; it cannot be changed through the API.
+- `reviewers`: who may publish. The owner creates the account (Authentication → Users → Invite user), then adds a row in the Supabase SQL editor; it cannot be changed through the API.
 
 Rules the database enforces, whichever key is used:
 
@@ -90,6 +90,21 @@ Rules the database enforces, whichever key is used:
 - Every publish, withdrawal and deletion of a published topic is logged with who did it.
 
 Tested on 16 Nov 2026 with placeholder rows, since deleted: as an anonymous visitor over the public API, and inside the database as a signed-in non-reviewer, a reviewer and a pipeline-style request. Not yet tested with a real signed-in reviewer account or the real secret key.
+
+**The reviewer console (`review.html`)**
+
+A small help desk for the queue, not linked from the site's navigation and marked `noindex`. Reviewers sign in with an emailed link (Supabase Auth; accounts must already exist, there is no sign-up). It lists drafts oldest first, shows each topic with its statements grouped by side, and offers Publish (blocked with a reason until a Democrat and a Republican statement are attached), Reject, Withdraw to draft and Delete; the database's own error is shown whenever it refuses. An assistant panel (Claude, through the `assist` Edge Function, see `docs/assist.md`) can check a topic, verify a quote against its source and draft candidate quotes from a page. It only fills forms; nothing is saved until the reviewer saves it.
+
+Internal notes, a topic's publish history, hiding a single vote and the collector's health need `supabase/migrations/20261116090000_reviewer_console.sql`, which is written but not applied. Until then the console says so and works without them.
+
+**Statehouse votes**
+
+Separate from the queue, a collector copies passage votes from the public record:
+
+- `state_votes`: one row per floor vote on a bill's passage, from Open States: the bill identifier and official title exactly as recorded, chamber, date, motion, result, totals and the split by party, with links to the official record and to Open States. Committee-sized votes, procedural motions, ceremonial resolutions and votes older than 120 days are left out. Gatecast adds nothing of its own.
+- The `collect` Edge Function runs every hour at :07 (`pg_cron` job `collect-state-votes`), four states at a time, within 8 Open States requests a run and 400 a day. The Open States key is a Supabase secret.
+- **The switch:** visitors see votes only while `private.switches` key `state_votes` is on. The owner turns it on or off in the SQL editor (`update private.switches set enabled = true where key = 'state_votes';`). One vote can be hidden with its `hidden` column.
+- The Today page shows the visitor's state's six latest votes under "Your statehouse", and nothing at all when there are none or the switch is off.
 
 **Runner-up:** licensing AllSides or Ad Fontes. Both rate news outlets as left, centre or right, which is a different thing from showing what each party said. AllSides needs a written licence for commercial use and publishes no price; Ad Fontes lists $3,600 a year for research use and quotes commercial use. Ground News has no public API.
 
@@ -131,3 +146,7 @@ What it needs that the site does not have today: a database for the queue and th
 3. States Newsroom's republishing terms as they apply to headline-and-link display.
 4. The display format for news and quotes, with a media lawyer.
 5. Travelpayouts' affiliate terms, if flight prices are wanted.
+
+---
+
+Reviewer console: [`review.html`](../review.html) (not linked from the site's navigation).

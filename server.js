@@ -13,7 +13,7 @@ const TYPES = {
   '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2', '.md': 'text/markdown; charset=utf-8',
 };
-const PUBLIC = ['index.html', 'flights.html', 'trip.html', 'styles', 'js', 'data', 'vendor'];
+const PUBLIC = ['index.html', 'flights.html', 'trip.html', 'review.html', 'styles', 'js', 'data', 'vendor'];
 // File names carry no content hash, so pages, scripts and styles are always revalidated (a cheap 304):
 // a long cache could pair a new weather.js with an old core.js. Only files whose staleness is harmless
 // get a short freshness window: the airport list, and the vendored fonts and map library. Same as vercel.json.

@@ -86,7 +86,11 @@ The site is deployed on Vercel (`vercel.json`). Vercel runs `node scripts/build-
 | `vendor/leaflet/` | Leaflet 1.9.4 (BSD-2-Clause), used only for the radar map |
 | `vendor/fonts/` | Inter and Barlow Condensed (SIL Open Font License), self-hosted |
 | `data/airports.json` | 7,769 airports with IATA codes, time zones and a size rank |
-| `supabase/migrations/` | Database for the "Both sides" review queue (not yet read by the site); see `docs/content-sources.md` |
+| `js/config.js` | The Supabase project address and its publishable key (public by design; row rules decide access) |
+| `js/civic.js`, `js/civicmodel.js`, `styles/civic.css` | "Your statehouse" and "Both sides" on Today: mounted with `mountCivic(root, { state })`; the words and numbers are pure and unit-tested |
+| `review.html`, `js/review.js`, `js/reviewmodel.js`, `styles/review.css` | Reviewer console for the Both sides queue (sign-in link, queue, publish, assistant); not in the navigation, `noindex`. Rules in `reviewmodel.js` are unit-tested |
+| `supabase/migrations/` | Database: the Both sides review queue, statehouse votes and their switch, the hourly collector job; see `supabase/README.md` |
+| `supabase/functions/` | Edge Functions: `collect` (statehouse votes from Open States, hourly) and `assist` (the reviewer console's assistant) |
 | `docs/` | Design system, user research plan, research report, content sources, moderation policy, design direction |
 | `tests/` | Unit tests for the pure modules and the server's parsers (`node --test`) |
 | `.github/` | CI workflow, Dependabot, issue forms and pull request template |
