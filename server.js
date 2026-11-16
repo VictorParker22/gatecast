@@ -14,7 +14,7 @@ const TYPES = {
   '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2', '.md': 'text/markdown; charset=utf-8',
   '.txt': 'text/plain; charset=utf-8', '.xml': 'application/xml; charset=utf-8',
 };
-const PUBLIC = ['index.html', 'flights.html', 'trip.html', 'review.html', 'how.html', 'robots.txt', 'styles', 'js', 'data', 'vendor'];
+const PUBLIC = ['index.html', 'flights.html', 'trip.html', 'review.html', 'how.html', 'library.html', 'robots.txt', 'styles', 'js', 'data', 'vendor'];
 // File names carry no content hash, so pages, scripts and styles are always revalidated (a cheap 304):
 // a long cache could pair a new weather.js with an old core.js. Only files whose staleness is harmless
 // get a short freshness window: the airport list, and the vendored fonts and map library. Same as vercel.json.
@@ -24,6 +24,8 @@ const cacheControl = (top) => (top === 'data' ? 'public, max-age=3600, stale-whi
 
 const { api, parseFaa, FAA_PLANS_CACHE } = require('./lib/live.js');
 const news = require('./lib/news.js');
+const weird = require('./lib/weird.js');
+const books = require('./lib/books.js');
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
@@ -36,6 +38,16 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === '/api/news') {
     try { return send(200, JSON.stringify(await news.newsFor(url.searchParams)), TYPES['.json'], { 'Cache-Control': news.CACHE_CONTROL }); }
     catch (err) { return send(502, JSON.stringify({ error: 'upstream unavailable' }), TYPES['.json']); }
+  }
+  if (url.pathname === '/api/book-covers') {
+    try { const out = await books.coversFor(); return send(200, JSON.stringify(out), TYPES['.json'], { 'Cache-Control': books.cacheControlFor(out) }); }
+    catch (err) { return send(502, JSON.stringify({ error: 'upstream unavailable' }), TYPES['.json'], { 'Cache-Control': 'no-store' }); }
+  }
+  if (url.pathname === '/api/weird') {
+    try {
+      const body = JSON.stringify(await weird.weirdFor(url.searchParams));
+      return send(200, body, TYPES['.json'], { 'Cache-Control': url.searchParams.get('debug') ? weird.DEBUG_CACHE_CONTROL : weird.CACHE_CONTROL });
+    } catch (err) { return send(502, JSON.stringify({ error: 'upstream unavailable' }), TYPES['.json'], { 'Cache-Control': 'no-store' }); }
   }
   // The sitemap is written by the build step; locally it is made on request, dated today, from the same code.
   if (url.pathname === '/sitemap.xml') return send(200, require('./scripts/build-data.cjs').sitemapXml(), TYPES['.xml'], { 'Cache-Control': 'public, max-age=0, must-revalidate' });

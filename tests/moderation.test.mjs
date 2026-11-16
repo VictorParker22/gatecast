@@ -26,13 +26,14 @@ test('the situation is strange: these pass', () => {
     'Baby goats invade yoga class',
     'Watch: Bear raids kitchen cabinets in Tennessee cabin',
     'Lost wedding ring found inside potato after 16 years',
+    'Ancient virus hidden in human brain DNA surprises scientists',
   ]) assert.equal(rule(t), 'ok', t);
 });
 
 test('a person\'s misfortune is not the joke: each hold rule', () => {
   const cases = {
     H1: ['Dog found dead in hot car', 'Mummified cat found in wall', 'Fisherman drowns chasing record catch', 'Mystery remains unsolved'],
-    H2: ['Hospital patient finds worm in eye', 'Doctors find tapeworm living in man\'s brain', 'Shark attack closes beach', 'Man taken to ER after hot-dog contest'],
+    H2: ['Florida Is Facing Its Worst Dengue Outbreak in Decades', 'Cancer-fighting chewing gum slashes HPV levels', 'Clinical trials of a hiccup cure', 'Hospital patient finds worm in eye', 'Doctors find tapeworm living in man\'s brain', 'Shark attack closes beach', 'Man taken to ER after hot-dog contest'],
     H3: ['Runaway parakeet rescued from storm drain', 'Starving horses seized from farm', 'Goats abandoned on highway shoulder'],
     H4: ['Crazy man climbs tower', 'Welfare check finds hoarder\'s house full of clocks'],
     H5: ['Sheep on the lam for 45 days roped by 13-year-old cowgirl', 'Toddler crowned champion of pie contest', 'School goes viral for cafeteria dance'],
@@ -75,7 +76,7 @@ test('the URL path and feed categories are read too, never anything else', () =>
 test('idioms do not trip the rules; children are told from young animals', () => {
   assert.equal(rule('Dead heat in the annual snail race'), 'ok');
   assert.equal(rule('Fish change sex when the water warms'), 'ok');
-  assert.equal(rule('Clinical trials of a hiccup cure'), 'ok');
+  assert.equal(rule('Trial run of a giant slingshot'), 'ok');
   assert.ok(mentionsChild('Toddler wins race'));
   assert.ok(mentionsChild('A 9-year-old builds a robot'));
   assert.ok(mentionsChild('Baby found in basket'));

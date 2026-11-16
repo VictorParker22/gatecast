@@ -1,6 +1,7 @@
 // The reviewer console (review.html): sign in with an emailed link, then work the "Both sides" queue like a
 // small help desk. Views on the left, the queue in the middle, one topic on the right with its statements,
-// activity, internal notes and an assistant panel.
+// activity, internal notes and an assistant panel. The Weird news views hold the guestbook tips visitors send
+// and the editor's picks (public.weird_tips, public.weird_picks; docs/community.md).
 //
 // It talks to Supabase directly over REST, with no client library:
 //   sign-in   GoTrue: POST /auth/v1/otp (magic link), /auth/v1/token?grant_type=refresh_token, /auth/v1/logout
@@ -16,7 +17,10 @@ import {
   placeLabel, relTime, moveIndex, counter, topicErrors, statementErrors, cleanTopic, cleanStatement, timeline,
   parseAuthHash, expiry, needsRefresh, refreshIn, reviewerSql, errorText, isMissingFeature, assistOutcome,
   issueTarget, draftNotes, assistTopic, NOT_CONFIGURED, remainingText, elapsed, verifyResult,
+  CATEGORY_LABEL, PICK_STATUS_LABEL, TIP_STATUS_LABEL, PICK_LIMITS, WEIRD_OFF, pickErrors,
+  cleanPick, pickBlock, picksForView, tipsForView, tipHost, pickFromTip, pickSaveError, pickTimeline,
 } from './reviewmodel.js';
+import { normaliseStoryUrl } from './community.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const KEY = 'gatecast:review-session';
@@ -42,6 +46,8 @@ const S = {
   assist: { off: null, claudeOff: null, status: null, busy: false, check: {}, verify: {}, draft: {} },
   editValues: null, noteDraft: '', draftUrl: null, // half-typed form values, kept across re-renders
   assistOpen: null, // null: open on wide screens, closed on narrow ones
+  // Weird news. weirdOff: a sentence when the migration is not applied. pickDraft: half-typed pick form values.
+  tips: [], picks: [], weirdOff: null, weirdError: null, pickDraft: null, editPick: false, pickActivity: {}, pickActivityOn: true,
 };
 
 /* ---------- Session ---------- */
@@ -141,6 +147,30 @@ async function loadCollector() {
     db('collector_runs?select=*&order=started_at.desc&limit=12'),
   ]);
   S.collector = st.ok && runs.ok && Array.isArray(st.data) ? { states: st.data, runs: runs.data || [] } : null;
+}
+
+// Tips waiting for a decision (never their address hash: reviewers are not granted that column) and every pick.
+const TIP_COLS = 'id,url,note,created_at,status';
+async function loadWeird() {
+  const [t, p] = await Promise.all([
+    db(`weird_tips?select=${TIP_COLS}&status=eq.new&order=created_at.asc&limit=300`),
+    db('weird_picks?select=*&order=updated_at.desc&limit=1000'),
+  ]);
+  if ((!t.ok && isMissingFeature(t.status, t.data)) || (!p.ok && isMissingFeature(p.status, p.data))) {
+    S.weirdOff = WEIRD_OFF; S.tips = []; S.picks = []; S.weirdError = null;
+    return;
+  }
+  S.weirdOff = null;
+  if (t.ok && Array.isArray(t.data)) S.tips = t.data;
+  if (p.ok && Array.isArray(p.data)) S.picks = p.data;
+  S.weirdError = !t.ok ? t.error : !p.ok ? p.error : null;
+}
+
+async function loadPickActivity(id) {
+  if (!S.pickActivityOn) return;
+  const r = await db('rpc/weird_pick_activity', { method: 'POST', body: { pick: id } });
+  if (r.ok) S.pickActivity[id] = Array.isArray(r.data) ? r.data : [];
+  else if (isMissingFeature(r.status, r.data)) S.pickActivityOn = false;
 }
 
 // The reviewer-console migration brings notes, activity, vote hiding and collector health. Ask once.
@@ -341,12 +371,16 @@ function renderNav() {
       <span>${esc(VIEWS[view].title)}</span>${n == null ? '' : `<span class="rv-nav__count num">${n}</span>`}</button></li>`;
   $('#nav').innerHTML = `<p class="rv-nav__group" id="nav-topics">Both sides</p>
     <ul class="rv-nav" aria-labelledby="nav-topics">${item('needs', c.needs)}${item('published', c.published)}${item('rejected', c.rejected)}${item('all', c.all)}</ul>
+    <p class="rv-nav__group" id="nav-weird">Weird news</p>
+    <ul class="rv-nav" aria-labelledby="nav-weird">${item('tips', S.weirdOff ? null : tipsForView(S.tips).length)}${item('picks', S.weirdOff ? null : S.picks.length)}</ul>
     <p class="rv-nav__group" id="nav-state">Statehouse</p>
     <ul class="rv-nav" aria-labelledby="nav-state">${item('votes', S.votesError ? null : S.votes.length)}${S.collector ? item('collector', null) : ''}</ul>`;
 }
 
 function rows() {
   if (S.view === 'votes') return S.votes.filter((v) => matchesVote(v, S.q));
+  if (S.view === 'tips') return tipsForView(S.tips, S.q);
+  if (S.view === 'picks') return picksForView(S.picks, S.q);
   if (S.view === 'collector') {
     const q = S.q.trim().toLowerCase();
     return (S.collector?.states || []).filter((s) => !q || s.state.toLowerCase().includes(q) || (STATE_NAMES[s.state] || '').toLowerCase().includes(q));
@@ -368,6 +402,19 @@ function voteRow(v) {
     <span class="rv-row__meta">${placeChip(v.state)}<span>${esc(v.chamber_name)}</span><span>${esc(fmtDate(v.voted_on))}</span>
       <span class="rv-pill">${v.passed ? 'Passed' : 'Failed'}</span>${v.hidden ? '<span class="rv-pill rv-pill--hidden">Hidden</span>' : ''}</span>`;
 }
+function tipRow(t) {
+  let path = '';
+  try { const u = new URL(t.url); path = u.pathname.length > 1 ? u.pathname : ''; } catch {}
+  return `<span class="rv-row__title rv-row__title--url">${esc(tipHost(t.url))}<span class="rv-muted">${esc(path.slice(0, 80))}${path.length > 80 ? '…' : ''}</span></span>
+    <span class="rv-row__meta"><span>sent ${esc(relTime(t.created_at))}</span>${t.note ? `<span class="rv-row__note">“${esc(t.note.slice(0, 90))}${t.note.length > 90 ? '…' : ''}”</span>` : '<span>no note</span>'}</span>`;
+}
+function pickRow(p) {
+  return `<span class="rv-row__title">${esc(p.title)}</span>
+    <span class="rv-row__meta">${pickPill(p.status)}<span>${esc(p.outlet)}</span><span>${esc(CATEGORY_LABEL[p.category] || p.category)}</span>
+      ${p.published ? `<span>${esc(fmtDate(p.published))}</span>` : ''}${p.rating ? `<span>weird ${esc(p.rating)}/5</span>` : ''}</span>`;
+}
+const pickPill = (s) => `<span class="rv-pill rv-pill--${esc(s)}">${esc(PICK_STATUS_LABEL[s] || s)}</span>`;
+
 function stateRow(s) {
   const r = s.last_result || {};
   const res = r.error ? `Error: ${r.error}` : r.started ? 'Started, not finished' : Number.isFinite(r.kept) ? `${r.kept} kept of ${r.votes_seen ?? 0} seen` : 'Not run yet';
@@ -378,19 +425,23 @@ function stateRow(s) {
 function renderList() {
   const def = VIEWS[S.view];
   const list = rows();
-  const total = S.view === 'votes' ? S.votes.length : S.view === 'collector' ? S.collector?.states.length ?? 0 : topicsForView(S.topics, S.view).length;
+  const total = S.view === 'votes' ? S.votes.length : S.view === 'collector' ? S.collector?.states.length ?? 0
+    : S.view === 'tips' ? tipsForView(S.tips).length : S.view === 'picks' ? S.picks.length : topicsForView(S.topics, S.view).length;
   const isTopics = 'status' in def;
+  const weird = S.view === 'tips' || S.view === 'picks';
   if (S.active >= list.length) S.active = list.length - 1;
-  const empty = S.q.trim() && total ? 'Nothing in this view matches your search.' : S.view === 'votes' && S.votesError ? `Couldn’t load votes: ${S.votesError}` : def.empty;
+  const empty = S.q.trim() && total ? 'Nothing in this view matches your search.' : S.view === 'votes' && S.votesError ? `Couldn’t load votes: ${S.votesError}`
+    : weird && S.weirdOff ? S.weirdOff : weird && S.weirdError ? `Couldn’t load ${def.title.toLowerCase()}: ${S.weirdError}` : def.empty;
   $('#list-pane').innerHTML = `<div class="rv-list__head">
       <h2 class="rv-list__title signage" id="list-title">${esc(def.title)} <span class="num rv-list__n">${list.length === total ? total : `${list.length} of ${total}`}</span></h2>
       ${isTopics ? '<button type="button" class="btn btn--primary rv-new" id="new-topic">New topic</button>' : ''}
+      ${S.view === 'picks' && !S.weirdOff ? '<button type="button" class="btn btn--primary rv-new" id="new-pick">New pick</button>' : ''}
     </div>
     ${S.view === 'votes' && !S.features.notes ? '<p class="rv-quiet">Until the reviewer-console migration is applied, this shows only what visitors see: nothing while the switch is off.</p>' : ''}
     ${list.length ? `<p class="rv-keys" id="list-keys"><kbd>j</kbd> <kbd>k</kbd> or <kbd>↑</kbd> <kbd>↓</kbd> to move, <kbd>Enter</kbd> to open</p>
     <ul class="rv-rows" id="rows" role="listbox" tabindex="0" aria-labelledby="list-title" aria-describedby="list-keys"${S.active >= 0 ? ` aria-activedescendant="row-${S.active}"` : ''}>
       ${list.map((r, i) => `<li role="option" id="row-${i}" class="rv-row${i === S.active ? ' is-active' : ''}" data-i="${i}" data-id="${esc(rowId(r))}" aria-selected="${rowId(r) === S.selected ? 'true' : 'false'}">
-        ${S.view === 'votes' ? voteRow(r) : S.view === 'collector' ? stateRow(r) : topicRow(r)}</li>`).join('')}
+        ${S.view === 'votes' ? voteRow(r) : S.view === 'collector' ? stateRow(r) : S.view === 'tips' ? tipRow(r) : S.view === 'picks' ? pickRow(r) : topicRow(r)}</li>`).join('')}
     </ul>` : `<p class="rv-empty">${esc(empty)}</p>`}`;
 }
 
@@ -409,12 +460,17 @@ async function select(id, { focus = true } = {}) {
   S.selected = id;
   S.creating = false;
   S.editTopic = false; S.editStatement = null; S.topicDraft = null; S.prefill = null; S.editValues = null; S.noteDraft = ''; S.draftUrl = null;
+  S.editPick = false; S.pickDraft = null;
   setPane('detail');
   renderList();
   renderDetail();
   if (focus) $('#detail-title')?.focus();
   if ('status' in VIEWS[S.view] && topic(id)) {
     await Promise.all([loadNotes(id), loadActivity(id), loadAssistStatus()]);
+    if (S.selected === id && !S.creating) renderDetail({ keepFocus: true });
+  }
+  if (S.view === 'picks' && pickById(id)) {
+    await loadPickActivity(id);
     if (S.selected === id && !S.creating) renderDetail({ keepFocus: true });
   }
 }
@@ -709,7 +765,8 @@ function collectorDetail(code) {
 function renderDetail({ keepFocus = false } = {}) {
   const el = $('#detail');
   const focusId = keepFocus ? document.activeElement?.id : null;
-  if (S.creating) el.innerHTML = newTopicDetail();
+  if (S.creating) el.innerHTML = S.view === 'picks' ? newPickDetail() : newTopicDetail();
+  else if (S.view === 'tips' || S.view === 'picks') el.innerHTML = weirdDetail();
   else if (S.view === 'votes') { const v = S.votes.find((x) => x.id === S.selected); el.innerHTML = v ? voteDetail(v) : emptyDetail('Choose a vote to see its record.'); }
   else if (S.view === 'collector') el.innerHTML = S.selected ? collectorDetail(S.selected) : emptyDetail('Choose a state to see how its last collection went.');
   else { const t = topic(S.selected); el.innerHTML = t ? topicDetail(t) : emptyDetail(S.topics.length ? 'Choose a topic from the list.' : 'No topics yet. Start one with New topic.'); }
@@ -841,6 +898,7 @@ async function setStatus(status, { ok, verb }) {
 }
 
 async function act(name, btn) {
+  if (/^(tip|pick)-|^(edit|cancel)-pick$/.test(name)) return weirdAct(name);
   const t = topic(S.selected);
   switch (name) {
     case 'back': setPane('list'); S.creating = false; renderDetail(); $('#rows')?.focus(); return;
@@ -975,6 +1033,234 @@ function focusIssue(t, issue) {
   $('#detail-title')?.focus();
 }
 
+/* ---------- Detail: tips and picks ---------- */
+
+const pickById = (id) => S.picks.find((p) => p.id === id) || null;
+const RATING_WORD = ['', 'Mildly odd', 'Pretty strange', 'Properly weird', 'Very weird', 'Totally bonkers'];
+const backTo = () => `<button type="button" class="btn btn--text rv-back" data-act="back">← Back to ${esc(VIEWS[S.view].title)}</button>`;
+
+function weirdDetail() {
+  if (S.weirdOff) return emptyDetail(S.weirdOff);
+  if (S.view === 'tips') {
+    const t = S.tips.find((x) => x.id === S.selected);
+    return t ? tipDetail(t) : emptyDetail(S.tips.length ? 'Choose a tip from the list.' : 'No tips waiting.');
+  }
+  const p = pickById(S.selected);
+  return p ? pickDetail(p) : emptyDetail(S.picks.length ? 'Choose a pick from the list.' : 'No picks yet. Start one with New pick.');
+}
+
+function tipDetail(t) {
+  const href = safeUrl(t.url);
+  const already = S.picks.find((p) => p.url === normaliseStoryUrl(t.url));
+  return `<div class="rv-ticket"><div class="rv-ticket__main">
+    ${backTo()}
+    <header class="rv-ticket__head">
+      <p class="rv-ticket__tags"><span class="rv-pill">${esc(TIP_STATUS_LABEL[t.status] || t.status)}</span><span class="rv-chip">${esc(tipHost(t.url))}</span></p>
+      <h2 class="rv-ticket__title" id="detail-title" tabindex="-1">Tip from the guestbook</h2>
+      <p class="rv-muted">Sent ${esc(abs(t.created_at))} (${when(t.created_at)})</p>
+    </header>
+    <section class="rv-block" aria-labelledby="tip-link-title">
+      <h3 id="tip-link-title">Link</h3>
+      <p class="rv-tip__url">${href ? ext(href, t.url) : esc(t.url)}</p>
+      <p class="rv-muted">Opens the outlet’s page in a new tab. Gatecast never opens it for you. Check it is a real outlet, the story is current, and the strangeness is in the situation, not in someone’s misfortune.</p>
+      ${already ? `<p class="rv-alert">This story is already a pick (${esc(PICK_STATUS_LABEL[already.status] || already.status)}).</p>` : ''}
+    </section>
+    <section class="rv-block" aria-labelledby="tip-note-title">
+      <h3 id="tip-note-title">Note from the visitor</h3>
+      ${t.note ? `<p class="rv-tip__note">${esc(t.note)}</p>` : '<p class="rv-quiet">No note.</p>'}
+      <p class="rv-muted">Visitors’ words are never published. A pick’s note is always yours.</p>
+    </section>
+  </div>
+  <div class="rv-actions" role="group" aria-label="Tip actions">
+    <button type="button" class="btn btn--primary" data-act="tip-accept">${already ? 'Accept and open the pick' : 'Accept and start a pick'}</button>
+    <button type="button" class="btn btn--ghost" data-act="tip-reject">Reject</button>
+    <p class="rv-actions__why">Accepting starts a pick draft with this link. Either way the tip leaves this list.</p>
+  </div></div>`;
+}
+
+function pickForm(p, { create = false } = {}) {
+  const base = p ? { ...p, rating: p.rating ?? '', note: p.note ?? '', published: p.published ?? '' }
+    : { url: '', title: '', outlet: '', published: '', category: 'other', rating: '', note: '' };
+  const v = { ...base, ...(S.pickDraft || {}) };
+  const opt = (val, label, cur) => `<option value="${esc(val)}"${String(cur) === String(val) ? ' selected' : ''}>${esc(label)}</option>`;
+  return `<form class="rv-form" id="pick-form" data-create="${create ? 1 : 0}" novalidate>
+    ${field('pk-url', 'Story link', `<input id="pk-url" name="url" type="url" inputmode="url" placeholder="https://" value="${esc(v.url)}" aria-describedby="pk-url-err">`, { hint: 'the outlet’s own https page' })}
+    ${field('pk-title', 'Headline', `<input id="pk-title" name="title" type="text" value="${esc(v.title)}" aria-describedby="pk-title-err pk-title-n">`, { hint: 'the outlet’s own words, unchanged', counterId: counterHTML('pk-title-n', v.title, PICK_LIMITS.title) })}
+    <div class="rv-form__row">
+      ${field('pk-outlet', 'Outlet', `<input id="pk-outlet" name="outlet" type="text" value="${esc(v.outlet)}" aria-describedby="pk-outlet-err">`, { hint: 'e.g. UPI' })}
+      ${field('pk-published', 'Published', `<input id="pk-published" name="published" type="date" value="${esc(v.published)}" aria-describedby="pk-published-err">`, { hint: 'by the outlet' })}
+    </div>
+    <div class="rv-form__row">
+      ${field('pk-category', 'Category', `<select id="pk-category" name="category" aria-describedby="pk-category-err">${Object.entries(CATEGORY_LABEL).map(([k, l]) => opt(k, l, v.category)).join('')}</select>`)}
+      ${field('pk-rating', 'Your weird rating', `<select id="pk-rating" name="rating" aria-describedby="pk-rating-err">${opt('', 'Unrated', v.rating)}${[1, 2, 3, 4, 5].map((n) => opt(n, `${n} of 5: ${RATING_WORD[n]}`, v.rating)).join('')}</select>`)}
+    </div>
+    ${field('pk-note', 'Editor’s note', `<textarea id="pk-note" name="note" rows="2" aria-describedby="pk-note-err pk-note-n">${esc(v.note)}</textarea>`, { hint: 'optional, your own words, one line; never the article’s text', counterId: counterHTML('pk-note-n', v.note, PICK_LIMITS.note) })}
+    <div class="rv-form__actions">
+      <button type="submit" class="btn btn--primary">${create ? 'Save draft' : 'Save pick'}</button>
+      <button type="button" class="btn btn--ghost" data-act="cancel-pick">Cancel</button>
+    </div>
+  </form>`;
+}
+
+function newPickDetail() {
+  return `<div class="rv-ticket rv-ticket--new"><div class="rv-ticket__main">
+    ${backTo()}
+    <header class="rv-ticket__head"><p class="rv-ticket__tags">${pickPill('draft')}</p>
+      <h2 class="rv-ticket__title" id="detail-title" tabindex="-1">New pick</h2>
+      <p class="rv-muted">A pick is a real story from a real outlet, with its own headline. Nothing is public until it is published.</p></header>
+    <section class="rv-block">${pickForm(null, { create: true })}</section>
+  </div></div>`;
+}
+
+function pickDetail(p) {
+  const href = safeUrl(p.url);
+  const why = pickBlock(p);
+  const tl = pickTimeline(p, S.pickActivityOn ? S.pickActivity[p.id] : undefined);
+  const actions = p.status === 'published'
+    ? `<button type="button" class="btn btn--primary" data-act="pick-withdraw">Withdraw</button>
+       <p class="rv-actions__why">Visitors see this pick. Withdraw it to take it off the front page.</p>`
+    : `<button type="button" class="btn btn--primary" data-act="pick-publish"${why ? ' disabled aria-describedby="pick-why"' : ''}>${p.status === 'withdrawn' ? 'Publish again' : 'Publish'}</button>
+       <button type="button" class="btn btn--text" data-act="pick-delete">Delete</button>
+       <p class="rv-actions__why" id="pick-why">${why ? esc(why) : 'Publishing puts it on the front page as an editor’s pick.'}</p>`;
+  return `<div class="rv-ticket"><div class="rv-ticket__main">
+    ${backTo()}
+    <header class="rv-ticket__head">
+      <p class="rv-ticket__tags">${pickPill(p.status)}<span class="rv-chip">${esc(CATEGORY_LABEL[p.category] || p.category)}</span></p>
+      <h2 class="rv-ticket__title" id="detail-title" tabindex="-1">${esc(p.title)}</h2>
+      <p class="rv-muted">${esc(p.outlet)}${p.published ? ` · ${esc(fmtDate(p.published))}` : ''} · Changed ${when(p.updated_at)}${p.published_at ? ` · Published ${esc(abs(p.published_at))}` : ''}</p>
+    </header>
+    <section class="rv-block" aria-labelledby="pick-story-title">
+      <div class="rv-block__head"><h3 id="pick-story-title">Story</h3>
+        ${S.editPick ? '' : '<button type="button" class="btn btn--text rv-btn--sm" data-act="edit-pick">Edit pick</button>'}</div>
+      ${S.editPick ? pickForm(p) : `
+        <p>${href ? ext(href, `Read it at ${p.outlet}`) : 'No valid link'}</p>
+        <dl class="rv-dl">
+          <dt>Note</dt><dd>${p.note ? esc(p.note) : '<span class="rv-quiet">No note.</span>'}</dd>
+          <dt>Your rating</dt><dd>${p.rating ? `${esc(p.rating)} of 5: ${esc(RATING_WORD[p.rating])}` : 'Unrated'}</dd>
+          <dt>Link</dt><dd class="rv-tip__url">${esc(p.url)}</dd>
+        </dl>`}
+    </section>
+    <section class="rv-block" aria-labelledby="pick-act-title">
+      <h3 id="pick-act-title">Activity</h3>
+      <ol class="rv-timeline">${tl.map((x) => `<li><span>${esc(x.text)}</span>${x.at ? ` <span class="rv-muted">${esc(abs(x.at))}</span>` : ''}</li>`).join('')}</ol>
+    </section>
+  </div>
+  <div class="rv-actions" role="group" aria-label="Pick actions">${actions}</div></div>`;
+}
+
+async function submitPick(form) {
+  const create = form.dataset.create === '1';
+  const f = Object.fromEntries(new FormData(form));
+  if (!showErrors(form, 'pk', pickErrors(f))) return;
+  const btn = $('button[type="submit"]', form);
+  btn.disabled = true;
+  const body = cleanPick(f);
+  const r = create ? await change('weird_picks', 'POST', body) : await change(`weird_picks?id=eq.${S.selected}`, 'PATCH', body);
+  btn.disabled = false;
+  if (!r.ok) return toast(`Couldn’t save the pick: ${pickSaveError(r.status, r.data)}`, { error: true });
+  S.pickDraft = null; S.editPick = false;
+  toast(create ? 'Pick saved as a draft. Publish it when it is ready.' : 'Pick saved');
+  await loadWeird();
+  if (create) {
+    S.view = 'picks'; S.q = ''; $('#search').value = '';
+    S.active = rows().findIndex((x) => x.id === r.data[0].id);
+    renderNav();
+    await select(r.data[0].id);
+    return;
+  }
+  await loadPickActivity(S.selected);
+  renderAll();
+  $('#pick-story-title')?.focus();
+}
+
+// Accept or reject a tip. Reviewers cannot read a tip's address hash, so the change asks for no row back and the
+// tip list is read again to confirm it left the queue.
+async function setTipStatus(tip, status) {
+  const btns = [...document.querySelectorAll('.rv-actions button')];
+  btns.forEach((b) => { b.disabled = true; });
+  const r = await db(`weird_tips?id=eq.${tip.id}`, { method: 'PATCH', body: { status }, prefer: 'return=minimal' });
+  await loadWeird();
+  const stillNew = S.tips.some((x) => x.id === tip.id);
+  if (!r.ok || stillNew) {
+    btns.forEach((b) => { b.disabled = false; });
+    toast(`Couldn’t ${status === 'accepted' ? 'accept' : 'reject'} the tip: ${r.ok ? 'The database made no change. Check that you are still a reviewer.' : r.error}`, { error: true });
+    return false;
+  }
+  return true;
+}
+
+async function weirdAct(name) {
+  const tip = S.view === 'tips' ? S.tips.find((x) => x.id === S.selected) : null;
+  const pick = S.view === 'picks' ? pickById(S.selected) : null;
+  switch (name) {
+    case 'tip-accept': {
+      if (!tip || !(await setTipStatus(tip, 'accepted'))) return;
+      const existing = S.picks.find((p) => p.url === normaliseStoryUrl(tip.url));
+      S.view = 'picks'; S.q = ''; $('#search').value = '';
+      if (existing) {
+        toast('Tip accepted. This story was already a pick.');
+        renderNav();
+        S.active = rows().findIndex((x) => x.id === existing.id);
+        await select(existing.id);
+        return;
+      }
+      S.creating = true; S.selected = null; S.active = -1; S.editPick = false; S.pickDraft = pickFromTip(tip);
+      setPane('detail');
+      renderAll();
+      $('#pk-title')?.focus();
+      toast('Tip accepted. Add the headline, outlet and date from the story, then save the draft.');
+      return;
+    }
+    case 'tip-reject': {
+      if (!tip) return;
+      const at = rows().findIndex((x) => x.id === tip.id);
+      if (!(await setTipStatus(tip, 'rejected'))) return;
+      toast('Tip rejected');
+      const next = rows()[Math.min(at, rows().length - 1)];
+      S.selected = next?.id ?? null;
+      S.active = next ? rows().indexOf(next) : -1;
+      renderAll();
+      if (!next) setPane('list');
+      ($('#detail-title') || $('#rows'))?.focus();
+      return;
+    }
+    case 'edit-pick': S.editPick = true; S.pickDraft = null; renderDetail(); $('#pk-url')?.focus(); return;
+    case 'cancel-pick':
+      S.pickDraft = null;
+      if (S.creating) { S.creating = false; setPane('list'); renderDetail(); $('#new-pick')?.focus(); return; }
+      S.editPick = false; renderDetail(); $('#pick-story-title')?.focus(); return;
+    case 'pick-publish':
+    case 'pick-withdraw': {
+      if (!pick) return;
+      const status = name === 'pick-publish' ? 'published' : 'withdrawn';
+      document.querySelectorAll('.rv-actions button').forEach((b) => { b.disabled = true; });
+      const r = await change(`weird_picks?id=eq.${pick.id}`, 'PATCH', { status });
+      if (!r.ok) { toast(`Couldn’t ${status === 'published' ? 'publish' : 'withdraw'} the pick: ${pickSaveError(r.status, r.data)}`, { error: true }); renderDetail(); return; }
+      toast(status === 'published' ? 'Published: it is on the front page' : 'Withdrawn from the front page');
+      await loadWeird();
+      await loadPickActivity(pick.id);
+      S.active = rows().findIndex((x) => x.id === pick.id);
+      renderAll();
+      $('#detail-title')?.focus();
+      return;
+    }
+    case 'pick-delete': {
+      if (!pick) return;
+      const yes = await ask({ title: `Delete “${pick.title}”?`, body: '<p>The pick is deleted for good. Its history stays in the log.</p>', confirm: 'Delete pick', danger: true });
+      if (yes == null) return;
+      const r = await change(`weird_picks?id=eq.${pick.id}`, 'DELETE');
+      if (!r.ok) return toast(`Couldn’t delete the pick: ${pickSaveError(r.status, r.data)}`, { error: true });
+      toast('Pick deleted');
+      S.selected = null; S.active = -1; setPane('list');
+      await loadWeird();
+      renderAll();
+      $('#rows')?.focus();
+      return;
+    }
+    default:
+  }
+}
+
 /* ---------- Events ---------- */
 
 function wire() {
@@ -992,6 +1278,11 @@ function wire() {
 
   const listPane = $('#list-pane');
   listPane.addEventListener('click', (e) => {
+    if (e.target.closest('#new-pick')) {
+      S.creating = true; S.selected = null; S.pickDraft = null; S.editPick = false;
+      setPane('detail'); renderList(); renderDetail(); $('#pk-url')?.focus();
+      return;
+    }
     if (e.target.closest('#new-topic')) {
       S.creating = true; S.selected = null; S.topicDraft = null;
       setPane('detail'); renderList(); renderDetail(); $('#nt-title')?.focus();
@@ -1028,12 +1319,15 @@ function wire() {
     else if (f.id === 'st-form' || f.id === 'se-form') submitStatement(f);
     else if (f.id === 'note-form') submitNote(f);
     else if (f.id === 'draft-form') submitDraft(f);
+    else if (f.id === 'pick-form') submitPick(f);
   });
   // toggle does not bubble, so listen while it travels down. Remembers whether the assistant is open.
   detail.addEventListener('toggle', (e) => { if (e.target.id === 'assist') S.assistOpen = e.target.open; }, true);
   detail.addEventListener('input', (e) => {
     const el = e.target;
-    const max = { title: LIMITS.title, neutral_fact: LIMITS.neutral_fact, quote: LIMITS.quote, body: LIMITS.note }[el.name];
+    const pickForm = el.form?.id === 'pick-form';
+    const max = pickForm ? { title: PICK_LIMITS.title, note: PICK_LIMITS.note }[el.name]
+      : { title: LIMITS.title, neutral_fact: LIMITS.neutral_fact, quote: LIMITS.quote, body: LIMITS.note }[el.name];
     const out = document.getElementById(`${el.id}-n`);
     if (max && out) { const c = counter(el.value, max); out.textContent = c.text; out.classList.toggle('is-over', c.over); }
     // Keep what has been typed, so a re-render (a toast, a verify result) never wipes a half-filled form.
@@ -1044,6 +1338,7 @@ function wire() {
     else if (id === 'se-form') S.editValues = { ...(S.editValues || {}), [el.name]: el.value };
     else if (id === 'note-form') S.noteDraft = el.value;
     else if (id === 'draft-form') S.draftUrl = el.value;
+    else if (id === 'pick-form') S.pickDraft = { ...(S.pickDraft || {}), [el.name]: el.value };
   });
 
   $('#signout').addEventListener('click', signOut);
@@ -1070,7 +1365,7 @@ async function start() {
   if (!me.ok) return showGate('signin', { error: `Couldn’t check your reviewer access: ${me.error}` });
   if (!me.data?.length) return showGate('not-reviewer', { email: S.user.email });
 
-  await Promise.all([loadTopics(), loadVotes(), loadCollector(), detectFeatures()]);
+  await Promise.all([loadTopics(), loadVotes(), loadCollector(), detectFeatures(), loadWeird()]);
   $('#gate').hidden = true;
   $('#app').hidden = false;
   $('#who').textContent = S.user.email || '';

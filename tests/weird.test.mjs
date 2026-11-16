@@ -33,8 +33,9 @@ async function fetchImpl(url) {
   return { ok: false, status: 404, headers: headers('text/html'), text: async () => '' };
 }
 const lookupImpl = async () => [{ address: '93.184.216.34', family: 4 }];
-const OPTS = { fetchImpl, lookupImpl, now, pageCache: false };
+const OPTS = { fetchImpl, lookupImpl, now, pageCache: false, dbPicks: [] };
 const get = (params) => new URLSearchParams(params);
+const by0 = (out, start) => out.items.find((x) => x.title.startsWith(start));
 
 test('parseWeirdFeed keeps parseFeed\'s fields plus the feed\'s own category labels, never the outlet\'s text', () => {
   const items = parseWeirdFeed(fixture('smithsonian-smart-news.rss'));
@@ -104,29 +105,29 @@ test('/api/weird answer: contract shape, picks first, then newest; held items ne
   assert.equal(out.items.find((x) => x.title.startsWith('Hundreds gather')).image, null);
   assert.ok(!pagesRead.some((u) => u.includes('move-the-bean')));
 
-  // Then the regular outlets, newest first, then the review outlet, at most 3, without pictures.
+  // Then the regular outlets, newest day first, then the review outlet, without pictures. Outside UPI a story needs a
+  // weirdness signal: the cicada, the fog festival, the umbrellas and two Oddity Central stories have none.
   const rest = out.items.slice(11);
   assert.deepEqual(rest.map((x) => x.title), [
     'Strange lights over the desert baffle airline pilots',
     'Bear raids kitchen cabinets in Tennessee cabin',
     "Octopus seen 'punching' fish that crowd its hunting spot",
-    'This Tiny Cicada Is the Noisiest Insect Ever Measured',
-    'The Seaside Town That Throws a Festival for Its Fog',
     'Giant pumpkin weighing 2,000 pounds sets state record',
     'A Mysterious Stone Circle Puzzles Archaeologists in Scotland',
-    'Inside a Library of Lost Umbrellas',
     'Lottery player wins $100,000 with fortune cookie numbers', // the newer copy of a repeated address
     'Town council bans garden gnomes from front lawns',
-    'Village builds a museum for one very old radio',
+    'Collector owns 4,000 rubber ducks', // same day as the loaf, but stranger, so first
     'Restaurant serves soup in a hollowed-out loaf the size of a car tyre',
-    'Farmer grows pumpkin shaped like a teapot',
   ]);
-  assert.ok(rest.slice(-3).every((x) => x.outlet === 'Oddity Central' && x.image === null));
+  assert.ok(rest.slice(-2).every((x) => x.outlet === 'Oddity Central' && x.image === null));
+  // Tracking parameters are removed from the address.
+  assert.equal(by0(out, 'Lottery').url, 'https://www.upi.com/Odd_News/2026/11/12/fixture-fortune-cookie-lottery/1004/');
+  assert.ok(out.items.every((x) => !/utm_/.test(x.url)));
   assert.ok(!pagesRead.some((u) => u.includes('odditycentral')));
 
   // Held or dropped: arrests, a child with a crime, a mummy, a tapeworm, a named private person gone viral. Filtered:
   // Live Science's space story. Too old: the October story. Repeated: the same address with tracking parameters.
-  for (const gone of ['arrested', 'Teen charged', 'Mummified', 'tapeworm', 'goes viral', 'exoplanet', 'Old story', 'numbers from fortune cookie']) {
+  for (const gone of ['arrested', 'Teen charged', 'Mummified', 'tapeworm', 'goes viral', 'exoplanet', 'Old story', 'numbers from fortune cookie', 'Cicada', 'Fog', 'Umbrellas', 'radio', 'teapot']) {
     assert.ok(!titles.some((t) => t.includes(gone)), gone);
   }
   assert.ok(!JSON.stringify(out).includes('NEVER-SHOW'));
@@ -139,13 +140,11 @@ test('/api/weird answer: contract shape, picks first, then newest; held items ne
   assert.equal(by('Giant pumpkin').video, false);
   assert.equal(by('Giant pumpkin').category, 'records');
   assert.equal(by('Giant pumpkin').image, 'https://cdnph.upi.com/fixture/pumpkin.jpg');
-  assert.equal(by('This Tiny Cicada').category, 'animals');
   assert.equal(by('A Mysterious Stone').category, 'unexplained');
   assert.equal(by('Strange lights').category, 'unexplained');
-  assert.equal(by('The Seaside Town').category, 'weather');
   assert.equal(by('Town council bans').category, 'laws');
-  assert.equal(by('Inside a Library').category, 'other');
-  assert.equal(by('The Seaside Town').image, 'https://img.atlasobscura.com/fixture/fog.jpg');
+  assert.equal(by('Lottery player').category, 'other');
+  assert.equal(by('Collector owns').category, 'animals');
   assert.equal(by('Calif. coast').category, 'weather');
 
   // Category counts are for the returned set.
@@ -155,7 +154,7 @@ test('/api/weird answer: contract shape, picks first, then newest; held items ne
 
   // Every source is listed with ok and how many of its items are in the answer.
   const src = Object.fromEntries(out.sources.map((s) => [s.name, s]));
-  assert.equal(out.sources.length, sourceFile.sources.length);
+  assert.equal(out.sources.length, sourceFile.sources.filter((s) => s.enabled !== false).length);
   assert.deepEqual(src.UPI, { name: 'UPI', ok: true, count: 11 + 4 });
   assert.equal(src['Sky News'].ok, false);
   assert.equal(src.SoraNews24.ok, false);
@@ -167,14 +166,26 @@ test('?debug=1 adds counts per rule and per source, and nothing else about what 
   const out = await weirdFor(get({ limit: '60', debug: '1' }), OPTS);
   assert.deepEqual(out.held, { H1: 1, H2: 1, H3: 1, H5: 2, H7: 1, H8: 1 });
   const rows = Object.fromEntries(out.debug.sources.map((s) => [s.name, s]));
-  assert.deepEqual(rows.UPI, { name: 'UPI', ok: true, status: 200, error: null, items: 9, kept: 6, filtered: 0, old: 1, held: 2 });
-  assert.deepEqual(rows['Live Science'], { name: 'Live Science', ok: true, status: 200, error: null, items: 4, kept: 2, filtered: 1, old: 0, held: 1 });
+  assert.deepEqual(rows.UPI, {
+    name: 'UPI', enabled: true, stale: null, ok: true, status: 200, error: null, items: 9, kept: 6, shown: 4, old: 1, filtered: 0, listicle: 0, held: 2, dull: 0,
+    labels: { 'Odd News': 2 },
+  });
+  assert.deepEqual(rows['Live Science'], {
+    name: 'Live Science', enabled: true, stale: null, ok: true, status: 200, error: null, items: 4, kept: 2, shown: 2, old: 0, filtered: 1, listicle: 0, held: 1, dull: 0,
+    labels: { 'Strange news': 2, Space: 1, Animals: 1 },
+  });
+  assert.equal(rows['Smithsonian Magazine'].dull, 1);
+  assert.equal(rows['Atlas Obscura'].dull, 2);
+  assert.equal(rows['Oddity Central'].stale, '2026-11-16');
+  assert.equal(rows.NDTV.enabled, false);
+  // Each item carries its weirdness score, in debug only.
+  assert.ok(out.items.every((x) => Number.isInteger(x.weirdness)));
   assert.equal(rows['Sky News'].status, 503);
   assert.equal(rows['Sky News'].error, 'http');
   assert.equal(rows.SoraNews24.error, 'timeout');
   assert.equal(rows['Mental Floss'].error, 'not a feed');
   assert.equal(rows.NDTV.error, 'http');
-  assert.deepEqual(out.debug.picks, { listed: 13, shown: 11, expired: 0, held: 2, invalid: 0 });
+  assert.deepEqual(out.debug.picks, { listed: 13, fromDb: 0, shown: 11, expired: 0, held: 2, invalid: 0 });
   // No held headline or address leaks into the debug answer.
   const json = JSON.stringify(out);
   for (const gone of ['arrested', 'Teen charged', 'Mummified', 'tapeworm', 'goes viral', 'cowgirl', 'parakeet']) assert.ok(!json.includes(gone), gone);
@@ -182,6 +193,9 @@ test('?debug=1 adds counts per rule and per source, and nothing else about what 
   const plain = await weirdFor(get({}), OPTS);
   assert.equal(plain.held, undefined);
   assert.equal(plain.debug, undefined);
+  assert.ok(plain.items.every((x) => !('weirdness' in x)));
+  // A disabled source is not listed for visitors.
+  assert.ok(!plain.sources.some((s) => s.name === 'NDTV'));
 });
 
 test('limit and category narrow the answer; counts follow the returned set', async () => {
@@ -200,8 +214,18 @@ test('limit and category narrow the answer; counts follow the returned set', asy
 test('a feed answering many stories is capped per outlet; picks are exempt', async () => {
   const many = Array.from({ length: 14 }, (_, i) => `<item><title>Fixture oddity number ${i} about item ${'abcdefghijklmn'[i]} unique words ${i * 7}</title><link>https://www.atlasobscura.com/articles/fixture-${i}</link><pubDate>${new Date(now - (i + 1) * 3600e3).toUTCString()}</pubDate></item>`).join('');
   const sources = [normaliseSource({ id: 'a', name: 'Atlas Obscura', home: 'https://www.atlasobscura.com/', feed: 'https://www.atlasobscura.com/feeds/articles', images: false })];
-  const r = await loadRound({ fetchImpl: async () => ({ ok: true, status: 200, text: async () => `<rss><channel>${many}</channel></rss>` }), now, sources, picks: [] });
+  const feed = async () => ({ ok: true, status: 200, text: async () => `<rss><channel>${many}</channel></rss>` });
+  const r = await loadRound({ fetchImpl: feed, now, sources, picks: [], dbPicks: [] });
   assert.equal(r.pool.length, weird.LIMITS.perOutlet);
+  const capped = await loadRound({ fetchImpl: feed, now, sources: [{ ...sources[0], cap: 3 }], picks: [], dbPicks: [] });
+  assert.equal(capped.pool.length, 3);
+  assert.equal(capped.report[0].shown, 3);
+  const review = await loadRound({ fetchImpl: feed, now, sources: [{ ...sources[0], review: true }], picks: [], dbPicks: [] });
+  assert.equal(review.pool.length, weird.LIMITS.perReviewOutlet);
+  const off = await loadRound({ fetchImpl: feed, now, sources: [{ ...sources[0], enabled: false }], picks: [], dbPicks: [] });
+  assert.equal(off.pool.length, 0);
+  assert.equal(off.report[0].items, 14); // read for debug, never used
+  assert.equal(off.anyOk, false);
 });
 
 test('picks stop showing after 21 days; with every feed down and no picks the endpoint fails (502)', async () => {
@@ -210,9 +234,9 @@ test('picks stop showing after 21 days; with every feed down and no picks the en
   assert.equal(items.length, 0);
   assert.equal(stats.expired, 13);
   const down = async () => { throw new Error('refused'); };
-  await assert.rejects(weirdFor(get({}), { fetchImpl: down, lookupImpl, now: later }), /all feeds failed/);
+  await assert.rejects(weirdFor(get({}), { fetchImpl: down, lookupImpl, now: later, dbPicks: [] }), /all feeds failed/);
   // Feeds down but picks still fresh: the picks are served.
-  const out = await weirdFor(get({}), { fetchImpl: down, lookupImpl, now });
+  const out = await weirdFor(get({}), { fetchImpl: down, lookupImpl, now, dbPicks: [] });
   assert.equal(out.items.length, 11);
   assert.ok(out.sources.every((s) => !s.ok));
 });
@@ -250,7 +274,7 @@ test('respond reads og:image only on the outlet\'s own site and only when its sw
     read.push(url);
     return { ok: true, status: 200, headers: headers('text/html'), text: async () => '<head><meta property="og:image" content="https://cdn.example.com/og.jpg"></head>' };
   };
-  const r = await loadRound({ fetchImpl: fi, now, sources, picks: [] });
+  const r = await loadRound({ fetchImpl: fi, now, sources, picks: [], dbPicks: [] });
   const out = await respond(r, parseQuery(get({})), { fetchImpl: fi, lookupImpl, pageCache: false });
   const img = Object.fromEntries(out.items.map((x) => [x.url, x.image]));
   assert.equal(img['https://on.example.com/story'], 'https://on.example.com/thumb.jpg');
@@ -260,23 +284,31 @@ test('respond reads og:image only on the outlet\'s own site and only when its sw
   assert.deepEqual(read, []);
 });
 
-test('data/weird-sources.json: https feeds, unique ids, unverified, no non-commercial feeds, review outlets without pictures', () => {
+test('data/weird-sources.json: https feeds, unique ids, checked notes, no non-commercial feeds, review outlets without pictures', () => {
   const ids = new Set();
-  assert.equal(sourceFile.checked, null);
+  assert.equal(sourceFile.checked, '2026-11-16');
   for (const s of sourceFile.sources) {
     assert.ok(s.id && !ids.has(s.id), s.id);
     ids.add(s.id);
     assert.ok(s.name && /^https:\/\//.test(s.home) && /^https:\/\//.test(s.feed), s.id);
     assert.equal(typeof s.images, 'boolean', s.id);
     assert.equal(typeof s.licence, 'string', s.id);
-    assert.equal(s.checked, null, s.id);
+    assert.equal(typeof s.checked, 'string', s.id);
+    assert.ok(Number.isFinite(s.minWeirdness) && s.minWeirdness >= 0, s.id);
+    if (s.id !== 'upi-odd') assert.ok(s.minWeirdness >= 1, s.id); // only the odd-news desk runs ungated
+    if (s.cap !== undefined) assert.ok(Number.isInteger(s.cap) && s.cap > 0, s.id);
     assert.equal(typeof s.categoryHints, 'object', s.id);
     for (const v of Object.values(s.categoryHints)) assert.ok(CATEGORIES.includes(v), `${s.id} ${v}`);
     if (s.review) assert.equal(s.images, false, s.id);
     assert.ok(!/guardian|npr\.org/i.test(s.feed + s.home), s.id);
   }
   assert.deepEqual(sourceFile.sources.filter((s) => s.review).map((s) => s.id), ['odditycentral', 'ndtv-offbeat']);
-  for (const id of ['livescience', 'soranews24']) assert.ok(sourceFile.sources.find((s) => s.id === id).filter, id);
+  const byId = Object.fromEntries(sourceFile.sources.map((s) => [s.id, s]));
+  assert.ok(byId.livescience.filter);
+  assert.deepEqual(['mentalfloss', 'smithsonian-smartnews', 'livescience', 'soranews24'].map((id) => byId[id].cap), [3, 3, 3, 2]);
+  assert.equal(byId['ndtv-offbeat'].enabled, false);
+  assert.equal(byId['sky-offbeat'].stale, '2026-11-16');
+  assert.equal(byId.odditycentral.stale, '2026-11-16');
 });
 
 test('data/weird-picks.json: real UPI stories, ratings and notes left to the owner, all marked seeded', () => {
@@ -316,4 +348,87 @@ test('api/weird.js answers 200 with the cache header, or 502', async () => {
     assert.equal(bad.code, 502);
     assert.deepEqual(bad.body, { error: 'upstream unavailable' });
   } finally { weird.weirdFor = orig; }
+});
+
+test('weirdness: a deterministic score from the headline, address and feed labels', () => {
+  const { weirdness } = weird;
+  const s = (title, extra = {}) => weirdness({ title, ...extra });
+  assert.equal(s('Hera spacecraft snaps photos of Mars moon'), 0);
+  assert.equal(s('Altdorfer landscape painting returns to museum'), 0);
+  assert.equal(s('Scientists discover new protein in plant roots'), 0);
+  assert.equal(s('In 2026, the town held its 100th parade'), 0); // a year is not an unusual number
+  assert.equal(s('Fox interrupts professional soccer game in Turkey'), 4); // animal loose + animal at a human place
+  assert.equal(s('3,000 tarantulas found in suitcase at airport'), 4); // number of animals + animal at a human place
+  assert.equal(s('Archaeologists find 8,000 frog bones in ancient pit'), 2);
+  assert.equal(s('A Mysterious Stone Circle Puzzles Archaeologists in Scotland'), 2);
+  assert.equal(s("Hundreds gather to attempt to 'move The Bean' in Chicago"), 1); // a quoted phrase
+  assert.equal(s("British town crier is the world's loudest woman"), 2); // a record
+  assert.equal(s('Ramen shop opens'), 0);
+  assert.equal(s('Ramen shop opens', { categories: ['Weird'] }), 1); // the outlet's own label
+  assert.equal(s('Ramen shop opens', { url: 'https://example.com/strange-news/ramen' }), 1); // the outlet's section in the address
+  assert.equal(s('Ramen shop opens', { url: 'https://example.com/strange-news/ramen', categories: ['Weird'] }), 1); // counted once
+  // Same input, same score.
+  assert.equal(s('Escaped piglets detained for \'fleeing and squealing\' in S.C.'), s('Escaped piglets detained for \'fleeing and squealing\' in S.C.'));
+});
+
+test('isListicle: evergreen lists, quizzes and explainers', () => {
+  for (const t of ["10 Old-Fashioned Words for Someone Who's Single", "Quiz: Can You Name Ohio's 7 Largest Cities?", '50 Funny Puns About Cheese',
+    '4 American Mountain Towns to Visit', 'The Most Popular Fast-Food Chain the Year You Were Born', 'Why Do We Call It a Hat Trick?',
+    'Things You Never Knew About Lighthouses']) assert.ok(weird.isListicle(t), t);
+  for (const t of ['3,000 tarantulas found in suitcase at airport', 'Fox interrupts professional soccer game in Turkey',
+    'Giant pumpkin weighing 2,000 pounds sets state record']) assert.ok(!weird.isListicle(t), t);
+});
+
+test('a general outlet: listicles and stories with no weirdness signal do not run; strangest first within a day', async () => {
+  const day = (h) => new Date(Date.UTC(2026, 10, 16, h)).toUTCString();
+  const items = [
+    ['10 Old-Fashioned Words for Someone Who\'s Single', 15], ['Hera spacecraft snaps photos of Mars moon', 14],
+    ['Goat wanders into grocery store and eats lettuce', 13], ['Mysterious hum puzzles town', 16], ['Quiz: Name these rivers', 12],
+  ].map(([t, h], i) => `<item><title>${t}</title><link>https://www.mentalfloss.com/posts/x${i}</link><pubDate>${day(h)}</pubDate></item>`).join('');
+  const sources = [normaliseSource({ id: 'mf', name: 'Mental Floss', home: 'https://www.mentalfloss.com/', feed: 'https://www.mentalfloss.com/feed', images: false, minWeirdness: 2, cap: 3, listicles: false })];
+  const r = await loadRound({ fetchImpl: async () => ({ ok: true, status: 200, text: async () => `<rss><channel>${items}</channel></rss>` }), now: Date.UTC(2026, 10, 16, 20), sources, picks: [], dbPicks: [] });
+  // The goat (4) beats the hum (2) on the same day although the hum is newer.
+  assert.deepEqual(r.pool.map((x) => x.title), ['Goat wanders into grocery store and eats lettuce', 'Mysterious hum puzzles town']);
+  assert.deepEqual([r.report[0].listicle, r.report[0].dull, r.report[0].kept], [2, 1, 2]);
+});
+
+test('database picks: reviewer-approved, merged with the file, the database wins on the same address; failure is harmless', async () => {
+  const filePick = pickFile.picks.find((p) => p.title.startsWith('Sheep on the lam'));
+  const merged = weird.mergePicks(pickFile.picks, [
+    { url: filePick.url + '?utm_source=x', title: filePick.title, outlet: 'UPI', published: filePick.published, category: 'animals', rating: 5, note: 'Owner approved.' },
+  ]);
+  assert.equal(merged.length, 13);
+  assert.equal(merged[0].seeded, false);
+  // The database's copy of the sheep pick was approved by a reviewer: the children hold rule defers to that.
+  const { items } = pickItems(merged, weird.SOURCES, now, {});
+  const sheep = items.find((x) => x.title.startsWith('Sheep on the lam'));
+  assert.equal(sheep.rating, 5);
+  assert.equal(sheep.note, 'Owner approved.');
+  assert.equal(sheep.url, filePick.url);
+
+  // Wired through loadDbPicks: the Supabase REST endpoint with the publishable key, read through fetchImpl.
+  const seen = [];
+  const fi = async (url, opts) => {
+    if (url.includes('/rest/v1/weird_picks')) {
+      seen.push(opts.headers.apikey);
+      return { ok: true, status: 200, json: async () => [{ url: 'https://www.upi.com/Odd_News/2026/11/14/db-pick/9/', title: 'Llama elected honorary mayor of mountain town', outlet: 'UPI', published: '2026-11-14', category: 'people', rating: 4, note: 'A reviewer pick.' }] };
+    }
+    throw new Error('offline');
+  };
+  const out = await weirdFor(get({ debug: '1' }), { fetchImpl: fi, lookupImpl, now, dbPicks: undefined });
+  assert.equal(seen.length, 1);
+  assert.match(seen[0], /^sb_publishable_/);
+  const db = out.items.find((x) => x.title.startsWith('Llama elected'));
+  assert.equal(db.pick, true);
+  assert.equal(db.rating, 4);
+  assert.equal(out.debug.picks.fromDb, 1);
+  // The table missing (404) or the database down: the file's picks still show.
+  const missing = await weirdFor(get({}), { fetchImpl: async (url) => (url.includes('/rest/v1/') ? { ok: false, status: 404, json: async () => ({}) } : Promise.reject(new Error('offline'))), lookupImpl, now, dbPicks: undefined });
+  assert.equal(missing.items.length, 11);
+});
+
+test('cleanUrl removes tracking parameters only', () => {
+  assert.equal(weird.cleanUrl('https://www.upi.com/a/?utm_source=rss&id=3&fbclid=x&gclid=y&mc_cid=z'), 'https://www.upi.com/a/?id=3');
+  assert.equal(weird.cleanUrl('https://www.upi.com/a/'), 'https://www.upi.com/a/');
+  assert.equal(weird.cleanUrl('not a url'), 'not a url');
 });

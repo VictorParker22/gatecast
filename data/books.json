@@ -1,0 +1,425 @@
+{
+  "comment": "The Stacks (library.html). Real, published books chosen by the editor. Descriptions are our own words, written for Gatecast, not publisher blurbs. 'year' is the first publication in book form, from general knowledge, to be checked against Open Library. 'olWork' / 'olEdition' are Open Library IDs a research pass read from openlibrary.org page addresses in web-search results; they were NOT fetched (openlibrary.org was unreachable from the build sandbox), so 'olVerified' is false and the page links to an Open Library search instead until /api/book-covers confirms a record. 'caveat' records a known, published dispute about the book's accuracy or fairness; 'contentNote' warns about what the book describes. True-crime shelves are chosen for the investigation and the victims, never to make killers famous.",
+  "checked": "2026-11-16",
+  "shelves": [
+    { "id": "crime", "name": "True Crime", "chip": "True crime", "object": "lens", "note": "Real cases, told through the people who investigated, prosecuted and wrote them down." },
+    { "id": "serial", "name": "Serial Killers · Case Files", "chip": "Serial killers", "object": "file", "note": "How investigators caught them. We keep the focus on the cases and the victims, not the killers." },
+    { "id": "unsolved", "name": "Unsolved Mysteries", "chip": "Unsolved mysteries", "object": "candle", "note": "Cases and questions that still have no settled answer, or took decades to get one." },
+    { "id": "history", "name": "Weird History", "chip": "Weird history", "object": "glass", "note": "Manias, disasters and odd chapters of the past that really happened." },
+    { "id": "science", "name": "Strange Science", "chip": "Strange science", "object": "flask", "note": "Bodies, brains, poisons and elements, from writers who make lab work readable." },
+    { "id": "cults", "name": "Cults & Cons", "chip": "Cults & cons", "object": "hat", "note": "Swindles, scams and groups that took people in, and how they came apart." }
+  ],
+  "books": [
+    {
+      "id": "in-cold-blood", "shelf": "crime", "title": "In Cold Blood", "authors": ["Truman Capote"], "year": 1966,
+      "description": "In November 1959 four members of the Clutter family were killed in their farmhouse in Holcomb, Kansas. Capote spent years with the town and the detectives, then followed the two men convicted through their trial and appeals.",
+      "tags": ["Kansas", "1959", "Investigation"],
+      "contentNote": "Describes real violent crimes, including the murder of a family, and executions.",
+      "caveat": "Its accuracy is disputed: Capote invented or rearranged some scenes, including the closing one, and the investigators’ own files differ from parts of his account. First serialised in 1965.",
+      "olWork": "OL1992198W", "olEdition": "OL1398670M", "olVerified": false
+    },
+    {
+      "id": "the-executioners-song", "shelf": "crime", "title": "The Executioner’s Song", "authors": ["Norman Mailer"], "year": 1979,
+      "description": "In July 1976 Gary Gilmore killed two young men, Max Jensen and Ben Bushnell, in Utah, then refused to fight his death sentence. Mailer rebuilds the months around the case from interviews and records.",
+      "tags": ["Utah", "Death penalty", "Trial"],
+      "contentNote": "Describes real killings and an execution.",
+      "caveat": "Written as a “non-fiction novel” with reconstructed dialogue, and centred far more on the killer than on the two men he killed.",
+      "olWork": "OL10426574W", "olEdition": null, "olVerified": false
+    },
+    {
+      "id": "midnight-in-the-garden-of-good-and-evil", "shelf": "crime", "title": "Midnight in the Garden of Good and Evil", "authors": ["John Berendt"], "year": 1994,
+      "description": "In 1981 a wealthy antiques dealer in Savannah, Georgia, shot a young man inside his mansion and was tried for murder four times. Berendt sets the trials among portraits of the city’s society and its eccentrics.",
+      "tags": ["Savannah", "Trials", "Eccentrics"],
+      "contentNote": "Describes a real killing.",
+      "caveat": "Berendt has acknowledged compressing the timeline and placing himself in scenes he did not witness.",
+      "olWork": null, "olEdition": "OL1396531M", "olVerified": false
+    },
+    {
+      "id": "the-devil-in-the-white-city", "shelf": "crime", "title": "The Devil in the White City", "authors": ["Erik Larson"], "year": 2003,
+      "description": "Chicago, 1893: the architect Daniel Burnham races to build the World’s Fair while H. H. Holmes uses the crowds it draws to find victims. Larson builds both stories from letters, records and newspapers of the time.",
+      "tags": ["Chicago", "World’s Fair", "1890s"],
+      "contentNote": "Describes real murders.",
+      "caveat": "Historians say the “murder castle” legend and the large victim counts often given for Holmes come from sensational newspapers of the time; his confirmed victims are far fewer. Some scenes are reconstructed.",
+      "olWork": "OL20262W", "olEdition": null, "olVerified": false, "isbn13": "9780375725609"
+    },
+    {
+      "id": "killers-of-the-flower-moon", "shelf": "crime", "title": "Killers of the Flower Moon", "authors": ["David Grann"], "year": 2017,
+      "description": "In the 1920s, after oil made members of the Osage Nation in Oklahoma rich, many of them were murdered and for years almost no one was held to account. Grann traces the killings, the early FBI investigation and how much of the story went untold.",
+      "tags": ["Oklahoma", "Osage Nation", "Early FBI"],
+      "contentNote": "Describes real murders.",
+      "olWork": "OL17778665W", "olEdition": null, "olVerified": false
+    },
+    {
+      "id": "the-suspicions-of-mr-whicher", "shelf": "crime", "title": "The Suspicions of Mr Whicher", "authors": ["Kate Summerscale"], "year": 2008,
+      "description": "In 1860 a three-year-old boy was found dead at a country house in Wiltshire, England. Jonathan Whicher, one of Scotland Yard’s first detectives, was sent to solve it, and the case changed how Victorians thought about detectives.",
+      "tags": ["Victorian England", "Scotland Yard", "Detectives"],
+      "contentNote": "Describes the real killing of a child.",
+      "olWork": null, "olEdition": null, "olVerified": false
+    },
+    {
+      "id": "say-nothing", "shelf": "crime", "title": "Say Nothing", "authors": ["Patrick Radden Keefe"], "year": 2018,
+      "description": "In 1972 Jean McConville, a widowed mother of ten in Belfast, was taken from her home and never seen alive again. Keefe follows her family’s decades-long search for answers through the history of the Troubles.",
+      "tags": ["Northern Ireland", "The Troubles", "1972"],
+      "contentNote": "Describes abduction, killings and political violence.",
+      "caveat": "It names living people in connection with allegations they deny, among them Gerry Adams, and draws on the contested Boston College oral-history tapes.",
+      "olWork": "OL20153382W", "olEdition": null, "olVerified": false
+    },
+    {
+      "id": "homicide", "shelf": "crime", "title": "Homicide: A Year on the Killing Streets", "authors": ["David Simon"], "year": 1991,
+      "description": "A newspaper reporter spent 1988 inside the Baltimore Police Department’s homicide unit. He records how cases are actually worked, solved or left open, and what the job does to the detectives.",
+      "tags": ["Baltimore", "Detectives", "1988"],
+      "contentNote": "Describes real violent deaths.",
+      "olWork": "OL2157541W", "olEdition": null, "olVerified": false
+    },
+    {
+      "id": "furious-hours", "shelf": "crime", "title": "Furious Hours", "authors": ["Casey Cep"], "year": 2019,
+      "description": "In 1970s Alabama several relatives of a rural preacher died, each with insurance in his name, until a man shot him at a funeral. Cep tells the case, the trial that followed and the book about it that Harper Lee never finished.",
+      "tags": ["Alabama", "Harper Lee", "Trial"],
+      "contentNote": "Describes real killings.",
+      "olWork": null, "olEdition": null, "olVerified": false
+    },
+    {
+      "id": "we-keep-the-dead-close", "shelf": "crime", "title": "We Keep the Dead Close", "authors": ["Becky Cooper"], "year": 2020,
+      "description": "Cooper spent a decade on the 1969 killing of Jane Britton, a Harvard graduate student, following a campus rumour that turned out to be wrong. DNA testing in 2018 named a suspect who had died years earlier.",
+      "tags": ["Harvard", "1969", "Cold case"],
+      "contentNote": "Describes a real killing and sexual assault.",
+      "olWork": null, "olEdition": null, "olVerified": false
+    },
+
+    {
+      "id": "the-stranger-beside-me", "shelf": "serial", "title": "The Stranger Beside Me", "authors": ["Ann Rule"], "year": 1980,
+      "description": "Ann Rule, a former police officer turned crime writer, volunteered on a Seattle crisis line beside a young man she liked and trusted. Years later he became the suspect in a series of murders of young women; this is her account of the investigation.",
+      "tags": ["Seattle", "1970s", "Investigation"],
+      "contentNote": "Describes real violent crimes against women.",
+      "olWork": "OL892102W", "olEdition": null, "olVerified": false
+    },
+    {
+      "id": "whoever-fights-monsters", "shelf": "serial", "title": "Whoever Fights Monsters", "authors": ["Robert K. Ressler", "Tom Shachtman"], "year": 1992,
+      "description": "Robert Ressler spent years at the FBI’s Behavioral Science Unit interviewing people convicted of repeated murders, to learn how investigators could find others sooner. This is his account of how that work began and the cases it was used on.",
+      "tags": ["FBI", "Profiling", "Interviews"],
+      "contentNote": "Describes real violent crimes.",
+      "caveat": "Criminal profiling’s scientific basis is contested.",
+      "olWork": "OL21224638W", "olEdition": "OL1702975M", "olVerified": false
+    },
+    {
+      "id": "mindhunter", "shelf": "serial", "title": "Mindhunter", "authors": ["John E. Douglas", "Mark Olshaker"], "year": 1995,
+      "description": "John Douglas helped build the FBI’s criminal profiling programme. He explains how agents learned from prison interviews, how those lessons were used in real investigations, and the toll the work took on him.",
+      "tags": ["FBI", "Profiling", "Investigators"],
+      "contentNote": "Describes real violent crimes.",
+      "caveat": "Criminal profiling’s scientific basis is contested, and critics say the book overstates its successes.",
+      "olWork": null, "olEdition": "OL797442M", "olVerified": false
+    },
+    {
+      "id": "the-good-nurse", "shelf": "serial", "title": "The Good Nurse", "authors": ["Charles Graeber"], "year": 2013,
+      "description": "For years a nurse moved between hospitals in New Jersey and Pennsylvania while patients died in his care. Graeber shows how a fellow nurse and two detectives finally stopped him, and how the system around him failed to.",
+      "tags": ["Hospitals", "New Jersey", "Whistleblower"],
+      "contentNote": "Describes the real deaths of hospital patients.",
+      "olWork": "OL17317617W", "olEdition": "OL27545139M", "olVerified": false
+    },
+    {
+      "id": "ill-be-gone-in-the-dark", "shelf": "serial", "title": "I’ll Be Gone in the Dark", "authors": ["Michelle McNamara"], "year": 2018,
+      "description": "Michelle McNamara spent years researching the unidentified man behind a series of rapes and murders across California in the 1970s and 80s. She died in 2016 before finishing; colleagues completed the book from her notes, and a suspect was arrested two months after it came out.",
+      "tags": ["California", "Cold case", "Citizen detective"],
+      "contentNote": "Describes real violent crimes, including sexual assault.",
+      "olWork": "OL18195597W", "olEdition": null, "olVerified": false
+    },
+    {
+      "id": "the-five", "shelf": "serial", "title": "The Five", "authors": ["Hallie Rubenhold"], "year": 2019,
+      "description": "The lives of Polly Nichols, Annie Chapman, Elizabeth Stride, Catherine Eddowes and Mary Jane Kelly, the five women killed in London’s East End in 1888. Rubenhold tells who they were before that autumn, and barely mentions the killer.",
+      "tags": ["Victorian London", "1888", "Women’s lives"],
+      "contentNote": "Discusses real murders, poverty and abuse.",
+      "caveat": "Some historians of the case dispute her argument that several of the women were not working as prostitutes.",
+      "olWork": null, "olEdition": null, "olVerified": false
+    },
+    {
+      "id": "lost-girls", "shelf": "serial", "title": "Lost Girls", "authors": ["Robert Kolker"], "year": 2013,
+      "description": "Profiles of five young women who went missing on Long Island, and of the families who pushed police to keep looking after remains were found near Gilgo Beach in 2010.",
+      "tags": ["Long Island", "Families", "Investigation"],
+      "contentNote": "Describes real disappearances and killings, and sex work.",
+      "caveat": "The book came out ten years before a suspect was charged in 2023, so it does not cover him or the case against him.",
+      "olWork": null, "olEdition": null, "olVerified": false
+    },
+    {
+      "id": "wicked-beyond-belief", "shelf": "serial", "title": "Wicked Beyond Belief", "authors": ["Michael Bilton"], "year": 2003,
+      "description": "How the West Yorkshire Police hunt for the “Yorkshire Ripper” went wrong for five years, from missed interviews to a hoax tape that sent detectives the wrong way. Bilton draws on the official review of the investigation.",
+      "tags": ["Yorkshire", "Police failures", "1970s"],
+      "contentNote": "Describes real murders and attacks on women.",
+      "olWork": null, "olEdition": null, "olVerified": false
+    },
+
+    {
+      "id": "zodiac", "shelf": "unsolved", "title": "Zodiac", "authors": ["Robert Graysmith"], "year": 1986,
+      "description": "In the late 1960s a killer in Northern California taunted police and newspapers with letters and ciphers. Graysmith, then a cartoonist at the San Francisco Chronicle, followed the case for years; the killings have never been officially solved.",
+      "tags": ["San Francisco", "Ciphers", "Cold case"],
+      "contentNote": "Describes real violent crimes.",
+      "caveat": "Graysmith points to a named suspect who was never charged and has since died; later DNA and handwriting comparisons did not match him.",
+      "olWork": "OL2728912W", "olEdition": "OL2531171M", "olVerified": false
+    },
+    {
+      "id": "the-mothman-prophecies", "shelf": "unsolved", "title": "The Mothman Prophecies", "authors": ["John A. Keel"], "year": 1975,
+      "description": "In 1966 and 1967 people around Point Pleasant, West Virginia, reported seeing a large winged creature, and Keel, a journalist drawn to the paranormal, collected their accounts. The story ends with the collapse of the town’s Silver Bridge in December 1967.",
+      "tags": ["West Virginia", "Sightings", "1960s"],
+      "contentNote": "Describes a fatal bridge collapse.",
+      "caveat": "Keel treats paranormal explanations as real possibilities; there is no evidence for them. The bridge failed because of a cracked eyebar.",
+      "olWork": null, "olEdition": null, "olVerified": false
+    },
+    {
+      "id": "the-monster-of-florence", "shelf": "unsolved", "title": "The Monster of Florence", "authors": ["Douglas Preston", "Mario Spezi"], "year": 2008,
+      "description": "Between 1968 and 1985 a series of double murders of couples shocked the hills around Florence, Italy. Preston, an American novelist, worked with the Italian journalist Mario Spezi, and their research led to both being investigated themselves.",
+      "tags": ["Italy", "Journalism", "Cold case"],
+      "contentNote": "Describes real violent crimes.",
+      "caveat": "It points to people as possible suspects who have never been charged with the murders.",
+      "olWork": null, "olEdition": "OL24238097M", "olVerified": false
+    },
+    {
+      "id": "the-lost-city-of-z", "shelf": "unsolved", "title": "The Lost City of Z", "authors": ["David Grann"], "year": 2009,
+      "description": "In 1925 the British explorer Percy Fawcett walked into the Amazon looking for a lost city he called Z, and never came out. Grann follows his trail, the many people who vanished looking for him, and what archaeologists have found since.",
+      "tags": ["Amazon", "Explorers", "1920s"],
+      "olWork": "OL11930023W", "olEdition": null, "olVerified": false
+    },
+    {
+      "id": "dead-mountain", "shelf": "unsolved", "title": "Dead Mountain", "authors": ["Donnie Eichar"], "year": 2013,
+      "description": "In 1959 nine hikers died in the northern Ural Mountains after some of them fled their tent into the snow without proper clothes. Eichar retraces their route, lays out the theories and offers his own explanation.",
+      "tags": ["Dyatlov Pass", "Soviet Union", "1959"],
+      "contentNote": "Describes real deaths.",
+      "caveat": "Its explanation is one of several. A Russian inquiry in 2019–20 and a 2021 scientific study favour a slab avalanche.",
+      "olWork": null, "olEdition": null, "olVerified": false
+    },
+    {
+      "id": "skyjack", "shelf": "unsolved", "title": "Skyjack", "authors": ["Geoffrey Gray"], "year": 2011,
+      "description": "In November 1971 a man the press called D. B. Cooper hijacked a passenger jet, collected a $200,000 ransom and parachuted into the night over Washington State. Gray follows the FBI agents and amateur sleuths still trying to name him.",
+      "tags": ["D. B. Cooper", "Hijacking", "1971"],
+      "olWork": null, "olEdition": null, "olVerified": false
+    },
+    {
+      "id": "ghost-ship", "shelf": "unsolved", "title": "Ghost Ship", "authors": ["Brian Hicks"], "year": 2004,
+      "description": "In December 1872 the Mary Celeste was found drifting in the Atlantic, seaworthy and stocked, with no one aboard. Hicks tells the lives of the missing captain, his family and crew, and tests the theories offered since.",
+      "tags": ["Mary Celeste", "The sea", "1872"],
+      "olWork": null, "olEdition": null, "olVerified": false
+    },
+    {
+      "id": "the-bermuda-triangle-mystery-solved", "shelf": "unsolved", "title": "The Bermuda Triangle Mystery—Solved", "authors": ["Lawrence David Kusche"], "year": 1975,
+      "description": "A university reference librarian went back to newspapers, weather records and inquiry reports for the famous Triangle disappearances. He found that many were misreported, exaggerated or did not happen there at all.",
+      "tags": ["Bermuda Triangle", "Records", "Debunking"],
+      "olWork": null, "olEdition": null, "olVerified": false
+    },
+    {
+      "id": "the-voynich-manuscript", "shelf": "unsolved", "title": "The Voynich Manuscript", "authors": ["Gerry Kennedy", "Rob Churchill"], "year": 2004,
+      "description": "The history of an illustrated book written in an unknown script, now held at Yale, and of the codebreakers, scholars and hoax-hunters who have tried to read it. No one has convincingly done so.",
+      "tags": ["Codes", "Manuscripts", "Yale"],
+      "olWork": null, "olEdition": null, "olVerified": false
+    },
+    {
+      "id": "the-mysterious-case-of-rudolf-diesel", "shelf": "unsolved", "title": "The Mysterious Case of Rudolf Diesel", "authors": ["Douglas Brunt"], "year": 2023,
+      "description": "In September 1913 the inventor of the diesel engine boarded a steamer from Antwerp to England and was gone by morning. Brunt sets his disappearance against the rivalries of the years before the First World War.",
+      "tags": ["Inventors", "1913", "Disappearance"],
+      "contentNote": "Describes a death.",
+      "caveat": "Brunt offers a speculative solution that has not been confirmed.",
+      "olWork": null, "olEdition": null, "olVerified": false
+    },
+
+    {
+      "id": "extraordinary-popular-delusions", "shelf": "history", "title": "Extraordinary Popular Delusions and the Madness of Crowds", "authors": ["Charles Mackay"], "year": 1841,
+      "description": "A Victorian journalist tours the moments whole crowds lost their heads: tulip mania, the South Sea Bubble, alchemists, fortune tellers and witch hunts. First published as Memoirs of Extraordinary Popular Delusions.",
+      "tags": ["Manias", "Money", "Crowds"],
+      "caveat": "Historians say Mackay exaggerated several episodes, tulip mania among them.",
+      "olWork": null, "olEdition": null, "olVerified": false
+    },
+    {
+      "id": "a-night-to-remember", "shelf": "history", "title": "A Night to Remember", "authors": ["Walter Lord"], "year": 1955,
+      "description": "A minute-by-minute account of the night the Titanic sank in April 1912, built from interviews with dozens of survivors. Short, plain, and still the book most others are measured against.",
+      "tags": ["Titanic", "1912", "Survivors"],
+      "contentNote": "Describes mass loss of life.",
+      "olWork": null, "olEdition": null, "olVerified": false
+    },
+    {
+      "id": "the-professor-and-the-madman", "shelf": "history", "title": "The Professor and the Madman", "authors": ["Simon Winchester"], "year": 1998,
+      "description": "The Oxford English Dictionary was built partly by volunteers posting in quotations, and one of the most prolific wrote from a hospital for the criminally insane after killing a man in London. Published in the UK as The Surgeon of Crowthorne.",
+      "tags": ["Dictionaries", "Victorian", "Words"],
+      "contentNote": "Describes a killing and serious mental illness.",
+      "olWork": null, "olEdition": null, "olVerified": false
+    },
+    {
+      "id": "the-ghost-map", "shelf": "history", "title": "The Ghost Map", "authors": ["Steven Johnson"], "year": 2006,
+      "description": "In 1854 cholera tore through Soho in London. The doctor John Snow and the curate Henry Whitehead traced the deaths street by street to one water pump on Broad Street, when most people blamed bad air.",
+      "tags": ["London", "Cholera", "Maps"],
+      "contentNote": "Describes an epidemic and many deaths.",
+      "olWork": "OL8552834W", "olEdition": "OL17211890M", "olVerified": false
+    },
+    {
+      "id": "dead-wake", "shelf": "history", "title": "Dead Wake", "authors": ["Erik Larson"], "year": 2015,
+      "description": "In May 1915 a German submarine sank the ocean liner Lusitania off the coast of Ireland. Larson follows the passengers, the captain, the U-boat commander and the code-breakers in London in the days before.",
+      "tags": ["Lusitania", "1915", "The sea"],
+      "contentNote": "Describes mass loss of life.",
+      "olWork": null, "olEdition": null, "olVerified": false
+    },
+    {
+      "id": "the-radium-girls", "shelf": "history", "title": "The Radium Girls", "authors": ["Kate Moore"], "year": 2016,
+      "description": "In the 1910s and 20s young women in New Jersey and Illinois painted watch dials with glowing radium paint, shaping their brushes with their lips. When they fell ill, they took the companies to court and changed workplace safety law.",
+      "tags": ["Radium", "Workers", "Lawsuits"],
+      "contentNote": "Describes serious illness and deaths.",
+      "olWork": null, "olEdition": "OL26882954M", "olVerified": false
+    },
+    {
+      "id": "quackery", "shelf": "history", "title": "Quackery", "authors": ["Lydia Kang", "Nate Pedersen"], "year": 2017,
+      "description": "A tour of remedies people once trusted, from mercury and arsenic to radium tonics, bloodletting and electric belts. A doctor and a historian explain why each seemed like a good idea.",
+      "tags": ["Medicine", "Remedies", "Funny"],
+      "olWork": null, "olEdition": null, "olVerified": false
+    },
+    {
+      "id": "a-time-to-dance-a-time-to-die", "shelf": "history", "title": "A Time to Dance, a Time to Die", "authors": ["John Waller"], "year": 2008,
+      "description": "In the summer of 1518 hundreds of people in Strasbourg began dancing and could not stop, for weeks. A historian of medicine explains what the city believed was happening and what probably was.",
+      "tags": ["Strasbourg", "1518", "Dancing plague"],
+      "olWork": null, "olEdition": null, "olVerified": false
+    },
+    {
+      "id": "the-butchering-art", "shelf": "history", "title": "The Butchering Art", "authors": ["Lindsey Fitzharris"], "year": 2017,
+      "description": "Victorian operating theatres were filthy, and patients who survived the knife often died of infection. Fitzharris follows the surgeon Joseph Lister as he argued that germs were the cause.",
+      "tags": ["Surgery", "Victorian", "Germs"],
+      "contentNote": "Graphic descriptions of surgery and infection.",
+      "olWork": null, "olEdition": null, "olVerified": false
+    },
+    {
+      "id": "fordlandia", "shelf": "history", "title": "Fordlândia", "authors": ["Greg Grandin"], "year": 2009,
+      "description": "In 1928 Henry Ford set out to grow rubber in the Brazilian Amazon and built an American company town to do it, with square dances and a ban on drink. Grandin tells how the jungle and the workers resisted.",
+      "tags": ["Amazon", "Henry Ford", "1920s"],
+      "olWork": null, "olEdition": null, "olVerified": false
+    },
+
+    {
+      "id": "the-man-who-mistook-his-wife-for-a-hat", "shelf": "science", "title": "The Man Who Mistook His Wife for a Hat", "authors": ["Oliver Sacks"], "year": 1985,
+      "description": "A neurologist’s case stories about patients whose brains work in unexpected ways, including the music teacher of the title, who could no longer recognise faces and objects.",
+      "tags": ["The brain", "Case stories", "Medicine"],
+      "caveat": "A December 2025 New Yorker report, drawing on Sacks’s own journals, said he altered or invented details in some of his case studies, including in this book.",
+      "olWork": null, "olEdition": null, "olVerified": false
+    },
+    {
+      "id": "stiff", "shelf": "science", "title": "Stiff", "authors": ["Mary Roach"], "year": 2003,
+      "description": "What happens to bodies donated to science: crash tests, surgical practice, forensic research and more. Roach is funny and endlessly curious, and respectful of the people who gave themselves to it.",
+      "tags": ["The body", "Forensics", "Funny"],
+      "contentNote": "Frank descriptions of human remains.",
+      "olWork": "OL7986135W", "olEdition": "OL24936497M", "olVerified": false
+    },
+    {
+      "id": "spook", "shelf": "science", "title": "Spook", "authors": ["Mary Roach"], "year": 2005,
+      "description": "Roach looks at people who tried to find scientific evidence of life after death, from weighing the soul to testing mediums, and reports what they found and how they went looking.",
+      "tags": ["Afterlife", "Experiments", "Funny"],
+      "olWork": null, "olEdition": null, "olVerified": false
+    },
+    {
+      "id": "the-poisoners-handbook", "shelf": "science", "title": "The Poisoner’s Handbook", "authors": ["Deborah Blum"], "year": 2010,
+      "description": "In Jazz Age New York poison was an easy way to get away with murder. The city’s chief medical examiner, Charles Norris, and the chemist Alexander Gettler built forensic toxicology to change that.",
+      "tags": ["New York", "Forensics", "1920s"],
+      "contentNote": "Describes real poisonings and deaths.",
+      "olWork": "OL15451748W", "olEdition": null, "olVerified": false
+    },
+    {
+      "id": "the-disappearing-spoon", "shelf": "science", "title": "The Disappearing Spoon", "authors": ["Sam Kean"], "year": 2010,
+      "description": "Stories behind the periodic table: the people who found the elements, their feuds and accidents, and the elements that turned up in wars and medicine. The title comes from a gallium spoon that melts in hot tea.",
+      "tags": ["Chemistry", "Elements", "Stories"],
+      "olWork": null, "olEdition": "OL24909020M", "olVerified": false
+    },
+    {
+      "id": "the-immortal-life-of-henrietta-lacks", "shelf": "science", "title": "The Immortal Life of Henrietta Lacks", "authors": ["Rebecca Skloot"], "year": 2010,
+      "description": "In 1951 doctors in Baltimore took cells from Henrietta Lacks, a Black woman being treated for cancer, without her knowledge, and they became one of medical research’s most important tools. Skloot tells the story alongside her family.",
+      "tags": ["Medicine", "Consent", "Family"],
+      "contentNote": "Discusses cancer, racism in medicine and consent.",
+      "olWork": null, "olEdition": null, "olVerified": false
+    },
+    {
+      "id": "gulp", "shelf": "science", "title": "Gulp", "authors": ["Mary Roach"], "year": 2013,
+      "description": "The science of eating and digestion, from professional tasters and pet-food labs to stomach acid and what happens further down.",
+      "tags": ["The body", "Food", "Funny"],
+      "olWork": "OL17060785W", "olEdition": "OL25630031M", "olVerified": false
+    },
+    {
+      "id": "the-tale-of-the-dueling-neurosurgeons", "shelf": "science", "title": "The Tale of the Dueling Neurosurgeons", "authors": ["Sam Kean"], "year": 2014,
+      "description": "How injuries, strokes and strange accidents, starting with a French king’s jousting wound in 1559, showed scientists what each part of the brain does.",
+      "tags": ["The brain", "History", "Medicine"],
+      "contentNote": "Describes brain injuries.",
+      "olWork": null, "olEdition": null, "olVerified": false
+    },
+    {
+      "id": "an-immense-world", "shelf": "science", "title": "An Immense World", "authors": ["Ed Yong"], "year": 2022,
+      "description": "How other animals sense the world: birds that see ultraviolet, fish that feel electric fields, creatures that find their way by magnetism. Yong explains what each sense would be like from the inside.",
+      "tags": ["Animals", "Senses", "Nature"],
+      "olWork": null, "olEdition": null, "olVerified": false
+    },
+    {
+      "id": "parasite-rex", "shelf": "science", "title": "Parasite Rex", "authors": ["Carl Zimmer"], "year": 2000,
+      "description": "Parasites that rewire their hosts’ behaviour, change their bodies or live inside them for decades. Zimmer argues they are among the most successful creatures on Earth and have shaped evolution.",
+      "tags": ["Parasites", "Evolution", "Nature"],
+      "olWork": null, "olEdition": null, "olVerified": false
+    },
+
+    {
+      "id": "the-big-con", "shelf": "cults", "title": "The Big Con", "authors": ["David W. Maurer"], "year": 1940,
+      "description": "A linguist’s study of American confidence men in the early twentieth century: how the long cons worked, who ran them and the slang they used, drawn from interviews with the con men themselves.",
+      "tags": ["Swindles", "Slang", "Early 1900s"],
+      "olWork": null, "olEdition": null, "olVerified": false
+    },
+    {
+      "id": "helter-skelter", "shelf": "cults", "title": "Helter Skelter", "authors": ["Vincent Bugliosi", "Curt Gentry"], "year": 1974,
+      "description": "The prosecutor in the 1969 Manson Family murders in Los Angeles explains how the case was investigated and brought to trial, and how a group of young followers were led to kill.",
+      "tags": ["Los Angeles", "1969", "Prosecution"],
+      "contentNote": "Describes real violent crimes.",
+      "caveat": "Written by the case’s prosecutor; the motive it sets out has been questioned since, for example in Tom O’Neill’s Chaos (2019).",
+      "olWork": null, "olEdition": "OL1096365M", "olVerified": false
+    },
+    {
+      "id": "under-the-banner-of-heaven", "shelf": "cults", "title": "Under the Banner of Heaven", "authors": ["Jon Krakauer"], "year": 2003,
+      "description": "In 1984 two brothers in Utah killed their sister-in-law and her baby daughter, saying God had told them to. Krakauer uses the case to explore the history of Mormon fundamentalism and violent faith.",
+      "tags": ["Utah", "Fundamentalism", "1984"],
+      "contentNote": "Describes real violent crimes, including the killing of a child.",
+      "caveat": "The Church of Jesus Christ of Latter-day Saints publicly criticised its portrayal of the mainstream church.",
+      "olWork": null, "olEdition": "OL3383817M", "olVerified": false
+    },
+    {
+      "id": "going-clear", "shelf": "cults", "title": "Going Clear", "authors": ["Lawrence Wright"], "year": 2013,
+      "description": "A reported history of the Church of Scientology, from its founder to its celebrity members, built on hundreds of interviews with current and former members.",
+      "tags": ["Scientology", "Hollywood", "Reporting"],
+      "contentNote": "Describes allegations of abuse.",
+      "caveat": "The Church of Scientology disputes the book’s account.",
+      "olWork": null, "olEdition": "OL25424776M", "olVerified": false
+    },
+    {
+      "id": "the-confidence-game", "shelf": "cults", "title": "The Confidence Game", "authors": ["Maria Konnikova"], "year": 2016,
+      "description": "Why do clever people fall for cons? Konnikova, a psychologist and writer, walks through each stage of a swindle and the habits of mind that make it work on us.",
+      "tags": ["Psychology", "Scams", "Persuasion"],
+      "olWork": null, "olEdition": "OL27200537M", "olVerified": false, "isbn13": "9780525427414"
+    },
+    {
+      "id": "bad-blood", "shelf": "cults", "title": "Bad Blood", "authors": ["John Carreyrou"], "year": 2018,
+      "description": "Theranos said it could run hundreds of tests from a drop of blood. It could not; Carreyrou, the reporter who broke the story, shows how the company kept investors and patients believing, and how employees helped expose it.",
+      "tags": ["Silicon Valley", "Fraud", "Reporting"],
+      "olWork": "OL17892614W", "olEdition": null, "olVerified": false
+    },
+    {
+      "id": "the-road-to-jonestown", "shelf": "cults", "title": "The Road to Jonestown", "authors": ["Jeff Guinn"], "year": 2017,
+      "description": "A history of Peoples Temple from Indiana to California to Guyana, where more than 900 people died in November 1978. Guinn draws on survivors’ accounts and documents released since.",
+      "tags": ["Peoples Temple", "Guyana", "1978"],
+      "contentNote": "Describes abuse and mass death, including the deaths of children.",
+      "olWork": null, "olEdition": "OL27231016M", "olVerified": false
+    },
+    {
+      "id": "the-wizard-of-lies", "shelf": "cults", "title": "The Wizard of Lies", "authors": ["Diana B. Henriques"], "year": 2011,
+      "description": "How Bernard Madoff ran the largest Ponzi scheme on record for decades, who trusted him and lost everything, and why regulators missed the warnings.",
+      "tags": ["Wall Street", "Fraud", "2008"],
+      "olWork": null, "olEdition": null, "olVerified": false
+    },
+    {
+      "id": "the-man-in-the-rockefeller-suit", "shelf": "cults", "title": "The Man in the Rockefeller Suit", "authors": ["Mark Seal"], "year": 2011,
+      "description": "For three decades a German immigrant passed himself off in America under a string of invented names, finally as “Clark Rockefeller”, until a custody kidnapping in 2008 brought the whole story apart.",
+      "tags": ["Impostors", "Boston", "Identity"],
+      "contentNote": "Involves a kidnapping and a disappearance later tried as murder.",
+      "olWork": null, "olEdition": null, "olVerified": false
+    },
+    {
+      "id": "catch-me-if-you-can", "shelf": "cults", "title": "Catch Me If You Can", "authors": ["Frank W. Abagnale", "Stan Redding"], "year": 1980,
+      "description": "The famous memoir of a teenager who says he posed as an airline pilot, a doctor and a lawyer while cashing forged cheques. It sits on this shelf as a con in its own right.",
+      "tags": ["Impostors", "Memoir", "Hoax"],
+      "caveat": "Largely fabricated: Alan C. Logan’s The Greatest Hoax on Earth (2020) used public records to show that most of the exploits it describes did not happen.",
+      "olWork": null, "olEdition": null, "olVerified": false
+    }
+  ]
+}
