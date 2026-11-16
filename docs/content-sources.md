@@ -85,9 +85,9 @@ The database is a Supabase project. Its definition is in `supabase/migrations/`.
 Rules the database enforces, whichever key is used:
 
 - Visitors can read published topics and their statements, and nothing else.
-- Only a reviewer can publish a topic or change a published one. The collection pipeline's secret key can write drafts but cannot publish and cannot name a reviewer.
+- Only a reviewer can publish a topic, or change, withdraw or delete a published one. The collection pipeline's secret key can write, edit and delete drafts but cannot touch anything published and cannot name a reviewer.
 - A topic cannot be published without a statement from each side, and its statements cannot be added to, edited or removed while it is published. To correct one, set the topic back to draft, edit, and publish again.
-- Every publish and withdrawal is logged with who did it.
+- Every publish, withdrawal and deletion of a published topic is logged with who did it.
 
 Tested on 16 Nov 2026 with placeholder rows, since deleted: as an anonymous visitor over the public API, and inside the database as a signed-in non-reviewer, a reviewer and a pipeline-style request. Not yet tested with a real signed-in reviewer account or the real secret key.
 
