@@ -1,0 +1,4 @@
+/* Animated sky canvas. Owned by the WebGL sky work. */
+.sky { position: relative; }
+.sky__canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
+.sky > :not(.sky__canvas) { position: relative; }

@@ -4,6 +4,7 @@ import { describeCode, assessWindow, fmtTime, fmtDay, fmtZone, HOUR, LEVEL_LABEL
 import { headline, dayparts, makeQuiz, season, tipFor, CHECKLISTS, CHECKLIST_SOURCE, pickCities, compareLine, dayKey, dayNumber, skyOf } from './boardcontent.js';
 import { loadAirports, searchPlaces, nearestAirports, loadWeather, loadForecasts, loadAlerts, loadCities } from './data.js';
 import { $, store, prefs, initSettings } from './shell.js';
+import { initSky, setSky } from './sky.js';
 import { esc, weatherIcon, riskIcon, chip, units, compass } from './view.js';
 
 const POPULAR = [
@@ -237,6 +238,13 @@ function renderHero() {
   const { place: p, wx } = current;
   const f = fmt(), now = wx.now, today = wx.days[0];
   sky.className = `sky sky--${skyOf(now.code, now.day)}`;
+  // The animated sky follows the same conditions as the flat colour behind it.
+  const hrs = wx.hours.slice(0, 3);
+  setSky({
+    kind: skyOf(now.code, now.day), day: !!now.day, code: now.code,
+    wind: now.wind, gust: now.gust, precip: Math.max(now.precip ?? 0, ...hrs.map((h) => h.precip ?? 0)),
+    temp: now.temp, now: Date.now(), sunrise: today.sunrise, sunset: today.sunset,
+  });
   hero.hidden = false;
   hero.innerHTML = `
     <div class="hero-wx__main">
@@ -690,6 +698,7 @@ function rerender() {
 
 async function start() {
   initSettings(rerender);
+  initSky($('#sky-canvas'));
   await loadAirports().catch(() => {});
   renderSaved();
   if (place) return show();
