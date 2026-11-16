@@ -1,4 +1,5 @@
-// Build step: generates the two large data files and assembles the static site in public/.
+// Build step: generates the two large data files and assembles the static site in public/
+// (pages, robots.txt, a sitemap.xml dated today, styles, scripts and vendor files including the share image).
 // Airports come from mwgg/Airports (MIT), ranked with OurAirports (public domain); the land outline from Natural Earth via world-atlas.
 const fs = require('node:fs');
 const path = require('node:path');
@@ -8,6 +9,16 @@ const root = path.join(__dirname, '..');
 const out = path.join(root, 'public');
 const SRC = 'https://raw.githubusercontent.com/mwgg/Airports/master/airports.json';
 const SIZES = 'https://raw.githubusercontent.com/davidmegginson/ourairports-data/main/airports.csv';
+const SITE = 'https://gatecast.vercel.app/';
+// Public pages, in sitemap order. review.html is left out on purpose (noindex, disallowed in robots.txt).
+const SITEMAP_PAGES = ['', 'trip.html', 'flights.html', 'how.html'];
+const STATIC_FILES = ['index.html', 'flights.html', 'trip.html', 'review.html', 'how.html', 'robots.txt'];
+
+// sitemap.xml for the public pages, all with the build day as lastmod (YYYY-MM-DD, UTC).
+function sitemapXml(day = new Date().toISOString().slice(0, 10)) {
+  const urls = SITEMAP_PAGES.map((p) => `  <url><loc>${SITE}${p}</loc><lastmod>${day}</lastmod></url>`).join('\n');
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;
+}
 
 // Airport importance from OurAirports (public domain): 2 = large with airline service, 1 = medium with airline service.
 // If the download fails the site still builds; airports are then simply unranked.
@@ -31,10 +42,11 @@ async function airportRanks() {
   return rank;
 }
 
-(async () => {
+async function build() {
   fs.rmSync(out, { recursive: true, force: true });
   for (const dir of ['styles', 'js', 'vendor']) fs.cpSync(path.join(root, dir), path.join(out, dir), { recursive: true });
-  for (const page of ['index.html', 'flights.html', 'trip.html', 'review.html']) fs.copyFileSync(path.join(root, page), path.join(out, page));
+  for (const file of STATIC_FILES) fs.copyFileSync(path.join(root, file), path.join(out, file));
+  fs.writeFileSync(path.join(out, 'sitemap.xml'), sitemapXml());
   fs.mkdirSync(path.join(out, 'data'), { recursive: true });
 
   const res = await fetch(SRC);
@@ -59,5 +71,8 @@ async function airportRanks() {
   let d = '';
   for (const poly of polys) for (const ring of poly) d += 'M' + ring.map(([x, y]) => (x + 180).toFixed(1) + ' ' + (90 - y).toFixed(1)).join('L') + 'Z';
   fs.writeFileSync(path.join(out, 'js', 'world.js'), '// Natural Earth 110m land (public domain), equirectangular 360x180\nexport const LAND_PATH="' + d + '";\n');
-  console.log('built public/: ' + rows.length + ' airports, map outline ' + d.length + ' bytes');
-})().catch((err) => { console.error(err); process.exit(1); });
+  console.log('built public/: ' + rows.length + ' airports, map outline ' + d.length + ' bytes, sitemap of ' + SITEMAP_PAGES.length + ' pages');
+}
+
+if (require.main === module) build().catch((err) => { console.error(err); process.exit(1); });
+module.exports = { sitemapXml, SITEMAP_PAGES };

@@ -9,6 +9,23 @@
   </script>
   <title>Trips — Gatecast</title>
   <meta name="description" content="Enter your flights and see the weather at every airport at the exact time you are there, with a plain-language verdict on your connection.">
+  <!-- Search and share basics. Copy lives here and in how.html; the share image is rendered from docs/og/og-template.html. -->
+  <link rel="canonical" href="https://gatecast.vercel.app/trip.html">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ecebe6">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#07090d">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Gatecast">
+  <meta property="og:title" content="Trips — Gatecast">
+  <meta property="og:description" content="Enter your flights and see the weather at every airport at the exact time you are there, with a plain-language verdict on your connection.">
+  <meta property="og:url" content="https://gatecast.vercel.app/trip.html">
+  <meta property="og:image" content="https://gatecast.vercel.app/vendor/og/gatecast-og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Gatecast: weather and the news worth knowing, with flight and trip checks.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Trips — Gatecast">
+  <meta name="twitter:description" content="Enter your flights and see the weather at every airport at the exact time you are there, with a plain-language verdict on your connection.">
+  <meta name="twitter:image" content="https://gatecast.vercel.app/vendor/og/gatecast-og.png">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23111418'/%3E%3Cpath d='M9 25V14a7 7 0 0 1 14 0v11M16 18v7' stroke='%23fff' stroke-width='2.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="styles/tokens.css">
   <link rel="stylesheet" href="styles/app.css">
@@ -99,7 +116,7 @@
   </main>
 
   <footer class="site-footer">
-    <p>Gatecast is a planning aid, not an official source. Check your airline for the status of your flight.</p>
+    <p>Gatecast is a planning aid, not an official source. Check your airline for the status of your flight. <a href="how.html">How Gatecast works</a>.</p>
     <p>Forecasts: <a href="https://open-meteo.com/" rel="noopener">Open-Meteo</a> (CC BY 4.0). Radar: <a href="https://www.rainviewer.com/" rel="noopener">RainViewer</a>. Map: © <a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a> contributors. Live aircraft: <a href="https://adsb.lol/" rel="noopener">adsb.lol</a> (ODbL). Routes: <a href="https://www.adsbdb.com/" rel="noopener">adsbdb</a>. Observations: NOAA. US status: FAA. Alerts: National Weather Service.</p>
   </footer>
 </body>

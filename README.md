@@ -79,10 +79,13 @@ The site is deployed on Vercel (`vercel.json`). Vercel runs `node scripts/build-
 | `js/ui.js` | Icons, units and chips shared by every page |
 | `js/view.js` | Route map and hourly strip for the flights and connections pages (re-exports `js/ui.js`) |
 | `styles/tokens.css`, `styles/app.css` | Design tokens and components |
-| `lib/live.js` | Server-side lookups: airport observations, FAA status, flight route and position, nearby aircraft |
+| `lib/live.js` | Server-side lookups: airport observations, FAA status and today's FAA plans (parser unit-tested), flight route and position, nearby aircraft |
 | `api/*.js` | Vercel functions wrapping `lib/live.js` |
 | `server.js` | Local static server exposing the same `/api` routes |
-| `scripts/build-data.cjs` | Build step: airport list with size ranking, map outline, assembles `public/` |
+| `scripts/build-data.cjs` | Build step: airport list with size ranking, map outline, `sitemap.xml` dated the build day, assembles `public/` |
+| `how.html`, `styles/how.css` | "How Gatecast works": how the brief and the verdicts are chosen, data sources and limits, what Gatecast never does, corrections |
+| `robots.txt` | Crawl rules: everything public allowed (OAI-SearchBot and PerplexityBot named), `/review.html` and `/api/` disallowed, sitemap line |
+| `vendor/og/gatecast-og.png`, `docs/og/og-template.html` | The 1200×630 share image for Open Graph and Twitter cards, and the HTML it is rendered from |
 | `vendor/leaflet/` | Leaflet 1.9.4 (BSD-2-Clause), used only for the radar map |
 | `vendor/fonts/` | Inter and Barlow Condensed (SIL Open Font License), self-hosted |
 | `data/airports.json` | 7,769 airports with IATA codes, time zones and a size rank |
@@ -101,11 +104,12 @@ The site is deployed on Vercel (`vercel.json`). Vercel runs `node scripts/build-
 - **US alerts:** api.weather.gov, from the browser.
 - **Airport observations:** NOAA Aviation Weather Center METAR, through `server.js`.
 - **US airport delay programmes:** FAA NAS Status, through `server.js`.
+- **What the FAA plans for today (US):** FAA NAS Status's undocumented JSON, `api/operations-plan` (the ATCSCC operations plan: lines such as "AFTER 1700 -SAN GROUND STOP/DELAY PROGRAM EXPECTED") and `api/airport-events` (ground stops, delay programs, de-icing), through `/api/faa-plans?airports=JFK,LGA` (cached five minutes, `s-maxage=300`). Plan times are published in Zulu (UTC) and returned as ISO times; a time before 08Z is read as the next UTC day, since the plan runs into US evenings. NOTAM closures, free-form notices and runway configuration are left out, and a plan line is dropped once the FAA has issued the program it predicted. Shown as a quiet line on the Flights page; `loadFaaPlans(codes)` in `js/data.js` returns `{ plans, checkedAt }` (empty on any failure). The format can change without notice: the parser treats every field as optional and the line simply disappears.
 - **Flight tracking:** route (origin and destination) from adsbdb and live position from adsb.lol, both keyless, through `/api/flight`. There is no free source of scheduled times, gates, delays or cancellations, so those are not shown, and the landing time is an estimate from distance and speed.
 - **City search and air quality:** Open-Meteo geocoding and air-quality services, from the browser.
 - **Headlines and preview images:** the outlets in `data/news-sources.json`, through `/api/news`; pictures are the outlets' own preview images, loaded by the visitor's browser from the outlet's servers (no referrer sent), and any outlet can be switched to text only.
 - **Radar:** RainViewer past-radar tiles (free for personal and small-scale use) over OpenStreetMap tiles, loaded only when the radar panel scrolls into view.
-- **Location:** the browser's geolocation, requested only after the visitor presses "Use my location". Coordinates are rounded to about a kilometre, kept in the browser, and sent only to the forecast service. The place name comes from the nearest airport in the bundled list, not from a lookup service.
+- **Location:** the browser's geolocation, requested only after the visitor presses "Use my location". Coordinates are rounded to about a kilometre, kept in the browser, and sent only to the weather services: Open-Meteo for the forecast and, in the US, the National Weather Service for alerts and the state. The place name comes from the nearest airport in the bundled list, not from a lookup service.
 
 ## The risk level
 

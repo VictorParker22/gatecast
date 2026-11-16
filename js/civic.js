@@ -40,7 +40,7 @@ const pct = (n) => `${Math.max(0, Math.min(100, n))}%`;
 
 function voteHTML(v, i, h) {
   const id = `civic-vote-${i}`;
-  return `<li class="civic-item vote">
+  return `<li class="civic-item vote" data-key="${esc(v.bill + '|' + v.chamber + '|' + v.date)}">
     <h${h} class="vote__head" id="${id}"><span class="code vote__bill">${esc(v.bill)}</span> <span class="vote__title">${esc(v.title)}</span></h${h}>
     <p class="civic-meta">${esc(v.chamber)}${v.date ? ` · ${esc(v.date)}` : ''}${v.motion ? ` · <span class="vote__motion">${esc(v.motion)}</span>` : ''}</p>
     <p class="vote__result">
@@ -78,7 +78,7 @@ function statementHTML(s) {
 
 function topicHTML(t, i, h) {
   const id = `civic-topic-${i}`;
-  return `<li class="civic-item topic">
+  return `<li class="civic-item topic" data-key="${esc(String(t.id ?? t.title))}">
     <p class="civic__eyebrow">${esc(t.place)}${t.date ? ` · ${esc(t.date)}` : ''}</p>
     <h${h} class="topic__title" id="${id}">${esc(t.title)}</h${h}>
     <p class="topic__fact">${esc(t.fact)} <a href="${esc(t.factSource.href)}" target="_blank" rel="noopener">Source: ${esc(t.factSource.host)}<span class="sr-only"> (opens in a new tab)</span></a></p>

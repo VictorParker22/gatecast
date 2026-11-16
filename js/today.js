@@ -259,10 +259,15 @@ export function relTime(when, now = Date.now()) {
 
 // Headlines from /api/news, re-checked on this side: an https link, a title and a date, or the item is left out.
 // Each keeps its preview image only if that passes cleanImage too; otherwise image is null.
+// Order: newest first, by the publish time the outlet gave, and nothing else. Headlines (like statehouse votes and
+// Both sides) are political or can be: they are never ranked by clicks, popularity or engagement, and Gatecast
+// records none of those. The server sorts the same way (lib/news.js); this sort only makes sure of it.
 export function cleanHeadlines(json) {
   const items = Array.isArray(json?.items) ? json.items : [];
   return items.filter((x) => x && typeof x.title === 'string' && x.title.trim() && typeof x.outlet === 'string'
-    && /^https:\/\//.test(x.url || '') && Number.isFinite(Date.parse(x.published))).slice(0, 8)
+    && /^https:\/\//.test(x.url || '') && Number.isFinite(Date.parse(x.published)))
+    .map((x, i) => ({ x, i, ms: Date.parse(x.published) }))
+    .sort((a, b) => b.ms - a.ms || a.i - b.i).map((e) => e.x).slice(0, 8)
     .map((x) => ({ ...x, image: cleanImage(x.image) }));
 }
 
@@ -334,7 +339,8 @@ export function alertItems(alerts, now = Date.now()) {
 
 // The one forecast signal worth a news item: the riskiest nearby airport over the next 3 hours, when it is
 // elevated or high (same list flightsNear reads). Calm or unknown -> null: no filler.
-export function airportSignal(list) {
+// far(km) prints a distance in the visitor's unit; when given (and the list carries km) the item says why.
+export function airportSignal(list, far = null) {
   const risky = (Array.isArray(list) ? list : []).filter((x) => x.risk && (x.risk.level === 'elevated' || x.risk.level === 'high'));
   if (!risky.length) return null;
   const worst = risky.reduce((a, b) => (b.risk.score > a.risk.score ? b : a));
@@ -344,5 +350,50 @@ export function airportSignal(list) {
     code: worst.code, level: worst.risk.level,
     title: `${why} near ${worst.code} in the next 3 hours`,
     line: `${LEVEL_LABEL[worst.risk.level]} weather risk for flights there${others.length ? `, and at ${joinList(others)}` : ''}. Check with your airline before you leave.`,
+    because: far && Number.isFinite(worst.km)
+      ? `Because ${worst.code} is ${far(worst.km)} from you and the forecast shows ${factorPhrase(worst.risk.factors) || 'rough weather'} there in the next 3 hours.`
+      : `Because ${worst.code} is one of the airports nearest you and the forecast shows ${factorPhrase(worst.risk.factors) || 'rough weather'} there in the next 3 hours.`,
   };
+}
+
+/* ---------- Why each brief item is there ----------
+   Every "Because…" line is built here from the same facts the page used to pick the item, so the reason can
+   never say something the selection did not do. The inputs are only these: the place (on this device), the
+   saved trip on this device, official NWS alerts for the place's point, and the place's US state. Nothing about
+   what anyone reads or clicks. */
+
+const article = (w) => (/^[aeiou]/i.test(w) ? 'an' : 'a');
+const placeWords = (p) => (!p || p.name === 'Your location' ? 'where you are' : p.name);
+
+// a: one of alertItems(). when(ms) prints a time ("18:00", "18:00 Tue" on another day).
+// departure: { t, code } for a saved trip leaving from an airport near the place, or null.
+export function alertReason(a, place, when, departure = null, now = Date.now()) {
+  const span = a.from && a.from > now ? ` from ${when(a.from)}${a.until ? ` until ${when(a.until)}` : ''}` : a.until ? ` until ${when(a.until)}` : ' now';
+  const during = departure && Number.isFinite(departure.t) && departure.t >= now && (a.from == null || a.from <= departure.t) && (a.until == null || departure.t < a.until)
+    ? `, during your ${when(departure.t)} departure from ${departure.code}` : '';
+  return `Because ${article(a.event)} ${a.event} covers ${placeWords(place)}${span}${during}.`;
+}
+
+// Headlines: the state's newsrooms for a US place in a known state, otherwise the national weather and travel list.
+// newsState: the state the server answered for (null for the national list).
+export function newsReason(place, us, code, newsState) {
+  const name = US_STATES[newsState];
+  if (name) {
+    const p = placeWords(place);
+    return p === 'where you are' || p.toLowerCase() === name.toLowerCase()
+      ? `Because you’re in ${name}. Newest first, from newsrooms we check there.`
+      : `Because ${p} is in ${name}. Newest first, from newsrooms we check there.`;
+  }
+  if (!us) return 'Because we check state newsrooms only in the US, these are national weather and travel headlines, newest first.';
+  if (US_STATES[code]) return `Because we have no newsrooms listed for ${US_STATES[code]} yet, these are national weather and travel headlines, newest first.`;
+  return 'Because we could not tell which state this place is in, these are national weather and travel headlines, newest first.';
+}
+
+// Statehouse votes and Both sides: shown only for a US place in a known state.
+export function civicReason(place, code) {
+  const name = US_STATES[code];
+  if (!name) return '';
+  const p = placeWords(place);
+  const who = p === 'where you are' || p.toLowerCase() === name.toLowerCase() ? 'you’re' : `${p} is`;
+  return `Because ${who} in ${name}. Votes are listed newest first, as recorded; Both sides topics newest first, for ${name} and the nation.`;
 }
