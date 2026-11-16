@@ -2,13 +2,16 @@
 // story-id code (js/community.js), and lib/picks-db.js. No network.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
+import { createHash, webcrypto } from 'node:crypto';
 import {
   normaliseStoryUrl, storyId, sha256Hex, isStoryId, parseIPv6, clientKey, dayBucket, voterHash, tipHash, saltReady,
   publicHost, checkTipUrl, validateVote, parseIds, validateTip, publicRating, shapeRatings, shapeFavourites, route, ROUTE_METHOD,
   limitReply, originAllowed, corsHeaders, writeAllowed, VOTE_THRESHOLD, MAX_IDS, NOTE_MAX,
 } from '../supabase/functions/community/logic.mjs';
 import * as browser from '../js/community.js';
+
+// Deno and browsers have Web Crypto on globalThis; Node 18 (still in the CI matrix) does not.
+if (!globalThis.crypto?.subtle) Object.defineProperty(globalThis, 'crypto', { value: webcrypto, configurable: true });
 import picksDb from '../lib/picks-db.js';
 
 const { loadDbPicks, toPick, picksEndpoint } = picksDb;
