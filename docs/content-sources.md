@@ -48,7 +48,8 @@ The owner asked for the call that gives the site the best chance of success. It 
 **Recommended: a curated outlet list per state, plus free ranking signals.**
 
 - For each state, pick the States Newsroom outlet, the public radio newsroom and one or two newspapers, and read their feeds.
-- Show the headline, a one-line summary we write ourselves, the outlet's name and a link. Do not copy their opening paragraph or description, and do not use their images without permission.
+- Show the headline, a one-line summary we write ourselves, the outlet's name and a link. Do not copy their opening paragraph or description.
+- **Preview images (owner decision, 16 November 2026):** show the publisher's own link-preview picture as a hotlinked, credited thumbnail, with an off switch per outlet. Details below.
 - For "most read", use our own click counts. As a starting signal before we have traffic, GDELT (free, commercial use allowed with credit) shows how widely a story is being covered.
 - Open States (free key) adds what is actually moving in the state legislature: bills, votes and who sponsored them, with party.
 
@@ -56,6 +57,14 @@ The owner asked for the call that gives the site the best chance of success. It 
 
 - States Newsroom allows republishing, but not selling ads against its stories. Linking out, as above, avoids the problem.
 - Bing's news API was retired in August 2025 and Google News feeds are for non-commercial use, so neither is an option.
+
+**Preview images: what we do and why**
+
+- **What:** only the picture the publisher offers for previews of that story: the image in its feed (`media:content` or `media:thumbnail` marked as an image, an `enclosure` or Atom enclosure link with an image type), or, when the feed has none, the `og:image` (then `twitter:image`) in the `<head>` of the article page. Never an image from the article body, and never any of the page's text. `lib/news.js` reads the page only up to `</head>` (at most 256 KB, 4 s), only for the stories it is about to show, only on the outlet's own site, and caches the answer for six hours.
+- **How:** hotlinked. The visitor's browser loads the picture from the publisher's address; Gatecast never downloads, stores, proxies or resizes it (no Vercel image optimisation). It is shown with a visible "Image: <outlet>" credit, links to the story like the headline, sends no referrer, and is replaced by the outlet's monogram tile if it fails to load. https only; SVGs, `data:` addresses and tiny or 1×1 images are refused.
+- **Off switch:** every outlet in `data/news-sources.json` has `"images": true`. Setting it to `false` stops the picture for that outlet completely: nothing is read from its feed's image tags or its pages, and nothing is shown.
+- **Why it is acceptable:** publishers put these images in their feeds and `og:image` tags precisely so that links to their stories are shown with a picture; news aggregators, search engines and social networks display them this way as a matter of course, and the picture sends readers to the publisher. It is a common practice, not a licence.
+- **Residual risk:** (1) Many of these pictures are wire-service or agency photos (AP, Getty, Reuters) that the outlet licensed for its own use, and the agency may object to display elsewhere even as a thumbnail; the off switch and a prompt takedown are the answer, and a lawyer should look at it before launch. (2) A publisher can block hotlinking or rotate addresses at any time; the tile fallback covers that. (3) Privacy: loading a picture means the visitor's browser contacts the publisher's server or its image CDN (for example npr.brightspotcdn.com, i0.wp.com), which sees the visitor's IP address and browser, though not the Gatecast page (no referrer is sent). The brief's source line says pictures load from each outlet's site; the privacy note should say so too.
 
 **Runner-up:** NewsData.io, whose state and city filter is only on its top plan (paid plans run roughly $200 to $1,300 a month). NewsAPI.org is about $449 a month and has no state filter.
 
@@ -136,7 +145,7 @@ What it needs that the site does not have today: a database for the queue and th
 - **Non-commercial content on an ad-supported site.** wikiHow, iFixit, Instructables, AllSides ratings, Red Cross.
 - **Share-alike text mixed into our own.** Keep anything copied from Wikivoyage or Wikipedia in its own credited block.
 - **Database share-alike.** A dataset built from Open Food Facts or OpenStreetMap must be shared under the same terms.
-- **Images.** They carry their own rights, separate from the text. An image link in a news feed is not permission. Use licensed photos, written permission, official portraits, or no image.
+- **Images.** They carry their own rights, separate from the text. An image link in a news feed is not permission. Use licensed photos, written permission, official portraits, or no image. **Exception decided by the owner on 16 November 2026:** in the brief's headlines, the publisher's own link-preview image (feed image or `og:image`) is shown as a hotlinked, credited thumbnail linking to the story, never copied or re-hosted, with a per-outlet off switch in `data/news-sources.json`. This follows common aggregator practice; the residual risks are wire-service photos inside those previews, publishers blocking hotlinking, and visitors' browsers contacting publisher image servers (see "State politics by location").
 - **AI-written text is probably not protected by copyright**, so competitors may copy it. The protection is the service, not the words.
 
 ## To verify before launch
@@ -144,7 +153,7 @@ What it needs that the site does not have today: a database for the queue and th
 1. YouTube API terms on showing ranked view counts and on ads beside embeds.
 2. Spoonacular's current price and data-retention terms.
 3. States Newsroom's republishing terms as they apply to headline-and-link display.
-4. The display format for news and quotes, with a media lawyer.
+4. The display format for news and quotes, with a media lawyer, including the hotlinked preview images and what to do when a wire service objects.
 5. Travelpayouts' affiliate terms, if flight prices are wanted.
 
 ---

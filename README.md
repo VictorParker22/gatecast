@@ -103,6 +103,7 @@ The site is deployed on Vercel (`vercel.json`). Vercel runs `node scripts/build-
 - **US airport delay programmes:** FAA NAS Status, through `server.js`.
 - **Flight tracking:** route (origin and destination) from adsbdb and live position from adsb.lol, both keyless, through `/api/flight`. There is no free source of scheduled times, gates, delays or cancellations, so those are not shown, and the landing time is an estimate from distance and speed.
 - **City search and air quality:** Open-Meteo geocoding and air-quality services, from the browser.
+- **Headlines and preview images:** the outlets in `data/news-sources.json`, through `/api/news`; pictures are the outlets' own preview images, loaded by the visitor's browser from the outlet's servers (no referrer sent), and any outlet can be switched to text only.
 - **Radar:** RainViewer past-radar tiles (free for personal and small-scale use) over OpenStreetMap tiles, loaded only when the radar panel scrolls into view.
 - **Location:** the browser's geolocation, requested only after the visitor presses "Use my location". Coordinates are rounded to about a kilometre, kept in the browser, and sent only to the forecast service. The place name comes from the nearest airport in the bundled list, not from a lookup service.
 

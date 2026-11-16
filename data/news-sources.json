@@ -1,34 +1,35 @@
 {
-  "comment": "Outlets whose public RSS/Atom feeds feed the Today page's 'The brief' (lib/news.js). We show only the outlet's headline, its name, the time and a link to the story: never its description, opening paragraph or images. Prefer the States Newsroom outlet and the public-radio statehouse desk for each state (docs/content-sources.md, 'State politics by location'). Every feed below was fetched on the 'checked' date and returned valid RSS with items from the past week. The owner should review and approve this list before launch.",
+  "comment": "Outlets whose public RSS/Atom feeds feed the Today page's 'The brief' (lib/news.js). We show only the outlet's headline, its name, the time, a link to the story and the outlet's own link-preview image: never its description, opening paragraph or article text. Prefer the States Newsroom outlet and the public-radio statehouse desk for each state (docs/content-sources.md, 'State politics by location'). Every feed below was fetched on the 'checked' date and returned valid RSS with items from the past week. The owner should review and approve this list before launch.",
+  "images": "Pictures are each publisher's own link-preview image: the one its feed offers for the story (media:content, media:thumbnail, an image enclosure) or, failing that, the og:image / twitter:image in the article page's <head>. They are hotlinked (the visitor's browser loads them from the publisher; we never download, store, proxy or resize them), credited 'Image: <outlet>' and linked to the story. Owner decision of 16 Nov 2026, see docs/content-sources.md. Any outlet can be switched off by setting its \"images\" to false: then no image is read or shown for it and its article pages are never fetched.",
   "checked": "2026-11-16",
   "sources": [
-    { "id": "nysfocus", "name": "New York Focus", "homepage": "https://nysfocus.com/", "feed": "https://nysfocus.com/feed.xml", "state": "NY" },
-    { "id": "cityandstateny", "name": "City & State New York", "homepage": "https://www.cityandstateny.com/", "feed": "https://www.cityandstateny.com/rss/all/", "state": "NY" },
-    { "id": "wamc-ny", "name": "WAMC", "homepage": "https://www.wamc.org/new-york-news", "feed": "https://www.wamc.org/new-york-news.rss", "state": "NY" },
+    { "id": "nysfocus", "name": "New York Focus", "homepage": "https://nysfocus.com/", "feed": "https://nysfocus.com/feed.xml", "state": "NY", "images": true },
+    { "id": "cityandstateny", "name": "City & State New York", "homepage": "https://www.cityandstateny.com/", "feed": "https://www.cityandstateny.com/rss/all/", "state": "NY", "images": true },
+    { "id": "wamc-ny", "name": "WAMC", "homepage": "https://www.wamc.org/new-york-news", "feed": "https://www.wamc.org/new-york-news.rss", "state": "NY", "images": true },
 
-    { "id": "njmonitor", "name": "New Jersey Monitor", "homepage": "https://newjerseymonitor.com/", "feed": "https://newjerseymonitor.com/feed/", "state": "NJ" },
-    { "id": "njspotlight", "name": "NJ Spotlight News", "homepage": "https://www.njspotlightnews.org/", "feed": "https://www.njspotlightnews.org/feed/", "state": "NJ" },
+    { "id": "njmonitor", "name": "New Jersey Monitor", "homepage": "https://newjerseymonitor.com/", "feed": "https://newjerseymonitor.com/feed/", "state": "NJ", "images": true },
+    { "id": "njspotlight", "name": "NJ Spotlight News", "homepage": "https://www.njspotlightnews.org/", "feed": "https://www.njspotlightnews.org/feed/", "state": "NJ", "images": true },
 
-    { "id": "calmatters", "name": "CalMatters", "homepage": "https://calmatters.org/", "feed": "https://calmatters.org/feed/", "state": "CA" },
-    { "id": "kqed-politics", "name": "KQED", "homepage": "https://www.kqed.org/news", "feed": "https://ww2.kqed.org/news/category/politics/feed/", "state": "CA" },
+    { "id": "calmatters", "name": "CalMatters", "homepage": "https://calmatters.org/", "feed": "https://calmatters.org/feed/", "state": "CA", "images": true },
+    { "id": "kqed-politics", "name": "KQED", "homepage": "https://www.kqed.org/news", "feed": "https://ww2.kqed.org/news/category/politics/feed/", "state": "CA", "images": true },
 
-    { "id": "ohiocapitaljournal", "name": "Ohio Capital Journal", "homepage": "https://ohiocapitaljournal.com/", "feed": "https://ohiocapitaljournal.com/feed/", "state": "OH" },
-    { "id": "statenews-oh", "name": "Statehouse News Bureau", "homepage": "https://www.statenews.org/", "feed": "https://www.statenews.org/government-politics.rss", "state": "OH" },
+    { "id": "ohiocapitaljournal", "name": "Ohio Capital Journal", "homepage": "https://ohiocapitaljournal.com/", "feed": "https://ohiocapitaljournal.com/feed/", "state": "OH", "images": true },
+    { "id": "statenews-oh", "name": "Statehouse News Bureau", "homepage": "https://www.statenews.org/", "feed": "https://www.statenews.org/government-politics.rss", "state": "OH", "images": true },
 
-    { "id": "texastribune", "name": "The Texas Tribune", "homepage": "https://www.texastribune.org/", "feed": "https://feeds.texastribune.org/feeds/main/", "state": "TX" },
-    { "id": "kut-politics", "name": "KUT News", "homepage": "https://www.kut.org/politics", "feed": "https://www.kut.org/politics.rss", "state": "TX" },
+    { "id": "texastribune", "name": "The Texas Tribune", "homepage": "https://www.texastribune.org/", "feed": "https://feeds.texastribune.org/feeds/main/", "state": "TX", "images": true },
+    { "id": "kut-politics", "name": "KUT News", "homepage": "https://www.kut.org/politics", "feed": "https://www.kut.org/politics.rss", "state": "TX", "images": true },
 
-    { "id": "floridaphoenix", "name": "Florida Phoenix", "homepage": "https://floridaphoenix.com/", "feed": "https://floridaphoenix.com/feed/", "state": "FL" },
-    { "id": "wfsu-state", "name": "WFSU News", "homepage": "https://news.wfsu.org/state-news", "feed": "https://news.wfsu.org/state-news.rss", "state": "FL" },
+    { "id": "floridaphoenix", "name": "Florida Phoenix", "homepage": "https://floridaphoenix.com/", "feed": "https://floridaphoenix.com/feed/", "state": "FL", "images": true },
+    { "id": "wfsu-state", "name": "WFSU News", "homepage": "https://news.wfsu.org/state-news", "feed": "https://news.wfsu.org/state-news.rss", "state": "FL", "images": true },
 
-    { "id": "capitolnewsillinois", "name": "Capitol News Illinois", "homepage": "https://capitolnewsillinois.com/", "feed": "https://capitolnewsillinois.com/feed/", "state": "IL" },
-    { "id": "nprillinois-politics", "name": "NPR Illinois", "homepage": "https://www.nprillinois.org/politics", "feed": "https://www.nprillinois.org/politics.rss", "state": "IL" },
+    { "id": "capitolnewsillinois", "name": "Capitol News Illinois", "homepage": "https://capitolnewsillinois.com/", "feed": "https://capitolnewsillinois.com/feed/", "state": "IL", "images": true },
+    { "id": "nprillinois-politics", "name": "NPR Illinois", "homepage": "https://www.nprillinois.org/politics", "feed": "https://www.nprillinois.org/politics.rss", "state": "IL", "images": true },
 
-    { "id": "pacapitalstar", "name": "Pennsylvania Capital-Star", "homepage": "https://penncapital-star.com/", "feed": "https://penncapital-star.com/feed/", "state": "PA" },
-    { "id": "spotlightpa", "name": "Spotlight PA", "homepage": "https://www.spotlightpa.org/", "feed": "https://www.spotlightpa.org/feeds/full.xml", "state": "PA" },
+    { "id": "pacapitalstar", "name": "Pennsylvania Capital-Star", "homepage": "https://penncapital-star.com/", "feed": "https://penncapital-star.com/feed/", "state": "PA", "images": true },
+    { "id": "spotlightpa", "name": "Spotlight PA", "homepage": "https://www.spotlightpa.org/", "feed": "https://www.spotlightpa.org/feeds/full.xml", "state": "PA", "images": true },
 
-    { "id": "yaleclimateconnections", "name": "Yale Climate Connections", "homepage": "https://yaleclimateconnections.org/", "feed": "https://yaleclimateconnections.org/feed/", "state": "national" },
-    { "id": "noaa", "name": "NOAA", "homepage": "https://www.noaa.gov/news", "feed": "https://www.noaa.gov/rss.xml", "state": "national" },
-    { "id": "simpleflying", "name": "Simple Flying", "homepage": "https://simpleflying.com/", "feed": "https://simpleflying.com/feed/", "state": "national" }
+    { "id": "yaleclimateconnections", "name": "Yale Climate Connections", "homepage": "https://yaleclimateconnections.org/", "feed": "https://yaleclimateconnections.org/feed/", "state": "national", "images": true },
+    { "id": "noaa", "name": "NOAA", "homepage": "https://www.noaa.gov/news", "feed": "https://www.noaa.gov/rss.xml", "state": "national", "images": true },
+    { "id": "simpleflying", "name": "Simple Flying", "homepage": "https://simpleflying.com/", "feed": "https://simpleflying.com/feed/", "state": "national", "images": true }
   ]
 }
