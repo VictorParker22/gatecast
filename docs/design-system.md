@@ -2,6 +2,8 @@
 
 The visual language and components of the Gatecast site. Tokens live in `styles/tokens.css`; components in `styles/app.css` reference only semantic tokens.
 
+The direction is "a departure board for weather" (`docs/redesign.md`): the interface is monochrome (ink, concrete and paper), colour only ever means risk, and codes, times and big numbers are set like airport signage. The foundation below is shipped; page layouts are being rebuilt on top of it.
+
 ## Principles
 
 1. **Verdict first, evidence second.** Every screen answers "will weather disrupt my trip?" in one sentence before showing any numbers.
@@ -9,45 +11,87 @@ The visual language and components of the Gatecast site. Tokens live in `styles/
 3. **Local time, always labelled.** Each airport shows its own clock with the zone, and a written date when the day changes.
 4. **Plain words.** No METAR, IFR or ATC terms in the main view. Raw data sits one tap deeper.
 5. **Tokens only.** Components never contain a colour value; they take it from a semantic token.
+6. **Colour only means risk.** Everything else is ink, concrete, paper and greys. Teal, amber and rose appear only for Low, Elevated and High, so a colour on screen is always news about the weather on the trip. Links, buttons, focus rings, charts and the current-page mark are ink (white in dark).
+7. **Calm collapses, risk expands.** When nothing threatens the trip, say so in one quiet line (grey text with the tick shape, `--color-calm`) and get out of the way. When something does, that stop or banner opens up with a tint, the reason, the hours that matter and what to do.
 
 ## Tokens
 
 ### Colour
 
+Light is concrete and paper with ink type; dark is near-black with white type. Contrast is measured against both `--color-bg` and `--color-surface`.
+
 | Token | Light | Dark | Use |
 |---|---|---|---|
-| `--color-bg` | `#f4f6fa` | `#0b1120` | Page background |
-| `--color-surface` | `#ffffff` | `#141c2e` | Cards, form, popover |
-| `--color-surface-sunken` | `#e8edf5` | `#1c2640` | Wells, hover rows, empty bar track |
-| `--color-border` | `#d3dae6` | `#2a3550` | Hairlines |
-| `--color-text` | `#0f1728` | `#e9edf5` | Body text |
-| `--color-text-muted` | `#55607a` | `#9aa6bd` | Labels, captions |
-| `--color-accent` | `#1d5fd6` | `#8fb0ff` | Primary action, links, airport codes, "you are here" shading |
-| `--risk-low` | `#0b6b5f` | `#5fd3c0` | Low risk (teal, tick in circle) |
-| `--risk-elevated` | `#8f4e00` | `#f2b450` | Elevated risk (amber, triangle) |
-| `--risk-high` | `#a81c48` | `#ff8aa8` | High risk (rose, octagon) |
+| `--color-bg` | `#ECEBE6` | `#07090D` | Page background (concrete / night) |
+| `--color-surface` | `#FFFFFF` | `#111418` | Cards, form, popover |
+| `--color-surface-sunken` | `#E0DFD9` | `#1B1F25` | Wells, hover rows, empty bar track |
+| `--color-border` | `#D6D4CC` | `#2A2F37` | Hairlines |
+| `--color-text` | `#111418` | `#E9EDF5` | Body text (15.5:1 on bg / 18.5:1 on surface light; 17.0:1 / 15.7:1 dark) |
+| `--color-text-muted` | `#4F545B` | `#A9B0BA` | Labels, captions (6.4:1 / 7.6:1 light; 9.1:1 / 8.5:1 dark) |
+| `--color-calm` | = text-muted | = text-muted | Calm / low states rendered quietly (grey text plus the tick shape) |
+| `--color-accent` | `#111418` (ink) | `#FFFFFF` | Primary button, links, focus ring, current nav mark, charts. Never a hue |
+| `--color-on-accent` | `#FFFFFF` | `#07090D` | Text on the accent |
+| `--color-control-border` | `#7E838A` | `#6E757F` | Non-text control edges (3.2:1 / 3.8:1 light; 4.3:1 / 4.0:1 dark) |
+| `--color-live` | = text | = text | "In the air" status; monochrome, the pulsing dot carries the meaning |
+| `--color-map-land` / `--color-map-sea` | `#D6D4CC` / `#E0DFD9` | `#2F343C` / `#0C0F14` | Inline route map |
+| `--risk-low` | `#0B6B5F` | `#5FD3C0` | Low risk (teal, tick in circle) |
+| `--risk-elevated` | `#8F4E00` | `#F2B450` | Elevated risk (amber, triangle) |
+| `--risk-high` | `#A81C48` | `#FF8AA8` | High risk (rose, octagon) |
 
-Risk tints are derived, not stored: `color-mix(in oklab, var(--risk) 14%, var(--color-surface))` for fills and 40-45% for borders. A component sets `--risk` once from its level modifier (`.chip--high`, `.stop--high`, `.verdict--high`, `.hour--high`).
+Risk contrast (text-size use, all at least 4.5:1):
+
+| Level | Light on bg / surface / chip tint | Dark on bg / surface / chip tint |
+|---|---|---|
+| Low | 5.4 / 6.4 / 5.2 | 11.0 / 10.2 / 8.2 |
+| Elevated | 5.4 / 6.5 / 5.2 | 10.8 / 10.0 / 8.1 |
+| High | 6.0 / 7.2 / 5.8 | 9.0 / 8.3 / 6.8 |
+
+Body text on the 11% verdict tint stays above 15:1 (light) and 13:1 (dark); muted text on it above 6.3:1 and 7.0:1.
+
+Risk tints are derived, not stored: `color-mix(in oklab, var(--risk) 14%, var(--color-surface))` for fills and 40-45% for borders. A component sets `--risk` once from its level modifier (`.chip--high`, `.stop--high`, `.verdict--high`, `.hour--high`); the `--calm` modifier (`.chip--calm`, `.stop--calm`, `.verdict--calm`) sets it to `--color-calm`.
 
 Teal, amber and rose were chosen over green, yellow and red so the three levels stay apart for people with red-green colour blindness.
 
+#### Sky, glass and fixed surfaces
+
+| Token | Value | Use |
+|---|---|---|
+| `--sky-day` … `--sky-storm` | `#1D5FD6`, `#141B3A`, `#5A6B82`, `#33415F`, `#4D6585`, `#272C42` | Flat fallback colour behind the animated sky, one per condition. Not UI colour |
+| `--color-on-sky` / `--color-on-sky-muted` | `#FFFFFF` / `#E6EEFF` | Text on the sky |
+| `--glass-bg` | `rgba(9,11,16,0.42)` | Frosted panel fill, only over the animated sky (white text on it is about 10.9:1 over `--sky-day`) |
+| `--glass-border` | `rgba(255,255,255,0.16)` | Frosted panel edge |
+| `--glass-blur` | `22px` | `backdrop-filter: blur()` radius for glass |
+| `--color-sun` / `--color-on-sun` | `#FFFFFF` / `#111418` | Legacy name: the white emphasis on the sky (`.btn--sun`, sky focus ring, current nav mark on the sky). No longer yellow |
+| `--color-ink-surface` | `#111418` / `#252A31` | Ink emphasis panel ("Get ready", primary sheet action) |
+| `--color-on-ink` / `--color-on-ink-muted` | `#FFFFFF` / `#C3C8CF` | Text on the ink panel |
+
+The raw palette (`--paper-*`, `--ink-*`, `--teal-*`, `--amber-*`, `--rose-*`) is for tokens.css only. The old `--cobalt-*` values are gone; the radar "you are here" marker reads `--ink-900`.
+
 ### Typography
 
-Inter (`--font-sans`) for text and Space Grotesk (`--font-display`) for headings, big numbers and airport codes. Both are self-hosted from `vendor/fonts/`, so no visitor data goes to a font service. Tabular numerals are on everywhere so times and temperatures line up.
+Two faces, both self-hosted from `vendor/fonts/` (SIL Open Font License), so no visitor data goes to a font service:
+
+- **Inter** (`--font-sans`, variable 100-900) for sentences: body, headings that are sentences, labels, buttons.
+- **Barlow Condensed** (`--font-display`, static 600 and 700, latin and latin-ext) for signage: airport codes, flight numbers, times, temperatures and other big numbers, the verdict headline, risk chips, status pills, the nav and the wordmark. Often uppercase with `--tracking-caps` (0.06em). Weights other than 600/700 snap to the nearest of those two.
+
+Headings (`h1`-`h3`) default to Inter 700; only the verdict and flight headlines are set in Barlow. Tabular numerals are on everywhere so times and temperatures line up. `--font-mono` remains only for raw METAR text.
 
 | Token | Size | Use |
 |---|---|---|
 | `--text-2xl` | 2 to 3.5rem, fluid | Page headline |
-| `--text-xl` | 1.5 to 2.125rem, fluid | Verdict headline |
-| `--text-lg` | 1.25rem | Section and card headings, times |
+| `--text-xl` | 1.5 to 2.125rem, fluid | Section headline |
+| `--text-lg` | 1.25rem | Card headings |
 | `--text-md` | 1rem | Body |
 | `--text-sm` | 0.875rem | Labels, secondary text |
 | `--text-xs` | 0.75rem | Captions, hourly strip |
+| `--tracking-caps` | 0.06em | Letter-spacing for uppercase signage |
+
+Utilities in `app.css`: `.signage` (Barlow 700, uppercase, tracked), `.num` (Barlow 600, tabular), `.code` (Barlow 700, airport and flight codes), `.glass` (frosted panel; only inside `.sky`).
 
 ### Spacing, shape, motion
 
 - Spacing: 4px base, `--space-1` (4px) to `--space-7` (48px).
-- Radius: `--radius-sm` 6px (inputs), `--radius-md` 12px (cards), `--radius-lg` 20px (form, verdict), `--radius-pill`.
+- Radius: `--radius-sm` 6px (inputs, focus ring), `--radius-md` 16px (cards, panels, popover), `--radius-lg` 20px (form, verdict, flight card, board tiles), `--radius-xl` 28px (sheet, shelf), `--radius-pill` 999px (buttons, chips, segmented options, pills).
 - Elevation: `--shadow-1` (resting card), `--shadow-2` (popover, suggestion list).
 - Motion: `--duration-fast` 120ms for hover and press, `--duration-base` 240ms for results entering. All motion is removed under `prefers-reduced-motion`.
 - `--tap-target` 44px minimum for anything interactive.
@@ -62,16 +106,17 @@ Inter (`--font-sans`) for text and Space Grotesk (`--font-display`) for headings
 | `.chip--elevated` | Triangle with `!` | "Elevated risk" |
 | `.chip--high` | Octagon with `!` | "High risk" |
 | `.chip--unknown` | Question mark in circle | "No forecast" |
+| `.chip--low.chip--calm` | Tick in circle | Quiet grey, no fill or border: for "calm collapses" lists |
 
-Not interactive. The icon is `aria-hidden`; the text carries the meaning.
+Set as signage: Barlow Condensed 700, uppercase, pill-shaped. Not interactive. The icon is `aria-hidden`; the text carries the meaning. `chip(level, text)` in `js/ui.js` emits `chip chip--<level>`; add `chip--calm` yourself where a quiet low is wanted.
 
 ### Verdict banner (`.verdict`)
 
-Route and date eyebrow, one-sentence headline, one-sentence reason, forecast-confidence note, "Copy link" action. Variants follow the risk levels plus `--loading` and `--unknown` (errors, out-of-range dates). The headline receives focus after results load so screen-reader users hear the answer first.
+Route and date eyebrow (Barlow 600, uppercase), one-sentence headline (Barlow Condensed 700, 1.875 to 2.75rem), one-sentence reason (Inter), forecast-confidence note, "Copy link" action. A surface card with a 6px risk-coloured left rule. Calm collapses: `--low`, `--unknown` and `--loading` stay on the plain surface. Risk expands: `--elevated` and `--high` take the 11% risk tint and a tinted border. The headline receives focus after results load so screen-reader users hear the answer first.
 
 ### Stop card (`.stop`)
 
-One per airport, in travel order. Contains role (Departure, Connection with layover length, Arrival), airport name, local land and take-off times, the weather at the relevant hour, a one-line reason, the hourly strip, and live rows. A 4px top border carries the risk colour; the chip carries the word.
+One per airport, in travel order. Contains role (Barlow uppercase: Departure, Connection with layover length, Arrival), airport code (Barlow 700, 1.4em) and name, local land and take-off times (Barlow 600), the weather at the relevant hour, a one-line reason, the hourly strip, and live rows. A 4px top border carries the risk colour; the chip carries the word.
 
 The summary shows the hour of take-off or landing when risk is low, and the worst hour of the stay when it is not; the caption says which.
 
@@ -100,7 +145,7 @@ Text input with `role="combobox"` and a `listbox` of suggestions.
 
 ### Buttons (`.btn`)
 
-`--primary` (one per view: "Check my trip"), `--ghost` (secondary, bordered), `--text` (inline action), `--icon` (44px square, needs `aria-label`). `.pill` is used for example and recent trips.
+All pill-shaped, at least 44px tall. `--primary` (one per view: "Check my trip"; ink with white text in light, white with ink text in dark), `--ghost` (secondary, bordered), `--text` (inline action, underlined ink), `--icon` (44px square, needs `aria-label`), `--glass` (white text on frosted glass, only over the sky), `--sun` (white with ink text, the primary action on the sky). `.pill` is used for example and recent trips; `.pill.is-current` is filled ink.
 
 ### Settings popover (`.settings`, `.segmented`)
 
@@ -153,7 +198,7 @@ Everything below the sky is a box on a six-column grid. Each box has three sizes
 
 Changes animate with view transitions, which are switched off under `prefers-reduced-motion`. Every move is announced to screen readers ("10 days moved to position 3 of 8"). The arrangement is saved on the device.
 
-Two boxes use fixed emphasis colours in both themes: the quick question (`--color-sun`) and "Get ready" (`--color-ink-surface`).
+Two boxes use fixed emphasis surfaces: the quick question (`--color-sun`, now white with ink text, so it stands out in dark and sits flush in light) and "Get ready" (`--color-ink-surface`).
 
 ### Options panel (`.sheet`)
 
@@ -173,7 +218,11 @@ One question a day made from the forecast on the page, answered with one tap. Th
 
 ### Site navigation (`.site-nav`)
 
-Three links (Weather, Flights, Connections) in the header. The current page is marked with `aria-current="page"` and shown with a bold label plus an accent underline, never colour alone. On narrow screens the links move to their own row and the settings button collapses to its icon.
+Three links, in this order: **Today** (`./`), **Trips** (`trip.html`), **Flights** (`flights.html`), set in Barlow Condensed uppercase. The current page is marked with `aria-current="page"` and shown with a bolder label plus a 3px ink underline (white on the sky), never colour alone. On narrow screens the links move to their own row and the settings button ("Units & display", a native popover) collapses to its icon.
+
+### Brand (`.brand`, `.brand__mark`, `.brand__name`)
+
+The mark is a gate arch with a centre line, drawn as a stroke icon: `<path d="M5 20V9a7 7 0 0 1 14 0v11"/><path d="M12 13v7"/>` on a 24-unit grid, placed with `translate(4 5)` inside a 32-unit rounded square (`rx="8"`). On paper pages the square is `--color-accent` (ink in light, white in dark) and the glyph `--color-on-accent`; over the sky the square is transparent and the glyph white. The wordmark is "Gatecast" set in Barlow Condensed 700 uppercase with 0.08em tracking (the HTML text stays "Gatecast"; the link's `aria-label` is "Gatecast home"). The favicon is the same mark: an `#111418` square with a white glyph.
 
 ### Location bar and welcome (`.locbar`, `.welcome`)
 
@@ -225,6 +274,9 @@ Gatecast talks like a friend who knows the weather: someone who has read the for
 | Say what a percentage refers to ("chance of rain or snow in that hour") | Show a bare "40%" |
 | Add a new colour as a raw value, then a semantic token | Put a hex value in `app.css` |
 | Keep one primary button per view | Add a second filled button |
+| Use ink (`--color-accent`) for links, actions, charts and "you are here" | Use a hue for anything that is not a risk level |
+| Set codes, times and big numbers in `--font-display` | Set sentences in Barlow Condensed (the verdict headline is the one exception) |
+| Use `.glass` and `--glass-*` over the animated sky | Put glass on paper pages |
 
 ## Audit (15 Nov 2026)
 
@@ -236,4 +288,6 @@ Gatecast talks like a friend who knows the weather: someone who has read the for
 | Interactive targets below 44px | None |
 | Colour-only signals | None found |
 
-Priority actions: run a contrast check on muted text over tinted verdict backgrounds; test the hourly strip with a screen reader on iOS and Android.
+Priority actions: test the hourly strip with a screen reader on iOS and Android.
+
+Foundation update (16 Nov 2026): palette, type and header changed as above; contrast for text, muted text, accent, control borders and all three risk colours re-checked on bg, surface, sunken and the chip and verdict tints in both themes (numbers in the colour tables). Muted text over tinted verdict backgrounds is above 6.3:1.

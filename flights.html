@@ -9,7 +9,7 @@
   </script>
   <title>Flights — Gatecast</title>
   <meta name="description" content="Live flight tracking with weather at both ends, and current weather risk at any airport.">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231f4fd8'/%3E%3Cpath d='M7 20h18M10 14a6 6 0 0 1 12 0' stroke='%23fff' stroke-width='2.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23111418'/%3E%3Cpath d='M9 25V14a7 7 0 0 1 14 0v11M16 18v7' stroke='%23fff' stroke-width='2.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="styles/tokens.css">
   <link rel="stylesheet" href="styles/app.css">
   <link rel="preload" href="data/airports.json" as="fetch" crossorigin>
@@ -20,14 +20,14 @@
 
   <header class="site-header">
     <a class="brand" href="./" aria-label="Gatecast home">
-      <svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8"/><path d="M7 20h18M10 14a6 6 0 0 1 12 0"/></svg>
+      <svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8"/><g transform="translate(4 5)"><path d="M5 20V9a7 7 0 0 1 14 0v11"/><path d="M12 13v7"/></g></svg>
       <span class="brand__name">Gatecast</span>
     </a>
     <nav class="site-nav" aria-label="Main">
       <ul>
-        <li><a href="./">Weather</a></li>
+        <li><a href="./">Today</a></li>
+        <li><a href="trip.html">Trips</a></li>
         <li><a href="flights.html" aria-current="page">Flights</a></li>
-        <li><a href="trip.html">Connections</a></li>
       </ul>
     </nav>
     <button class="btn btn--ghost site-header__settings" type="button" popovertarget="settings" id="settings-btn">

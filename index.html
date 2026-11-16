@@ -8,11 +8,11 @@
     try { document.querySelector('meta[name="color-scheme"]').content = localStorage.getItem("color-scheme") ?? "light dark"; } catch (e) {}
     if (new URLSearchParams(location.search).has('r')) location.replace('trip.html' + location.search);
   </script>
-  <title>Gatecast — your weather, your board</title>
-  <meta name="description" content="One clear answer for today's weather where you are, on a board you can arrange your own way, with live flight status and airport weather.">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231d5fd6'/%3E%3Cpath d='M7 20h18M10 14a6 6 0 0 1 12 0' stroke='%23fff' stroke-width='2.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+  <title>Gatecast — will the weather mess up your trip?</title>
+  <meta name="description" content="Will the weather mess up your trip? Gatecast gives you one clear answer for today's weather where you are, checks the forecast at every airport on your journey, and shows live flight status.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23111418'/%3E%3Cpath d='M9 25V14a7 7 0 0 1 14 0v11M16 18v7' stroke='%23fff' stroke-width='2.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
   <link rel="preload" href="vendor/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="preload" href="vendor/fonts/space-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="vendor/fonts/barlow-condensed-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="styles/tokens.css">
   <link rel="stylesheet" href="styles/app.css">
   <link rel="stylesheet" href="styles/board.css">
@@ -47,14 +47,14 @@
     <canvas class="sky__canvas" id="sky-canvas" aria-hidden="true"></canvas>
     <header class="site-header">
       <a class="brand" href="./" aria-label="Gatecast home">
-        <svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8"/><path d="M7 20h18M10 14a6 6 0 0 1 12 0"/></svg>
+        <svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8"/><g transform="translate(4 5)"><path d="M5 20V9a7 7 0 0 1 14 0v11"/><path d="M12 13v7"/></g></svg>
         <span class="brand__name">Gatecast</span>
       </a>
       <nav class="site-nav" aria-label="Main">
         <ul>
-          <li><a href="./" aria-current="page">Weather</a></li>
+          <li><a href="./" aria-current="page">Today</a></li>
+          <li><a href="trip.html">Trips</a></li>
           <li><a href="flights.html">Flights</a></li>
-          <li><a href="trip.html">Connections</a></li>
         </ul>
       </nav>
       <button class="btn btn--ghost site-header__settings" type="button" popovertarget="settings" id="settings-btn">

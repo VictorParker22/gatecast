@@ -735,7 +735,7 @@ async function startRadar(el) {
   map.attributionControl.setPrefix(false);
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors · Radar: RainViewer', maxZoom: 9 }).addTo(map);
   const css = getComputedStyle(document.documentElement);
-  L.circleMarker([+el.dataset.lat, +el.dataset.lon], { radius: 6, weight: 2, color: css.getPropertyValue('--paper-50').trim(), fillColor: css.getPropertyValue('--cobalt-600').trim(), fillOpacity: 1 }).addTo(map);
+  L.circleMarker([+el.dataset.lat, +el.dataset.lon], { radius: 6, weight: 2, color: css.getPropertyValue('--paper-50').trim(), fillColor: css.getPropertyValue('--ink-900').trim(), fillOpacity: 1 }).addTo(map);
   const frames = (meta.radar && meta.radar.past) || [];
   if (!frames.length) throw new Error('no frames');
   const layers = frames.map((fr) => L.tileLayer(`${meta.host}${fr.path}/256/{z}/{x}/{y}/2/1_1.png`, { opacity: 0, maxNativeZoom: 7, maxZoom: 9, tileSize: 256 }));

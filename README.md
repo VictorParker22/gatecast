@@ -28,9 +28,9 @@ More screenshots, including the connection checker, are in [`docs/screenshots/`]
 
 Local weather with flight status. Three pages:
 
-- **Weather** (`index.html`): asks for your location (or a city) and answers in one sentence under a sky-coloured header. Below it is a personal board: boxes for the next 24 hours, 10 days, radar, current details, a daily question from the forecast, a here-and-there city comparison, flights, and a tip with a season checklist. Each box can be resized, reordered, hidden or kept on a shelf, and the arrangement is saved on the device.
+- **Today** (`index.html`): asks for your location (or a city) and answers in one sentence under a sky-coloured header. Below it is a personal board: boxes for the next 24 hours, 10 days, radar, current details, a daily question from the forecast, a here-and-there city comparison, flights, and a tip with a season checklist. Each box can be resized, reordered, hidden or kept on a shelf, and the arrangement is saved on the device.
+- **Trips** (`trip.html`): enter your airports, departure time and layover and get a plain-language verdict on whether weather threatens the connection.
 - **Flights** (`flights.html`): track a flight live by number, with weather at both ends, or look up any airport's current weather risk and the aircraft around it.
-- **Connections** (`trip.html`): enter your airports, departure time and layover and get a plain-language verdict on whether weather threatens the connection.
 
 ## Quick start
 
@@ -81,7 +81,7 @@ The site is deployed on Vercel (`vercel.json`). Vercel runs `node scripts/build-
 | `server.js` | Local static server exposing the same `/api` routes |
 | `scripts/build-data.cjs` | Build step: airport list with size ranking, map outline, assembles `public/` |
 | `vendor/leaflet/` | Leaflet 1.9.4 (BSD-2-Clause), used only for the radar map |
-| `vendor/fonts/` | Inter and Space Grotesk (SIL Open Font License), self-hosted |
+| `vendor/fonts/` | Inter and Barlow Condensed (SIL Open Font License), self-hosted |
 | `data/airports.json` | 7,769 airports with IATA codes, time zones and a size rank |
 | `supabase/migrations/` | Database for the "Both sides" review queue (not yet read by the site); see `docs/content-sources.md` |
 | `docs/` | Design system, user research plan, research report, content sources, moderation policy, design direction |
@@ -105,7 +105,7 @@ Each forecast hour is scored for thunderstorms, freezing rain, snowfall rate, fo
 
 ## Design direction
 
-The visual language in use today is documented in [`docs/design-system.md`](docs/design-system.md). The team is exploring a redesign, "a departure board for weather", in which your trip is the home page, one journey sits on one time axis, and colour only ever means risk. The idea, the critique behind it, the screens explored and the open questions before launch are in [`docs/redesign.md`](docs/redesign.md). None of it is built yet.
+The visual language in use today is documented in [`docs/design-system.md`](docs/design-system.md). The team is exploring a redesign, "a departure board for weather", in which your trip is the home page, one journey sits on one time axis, and colour only ever means risk. The idea, the critique behind it, the screens explored and the open questions before launch are in [`docs/redesign.md`](docs/redesign.md). The shared foundation is in place (monochrome tokens where colour only means risk, Barlow Condensed signage type, the new header and navigation); the page layouts are still being rebuilt.
 
 ## Contributing
 
@@ -119,4 +119,4 @@ Please report security problems privately, not in public issues. See [`SECURITY.
 
 Gatecast has no licence yet. Until the owner chooses one, the code is not offered under an open-source licence, and all rights are reserved by its authors.
 
-The vendored third-party files in `vendor/` keep their own licences: Leaflet 1.9.4 under BSD-2-Clause (`vendor/leaflet/LICENSE`), and the Inter and Space Grotesk fonts under the SIL Open Font License (`vendor/fonts/LICENSE-Inter.txt`, `vendor/fonts/LICENSE-SpaceGrotesk.txt`). Data sources carry their own terms, listed under [Data sources and limits](#data-sources-and-limits).
+The vendored third-party files in `vendor/` keep their own licences: Leaflet 1.9.4 under BSD-2-Clause (`vendor/leaflet/LICENSE`), and the Inter and Barlow Condensed fonts under the SIL Open Font License (`vendor/fonts/LICENSE-Inter.txt`, `vendor/fonts/LICENSE-BarlowCondensed.txt`). Data sources carry their own terms, listed under [Data sources and limits](#data-sources-and-limits).

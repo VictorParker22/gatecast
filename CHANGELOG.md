@@ -17,6 +17,7 @@ Gatecast has no tagged releases yet. `package.json` has said `1.0.0` since the f
 ### Changed
 
 - README reorganised with a table of contents, quick start, CI badge, screenshot, and contributing, security and licence sections.
+- Redesign foundation ("a departure board for weather"): monochrome ink, concrete and paper tokens in both themes, with colour reserved for risk; Barlow Condensed replaces Space Grotesk for signage type (codes, times, big numbers, the verdict); new brand mark, favicon and wordmark; navigation renamed and reordered to Today, Trips, Flights; links and primary buttons are ink instead of cobalt.
 
 ## 2026-11-16: headline voice, animated sky and review queue
 
