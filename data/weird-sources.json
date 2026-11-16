@@ -1,0 +1,84 @@
+{
+  "comment": "Outlets whose public RSS/Atom feeds fill the weird-news front page (/api/weird, lib/weird.js). As with the brief (data/news-sources.json) we show only the outlet's own headline, its name, the time, a link to the story and the outlet's own link-preview image: never its description, opening paragraph or article text. Every item passes the moderation rules in lib/moderation.js first. NOT YET VERIFIED: on 16 Nov 2026 every host below was refused by the build sandbox's network proxy, so feed addresses come from publisher patterns, feed directories and search-index copies (scout research). 'checked' stays null until the feed has been fetched and parsed on a Vercel preview (/api/weird?debug=1 shows each feed's status and item count). The owner should review and approve this list before launch. Guardian and NPR are left out on purpose: their feed terms are personal, non-commercial use only.",
+  "fields": "name: shown as the outlet. section: the outlet's section the feed covers. home: the outlet's page we link to (also its own-site boundary for og:image reads). images: false = no picture is read or shown, and its article pages are never fetched. review: true = a higher-risk outlet; its items appear only if moderation passes, never above a regular outlet's item, at most 3 at a time. categoryHints: lower-case words found in the feed's own <category> labels -> our category. filter: when present, an item is kept only if one of its feed categories contains one of 'categories' or its URL path contains one of 'paths'. exclude: an item is dropped when its headline contains one of 'titles' (whole words, any case) or its URL path one of 'paths'. licence: what we know about the terms.",
+  "checked": null,
+  "sources": [
+    {
+      "id": "upi-odd", "name": "UPI", "section": "Odd News",
+      "home": "https://www.upi.com/Odd_News/", "feed": "https://rss.upi.com/news/odd_news.rss",
+      "images": true, "review": false, "categoryHints": {},
+      "licence": "Unknown: no feed reuse terms found (upi.com footer Terms of Use not read). Preview photos are often Reuters/AP/Getty wire photos: keep the images switch and takedown route ready.",
+      "checked": null
+    },
+    {
+      "id": "sky-offbeat", "name": "Sky News", "section": "Offbeat",
+      "home": "https://news.sky.com/offbeat", "feed": "https://feeds.skynews.com/feeds/rss/strange.xml",
+      "images": true, "review": false, "categoryHints": {},
+      "licence": "Unknown (news.sky.com/info/terms-and-conditions not read). The feeds.skynews.com/feeds/rss/<section>.xml pattern is confirmed; the strange.xml filename is not.",
+      "checked": null
+    },
+    {
+      "id": "smithsonian-smartnews", "name": "Smithsonian Magazine", "section": "Smart News",
+      "home": "https://www.smithsonianmag.com/smart-news/", "feed": "https://www.smithsonianmag.com/rss/smart-news/",
+      "images": true, "review": false,
+      "categoryHints": { "animal": "animals", "wildlife": "animals", "weather": "weather", "climate": "weather" },
+      "licence": "Unknown (si.edu/termsofuse not read in full).",
+      "checked": null
+    },
+    {
+      "id": "atlasobscura", "name": "Atlas Obscura", "section": "Articles",
+      "home": "https://www.atlasobscura.com/", "feed": "https://www.atlasobscura.com/feeds/articles",
+      "images": true, "review": false,
+      "categoryHints": { "animal": "animals", "weather": "weather" },
+      "licence": "Unknown (terms page found, not read in full). Prefer /feeds/articles over /feeds/latest, which is mostly user-submitted places.",
+      "checked": null
+    },
+    {
+      "id": "sciencedaily-strange", "name": "ScienceDaily", "section": "Strange & Offbeat",
+      "home": "https://www.sciencedaily.com/news/strange_offbeat/", "feed": "https://www.sciencedaily.com/rss/strange_offbeat.xml",
+      "images": false, "review": false, "categoryHints": {},
+      "licence": "Known: feeds free for commercial and non-commercial use with ScienceDaily credited as the source (terms dated 7 Jan 2026); the outlet name is shown on every item. The terms count 'altering content or failing to display it' as a breach: ask ScienceDaily whether headline-and-link complies before launch. Images off: they are usually credited to the releasing institution.",
+      "checked": null
+    },
+    {
+      "id": "mentalfloss", "name": "Mental Floss", "section": "All stories",
+      "home": "https://www.mentalfloss.com/", "feed": "https://www.mentalfloss.com/feed",
+      "images": true, "review": false, "categoryHints": {},
+      "exclude": { "titles": ["deal", "deals", "sale", "% off", "amazon", "prime day", "black friday", "cyber monday", "gift guide", "gifts", "coupon", "discount", "best buys"], "paths": ["/shopping", "/deals", "/commerce"] },
+      "licence": "Unknown (mentalfloss.com/terms-of-use not read). Shopping and deal posts are filtered out.",
+      "checked": null
+    },
+    {
+      "id": "livescience", "name": "Live Science", "section": "Strange news",
+      "home": "https://www.livescience.com/", "feed": "https://www.livescience.com/feeds.xml",
+      "images": true, "review": false,
+      "filter": { "categories": ["strange news", "strange", "mysteries", "oddities", "weird"], "paths": ["/strange-news", "/mysteries"] },
+      "categoryHints": { "animals": "animals", "weather": "weather", "extreme weather": "weather", "mysteries": "unexplained" },
+      "licence": "Unknown (Future plc terms not read). General feed, filtered to strange-news items by category or URL. Runs graphic medical case reports: the injury rule holds those.",
+      "checked": null
+    },
+    {
+      "id": "soranews24", "name": "SoraNews24", "section": "Weird",
+      "home": "https://soranews24.com/", "feed": "https://soranews24.com/feed/",
+      "images": true, "review": false,
+      "filter": { "categories": ["weird", "bizarre", "strange", "odd"], "paths": [] },
+      "categoryHints": { "animals": "animals", "weather": "weather" },
+      "licence": "Unknown (no terms page found). General feed, filtered to the weird category; crime and sexual content are held or dropped by moderation.",
+      "checked": null
+    },
+    {
+      "id": "odditycentral", "name": "Oddity Central", "section": "All stories",
+      "home": "https://www.odditycentral.com/", "feed": "https://www.odditycentral.com/feed",
+      "images": false, "review": true, "categoryHints": {},
+      "licence": "Unknown (no terms page found). High risk: rewrites other outlets' stories and runs viral private individuals, medical conditions and poverty. Images off; lower priority; review outlet.",
+      "checked": null
+    },
+    {
+      "id": "ndtv-offbeat", "name": "NDTV", "section": "Offbeat",
+      "home": "https://www.ndtv.com/offbeat", "feed": "https://feeds.feedburner.com/ndtvnews-offbeat",
+      "images": false, "review": true, "categoryHints": {},
+      "licence": "Unknown (footer terms not read). High risk: heavy on viral clips of private people and accidents. Images off; lower priority; review outlet. The feedburner address is from memory: drop it if the preview shows it failing.",
+      "checked": null
+    }
+  ]
+}

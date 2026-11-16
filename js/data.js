@@ -270,4 +270,46 @@ export async function loadNearby(a) {
   } catch { return null; }
 }
 
+/* ---------- Weird news (through server.js or the Vercel function /api/weird) ---------- */
+
+// Resolves to { items, categories, checkedAt, sources } and never throws: on a static host, a failed request or an
+// odd answer, items is empty. Each item is re-checked here: https link, headline, outlet, date; the image only if
+// https; rating only 1-5 from a pick. limit 1-60 (default 30); category one of WEIRD_CATEGORIES or none.
+export const WEIRD_CATEGORIES = ['people', 'animals', 'laws', 'records', 'unexplained', 'weather', 'other'];
+export async function loadWeird({ limit = 30, category = null } = {}) {
+  const counts = () => Object.fromEntries(WEIRD_CATEGORIES.map((c) => [c, 0]));
+  const none = { items: [], categories: counts(), checkedAt: null, sources: [] };
+  const n = Math.min(60, Math.max(1, Math.round(Number(limit)) || 30));
+  const params = new URLSearchParams({ limit: String(n) });
+  if (WEIRD_CATEGORIES.includes(category)) params.set('category', category);
+  try {
+    const res = await fetch(`api/weird?${params}`);
+    if (!res.ok || !res.headers.get('content-type')?.includes('json')) return none;
+    const json = await res.json();
+    const https = (s) => typeof s === 'string' && /^https:\/\/[^\s/]+\.[^\s]+$/.test(s);
+    const text = (s) => (typeof s === 'string' && s.trim() ? s.trim() : null);
+    const items = (Array.isArray(json?.items) ? json.items : [])
+      .filter((x) => x && text(x.title) && text(x.outlet) && https(x.url) && Number.isFinite(Date.parse(x.published)))
+      .slice(0, n)
+      .map((x) => {
+        const image = https(x.image) && !/\.svgz?(?:$|\?)/i.test(x.image) ? x.image : null;
+        const pick = x.pick === true;
+        return {
+          id: text(String(x.id ?? '')) || x.url, title: x.title.trim(), url: x.url, outlet: x.outlet.trim(),
+          outletUrl: https(x.outletUrl) ? x.outletUrl : null, published: x.published,
+          category: WEIRD_CATEGORIES.includes(x.category) ? x.category : 'other',
+          image, imageCredit: image ? (text(x.imageCredit) || `Image: ${x.outlet.trim()}`) : null,
+          video: x.video === true, pick,
+          rating: pick && Number.isInteger(x.rating) && x.rating >= 1 && x.rating <= 5 ? x.rating : null,
+          note: pick ? text(x.note) : null,
+        };
+      });
+    const categories = counts();
+    for (const x of items) categories[x.category]++;
+    const sources = (Array.isArray(json?.sources) ? json.sources : [])
+      .filter((s) => s && text(s.name)).map((s) => ({ name: s.name.trim(), ok: s.ok === true, count: Number.isInteger(s.count) ? s.count : 0 }));
+    return { items, categories, checkedAt: typeof json?.checkedAt === 'string' && Number.isFinite(Date.parse(json.checkedAt)) ? json.checkedAt : null, sources };
+  } catch { return none; }
+}
+
 export { HOUR };

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- TEST FIXTURE, hand-written for tests/weird.test.mjs. Modelled on the shape of Atlas Obscura's articles
+     feed (atlasobscura.com/feeds/articles): RSS 2.0 with an image enclosure and the story's address as guid.
+     NOT real stories: headlines and "fixture-" paths are made up. -->
+<rss version="2.0">
+<channel>
+  <title>Atlas Obscura - Latest Articles and Places</title>
+  <link>https://www.atlasobscura.com</link>
+  <item>
+    <title>The Seaside Town That Throws a Festival for Its Fog</title>
+    <description>&lt;p&gt;NEVER-SHOW&lt;/p&gt;</description>
+    <pubDate>Fri, 14 Nov 2026 18:00:00 +0000</pubDate>
+    <guid isPermaLink="true">https://www.atlasobscura.com/articles/fixture-fog-festival</guid>
+    <enclosure url="https://img.atlasobscura.com/fixture/fog.jpg" type="image/jpeg" length="0" />
+  </item>
+  <item>
+    <title>Inside a Library of Lost Umbrellas</title>
+    <link>https://www.atlasobscura.com/articles/fixture-lost-umbrellas</link>
+    <pubDate>Wed, 12 Nov 2026 18:00:00 +0000</pubDate>
+    <enclosure url="https://img.atlasobscura.com/fixture/umbrellas.jpg" type="image/jpeg" length="0" />
+  </item>
+</channel>
+</rss>

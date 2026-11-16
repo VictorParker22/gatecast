@@ -185,6 +185,37 @@ One row per outlet in `data/news-sources.json` (20, checked 16 November 2026). G
 4. The display format for news and quotes, with a media lawyer, including the hotlinked preview images and what to do when a wire service objects.
 5. Travelpayouts' affiliate terms, if flight prices are wanted.
 
+## Weird news
+
+The front page's weird news (`/api/weird`, `lib/weird.js`). Same display rule as the brief: the outlet's own headline, its name, the time, a link to the story and the outlet's own preview picture, never its description or article text. Headlines are shown as written; the only change is that UPI's "Watch:" and "Look:" labels are taken off the front, and "Watch:" turns on the video label.
+
+**Sources** (`data/weird-sources.json`, from the scout's research of 16 November 2026). None could be fetched from the build environment (its network proxy refused every host), so every feed address is **unverified** and `checked` is `null` until the lead opens `/api/weird?debug=1` on a Vercel preview, which lists each feed's HTTP status, error class, items read and items kept.
+
+| Outlet | Feed | Pictures | Terms for commercial use | Notes |
+|---|---|---|---|---|
+| UPI (Odd News) | `rss.upi.com/news/odd_news.rss` | On | Unknown | Wire odd-news desk; previews are often agency photos |
+| Sky News (Offbeat) | `feeds.skynews.com/feeds/rss/strange.xml` | On | Unknown | The file name is unconfirmed |
+| Smithsonian Magazine (Smart News) | `smithsonianmag.com/rss/smart-news/` | On | Unknown | Archaeology stories with human remains are held |
+| Atlas Obscura (Articles) | `atlasobscura.com/feeds/articles` | On | Unknown | |
+| ScienceDaily (Strange & Offbeat) | `sciencedaily.com/rss/strange_offbeat.xml` | Off | **Allowed with credit** (terms of 7 Jan 2026) | Ask whether headline-and-link meets its "do not alter or fail to display content" clause |
+| Mental Floss | `mentalfloss.com/feed` | On | Unknown | Shopping and deal posts are filtered out |
+| Live Science | `livescience.com/feeds.xml` | On | Unknown | General feed, filtered to strange news by category or URL |
+| SoraNews24 | `soranews24.com/feed/` | On | Unknown | General feed, filtered to the weird category |
+| Oddity Central | `odditycentral.com/feed` | Off | Unknown | Review outlet: high risk |
+| NDTV (Offbeat) | `feeds.feedburner.com/ndtvnews-offbeat` | Off | Unknown | Review outlet: high risk; address from memory |
+
+Left out on purpose: the Guardian and NPR (their feed terms are personal, non-commercial use only), Google News (same), AP and Reuters (no public feeds; licensed only), and tabloid "WTF" sections without feeds.
+
+**What we show and in what order.** Up to 60 stories (30 by default): the editor's picks first, newest first; then the regular outlets' stories from the past 14 days, newest first; then the review outlets' stories, newest first and at most 3 of them. At most 8 feed stories per outlet. The same address or a near-identical headline appears once. Nothing is ranked by clicks or popularity, and nothing is counted. Each story gets one category (Weird People, Strange Animals, Odd Laws, World Records, Unexplained, Weird Weather or Other) from the feed's own label when the outlet's entry maps it, else from words in the headline and address. Pictures follow the brief's rules: the feed's preview image or the article page's `og:image`, hotlinked and credited "Image: <outlet>", per-outlet off switch.
+
+**Moderation** (`lib/moderation.js`, adapted from `docs/moderation-policy.md`). The test: is the strangeness in the situation, or in a person's misfortune? Only the first runs. The rules read the headline, the words of the story's address and the feed's category labels, and nothing else. Rules H1 to H11 hold deaths, injuries and medical cases, animal cruelty and rescues, mental illness, children, mocking disabled, poor, fat or old people, private people gone viral, crime and court, disasters, and witchcraft or curses aimed at people. Sexual content and any child with a crime word are dropped outright. There is no review queue yet, so a held story is simply not shown; nothing is published by the rules, they only remove. A clip of an animal or the sky "caught on camera" passes when no person is named. `?debug=1` shows how many stories each rule held, never which ones.
+
+**Review outlets** (Oddity Central, NDTV): their stories appear only when they pass every rule, always below the regular outlets, at most 3 at a time, and without pictures. The scout recommended holding every item from them for a person; until a queue exists this is the compromise, and either can be removed from the list at any time.
+
+**Editor's picks** (`data/weird-picks.json`). Stories the owner chooses, shown first for 21 days from their date. A pick may carry the owner's rating (1 to 5) and one-line note; nobody else writes those, and the seeded picks have neither. The 13 seeded picks are real UPI stories found by the designer, marked `"seeded": true`: they go through every moderation rule, and two of them are held for now ("Sheep on the lam ... roped by 13-year-old cowgirl", rule H5 children; "Runaway parakeet rescued from storm drain", rule H3 rescues). When the owner has looked at a pick, they set `"seeded": false`; the hold rules then defer to that decision, while the drop rules still apply. A pick has a picture only when the outlet's feed carries the same story with one. Its date is shown as noon UTC so it reads as the right day everywhere.
+
+**To verify before launch:** each feed on a preview (`/api/weird?debug=1`), then fill in `checked`; the terms of every "unknown" outlet before ads; ScienceDaily's answer on headline-and-link; and a week of held counts, to see whether rules such as H3 "rescued from" and H10 "missing" hold too much.
+
 ---
 
 Reviewer console: [`review.html`](../review.html) (not linked from the site's navigation).

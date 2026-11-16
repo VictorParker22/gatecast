@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- TEST FIXTURE, hand-written for tests/weird.test.mjs. Modelled on the shape of Smithsonian Magazine's
+     Smart News RSS feed (smithsonianmag.com/rss/smart-news/): RSS 2.0 with dc:creator, several <category>
+     labels and a media:content image. NOT real stories: headlines and "fixture-" paths are made up. -->
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:media="http://search.yahoo.com/mrss/">
+<channel>
+  <title>Smart News | Smithsonian Magazine</title>
+  <link>https://www.smithsonianmag.com/smart-news/</link>
+  <item>
+    <title><![CDATA[Mummified Crocodiles Found in an Egyptian Tomb]]></title>
+    <link>https://www.smithsonianmag.com/smart-news/fixture-mummified-crocodiles-180980001/</link>
+    <description><![CDATA[<p>NEVER-SHOW opening paragraph.</p>]]></description>
+    <pubDate>Sat, 15 Nov 2026 15:00:00 -0500</pubDate>
+    <dc:creator><![CDATA[Fixture Writer]]></dc:creator>
+    <category>Smart News</category>
+    <category>History &amp; Archaeology</category>
+    <media:content url="https://th-thumbnailer.cdn-si-edu.com/fixture/croc.jpg" medium="image" width="1072" height="720" />
+  </item>
+  <item>
+    <title><![CDATA[This Tiny Cicada Is the Noisiest Insect Ever Measured]]></title>
+    <link>https://www.smithsonianmag.com/smart-news/fixture-noisiest-cicada-180980002/</link>
+    <description><![CDATA[<p>NEVER-SHOW</p>]]></description>
+    <pubDate>Fri, 14 Nov 2026 13:30:00 -0500</pubDate>
+    <category>Smart News</category>
+    <category>Science &amp; Nature</category>
+    <category>Animals</category>
+    <media:content url="https://th-thumbnailer.cdn-si-edu.com/fixture/cicada.jpg" medium="image" width="1072" height="720" />
+  </item>
+  <item>
+    <title><![CDATA[A Mysterious Stone Circle Puzzles Archaeologists in Scotland]]></title>
+    <link>https://www.smithsonianmag.com/smart-news/fixture-stone-circle-180980003/</link>
+    <pubDate>Thu, 13 Nov 2026 10:00:00 -0500</pubDate>
+    <category>Smart News</category>
+    <category>History &amp; Archaeology</category>
+  </item>
+</channel>
+</rss>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- TEST FIXTURE, hand-written for tests/weird.test.mjs. Modelled on the shape of a WordPress feed such as
+     Oddity Central's (odditycentral.com/feed). NOT real stories: headlines and "fixture-" paths are made up. -->
+<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/">
+<channel>
+  <title>Oddity Central</title>
+  <link>https://www.odditycentral.com</link>
+  <item><title>Village builds a museum for one very old radio</title><link>https://www.odditycentral.com/news/fixture-radio-museum.html</link><pubDate>Sun, 16 Nov 2026 10:00:00 +0000</pubDate><media:content url="https://www.odditycentral.com/fixture/radio.jpg" medium="image" /></item>
+  <item><title>Restaurant serves soup in a hollowed-out loaf the size of a car tyre</title><link>https://www.odditycentral.com/news/fixture-giant-loaf.html</link><pubDate>Sun, 16 Nov 2026 09:00:00 +0000</pubDate></item>
+  <item><title>Farmer grows pumpkin shaped like a teapot</title><link>https://www.odditycentral.com/news/fixture-teapot-pumpkin.html</link><pubDate>Sun, 16 Nov 2026 08:00:00 +0000</pubDate></item>
+  <item><title>Collector owns 4,000 rubber ducks</title><link>https://www.odditycentral.com/news/fixture-rubber-ducks.html</link><pubDate>Sun, 16 Nov 2026 07:30:00 +0000</pubDate></item>
+  <item><title>Woman, 34, from Wuhan goes viral for sleeping at work</title><link>https://www.odditycentral.com/news/fixture-viral-sleeper.html</link><pubDate>Sun, 16 Nov 2026 07:00:00 +0000</pubDate></item>
+</channel>
+</rss>
