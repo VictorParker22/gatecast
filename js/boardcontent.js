@@ -158,7 +158,22 @@ function readForecast(wx, f) {
   const refreeze = ice && !next(12).some((h) => FREEZING(h.code)) && !FREEZING(now.code);
 
   const frostAt = now.temp > 0 ? H.find((h, i) => i > 0 && i <= 18 && h.temp <= 0) : null;
-  return { spells, refreeze, now, H, when, hr, night, feels, low12, lowAt, high, highAt, gustPeak, uv, cur, later, ice, frostAt, wx, f, tz };
+
+  // Temperature band for ordinary dry weather, so a clothing action is only given with its reason.
+  // By day it is judged on the best the day gets (the daytime peak); in the evening and at night,
+  // on the coming overnight low. Bands in °C, from the warm end:
+  //   30 and up   hot / very hot (own leads and actions)
+  //   16 to 29    pleasant when the sky is fair and the wind light; otherwise unremarkable
+  //   12 to 15    unremarkable: nothing to plan around (a jacket at 14° is not news)
+  //    6 to 11    cool: say the number, suggest a jacket
+  //    5 or less  cold: say the number, suggest a warm coat
+  // Feels-like -5 to -14 (hat and gloves) and -15 or below (bitter) are decided earlier, from feels-like.
+  const evening = night || hr >= 18;
+  const low8s = H.slice(0, 9).map((h) => h.temp).filter((t) => t != null);
+  const low8 = low8s.length ? Math.min(...low8s) : now.temp;
+  const gauge = evening ? low8 : high;
+  const band = gauge <= 5 ? 'cold' : gauge < 12 ? 'cool' : gauge < 16 || gauge >= 30 ? 'plain' : 'mild';
+  return { band, gauge, evening, spells, refreeze, now, H, when, hr, night, feels, low12, lowAt, high, highAt, gustPeak, uv, cur, later, ice, frostAt, wx, f, tz };
 }
 
 /* The lead: what the weather is doing and when that changes. */
@@ -210,7 +225,8 @@ function leadOf(r) {
     const w = when(H[k].t);
     return w.soon ? 'Fog lifting within the hour.' : `Fog lifting ${w.by}.`;
   }
-  const sky = cap(skyWord(skyClass(now.code), day));
+  const cls = skyClass(now.code);
+  const sky = cap(skyWord(cls, day));
   if (day && r.high >= 35) return `${sky} and very hot, up to ${f.temp(r.high)}.`;
   if (r.feels <= -15) return now.feels != null ? `${sky} and bitterly cold, feels like ${f.temp(now.feels)}.` : `${sky} and bitterly cold.`;
   if (r.gustPeak >= 60) return `${sky} and ${r.gustPeak >= 80 ? 'very windy' : 'windy'}, gusts to ${f.speed(r.gustPeak)}.`;
@@ -224,8 +240,17 @@ function leadOf(r) {
   if (now.temp - r.low12 >= 8 && r.lowAt) return `${sky} for now, much colder ${when(r.lowAt.t).at}.`;
   if (day && r.high - now.temp >= 6 && r.highAt) return `${sky}, warming to ${f.temp(r.high)} ${when(r.highAt.t).at}.`;
 
+  // Cool or cold for the season of day: the number is the news, and it explains the clothing action.
+  if (day && now.temp <= 0 && r.hr < 11) return `${sky} and frosty this morning.`;
+  if (r.band === 'cool' || r.band === 'cold') {
+    const word = r.band === 'cool' ? 'cool' : 'cold';
+    const join = cls === 'clear' || cls === 'partly' ? 'but' : 'and';
+    if (r.evening) return `${cap(skyWord(cls, false))} and ${word} ${r.hr < 5 ? 'until dawn' : 'tonight'}, down to ${f.temp(r.gauge)}.`;
+    if (r.band === 'cold' && now.feels != null && now.feels <= now.temp - 3) return `${sky} ${join} ${word}, feels like ${f.temp(now.feels)}.`;
+    return `${sky} ${join} ${word}, ${f.temp(r.gauge)} at best.`;
+  }
+
   // The sky changing: clear turning cloudy, or cloud breaking up, for at least three hours in a row.
-  const cls = skyClass(now.code);
   for (let i = 2; i <= 12 && i + 2 < H.length; i++) {
     const run = H.slice(i, i + 3).map((h) => skyClass(h.code));
     if (run.some((c) => c !== run[0]) || run[0] === cls || run[0] === 'partly' || cls === 'partly') continue;
@@ -249,8 +274,7 @@ function leadOf(r) {
     }
     return r.hr < 5 ? `${cap(nightSky)} and dry for the rest of the night.` : `${cap(nightSky)} and dry tonight.`;
   }
-  if (day && now.temp <= 0 && r.hr < 11) return `${sky} and frosty this morning.`;
-  return cls === 'clear' ? `${sky} ${span}.` : `${sky} but dry ${span}.`;
+  return cls === 'cloud' ? `${sky} but dry ${span}.` : `${sky} ${span}.`;
 }
 
 /* The action: the single most useful thing to do, danger first. */
@@ -305,16 +329,22 @@ function actionOf(r) {
   if (r.gustPeak >= 55) return 'A windproof layer will help.';
   if (FOG(now.code)) return 'If you drive, use low beams.';
 
+  // Clothing only for the cool and cold bands, whose leads always carry the number.
+  if (r.band === 'cold') return r.evening ? 'Wear a warm coat if you go out.' : 'Wear a warm coat.';
+  if (r.band === 'cool') return r.evening ? 'Take a jacket if you go out.' : 'Bring a jacket.';
   const calm = r.gustPeak < 40;
   const fine = skyClass(now.code) === 'clear' || skyClass(now.code) === 'partly';
-  if (!r.night && calm && fine && r.high >= 16 && r.high <= 28 && r.hr < 17) return vary(['A good day to be outside.', 'A good day for a long walk.', 'Worth getting outside today.']);
+  if (!r.evening && calm && fine && r.band === 'mild' && r.hr < 17) return vary(['A good day to be outside.', 'A good day for a long walk.', 'Worth getting outside today.']);
   if (r.hr >= 17 && r.hr < 22 && calm && now.temp >= 15 && now.temp <= 26) return 'A good evening to sit outside.';
-  if (r.feels <= 5) return r.night ? 'Wear a warm coat if you go out.' : 'Wear a warm coat.';
-  if (r.feels <= 12) return r.night ? 'Take a jacket if you go out.' : 'Bring a jacket.';
-  return r.night ? 'Nothing to plan around tonight.' : 'Nothing to plan around today.';
+  // The calm default, worded for the time of day so it never becomes the new filler.
+  if (r.hr >= 5 && r.hr < 12) return 'Nothing to plan around today.';
+  if (r.hr >= 12 && r.hr < 17) return 'No need to change your plans.';
+  if (r.hr >= 17 && r.hr < 22) return 'An easy evening, nothing to plan around.';
+  return 'Nothing to plan around tonight.';
 }
 
-// f: { time(ms) -> "14:00" or "2 pm", temp(c) -> "8°", speed(kmh) -> "40 km/h" }
+// f: { time(ms) -> a local clock string whose format varies ("14:00", "2 pm", "noon", "midnight"; never parsed,
+//       only inserted after "around", "about", "after" or "by about"), temp(c) -> "8°", speed(kmh) -> "40 km/h" }
 export function headlineParts(wx, f) {
   const r = readForecast(wx, f);
   let lead = leadOf(r);

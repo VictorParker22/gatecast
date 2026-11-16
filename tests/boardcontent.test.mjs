@@ -17,7 +17,7 @@ function wx(over = () => ({})) {
 }
 
 test('headline describes a dry day and a change to rain', () => {
-  assert.equal(headline(wx(), f), 'Sunny all day. Bring a jacket.');
+  assert.equal(headline(wx(), f), 'Sunny but cool, 11° at best. Bring a jacket.');
   const rainy = wx((i) => (i >= 5 && i < 9 ? { code: 63, pop: 80, precip: 2 } : {}));
   assert.equal(headline(rainy, f), 'Dry until about 15:00, then rain. Take an umbrella.');
   const wetNow = wx((i) => (i < 3 ? { code: 61, pop: 90, precip: 1 } : {}));
@@ -41,9 +41,9 @@ function make({ at = 10, base = 8, swing = 4, sunrise = 7, sunset = 17, over = (
 }
 const rain = (pop = 90, code = 63, precip = 1.5) => ({ code, pop, precip });
 const MATRIX = [
-  ['calm sunny morning', make(), 'Sunny all day. Bring a jacket.'],
+  ['calm sunny morning', make(), 'Sunny all day. Nothing to plan around today.'],
   ['pleasant day', make({ base: 19 }), 'Sunny all day. A good day to be outside.'],
-  ['cloudy afternoon', make({ at: 13, over: () => ({ code: 3 }) }), 'Cloudy but dry this afternoon. Bring a jacket.'],
+  ['cloudy afternoon', make({ at: 13, over: () => ({ code: 3 }) }), 'Cloudy but dry this afternoon. No need to change your plans.'],
   ['rain certain later', make({ over: (i) => (i >= 5 && i < 9 ? rain(85) : {}) }), 'Dry until about 15:00, then rain. Take an umbrella.'],
   ['rain likely this evening', make({ over: (i) => (i >= 8 && i < 13 ? rain(60) : {}) }), 'Dry until this evening, then rain likely. Take an umbrella.'],
   ['rain possible', make({ over: (i) => (i >= 4 && i < 8 ? rain(40, 61, 0.3) : {}) }), 'Dry, with a chance of rain after 14:00. Pack an umbrella, just in case.'],
@@ -72,18 +72,42 @@ const MATRIX = [
   ['deep cold', make({ base: -18, swing: 2, now: { feels: -29 } }), 'Sunny and bitterly cold, feels like -29°. Cover your face and hands outside.'],
   ['big temperature drop', make({ over: (i) => ({ temp: i < 4 ? 21 : Math.max(9, 21 - (i - 3) * 1.5) }) }), 'Sunny for now, much colder tonight. Bring a warm layer for later.'],
   ['frost by morning, evening visit', make({ at: 19, base: 3, over: (i, lh) => (lh >= 1 && lh <= 8 ? { temp: -1 } : {}) }), 'Clear and cold tonight, frost by about 01:00. Cover the windshield before bed.'],
-  ['clear night', make({ at: 22 }), 'Clear tonight, sunny tomorrow. Take a jacket if you go out.'],
-  ['3 am visit', make({ at: 3 }), 'Clear until dawn, then sunny. Wear a warm coat if you go out.'],
+  ['clear night', make({ at: 22 }), 'Clear and cold tonight, down to 4°. Wear a warm coat if you go out.'],
+  ['3 am visit', make({ at: 3 }), 'Clear and cold until dawn, down to 4°. Wear a warm coat if you go out.'],
   ['rain tomorrow, evening visit', make({ at: 20, over: (i) => (i >= 12 && i < 18 ? rain(80) : {}) }), 'Dry until tomorrow morning, then steady rain. Pack an umbrella for tomorrow.'],
   ['rain only in the small hours', make({ at: 14, over: (i, lh) => (lh >= 1 && lh < 4 ? rain(80) : {}) }), "Dry until the early hours, then rain. Take an umbrella if you're out late."],
   ['frosty morning', make({ at: 7, base: -1, swing: 3, now: { temp: -2, feels: -4 } }), 'Sunny and frosty this morning. Leave time to clear the windshield.'],
   ['polar night, no sunrise', make({ at: 12, base: -12, swing: 1, sunrise: 24, sunset: 24, now: { feels: -12 }, days: { sunrise: null, sunset: null, uv: null } }), 'Clear and cold this afternoon. Wear a hat and gloves.'],
+  // Temperature bands: a clothing action only when the lead carries the number.
+  ['cool day, jacket with its reason', make({ base: 5 }), 'Sunny but cool, 9° at best. Bring a jacket.'],
+  ['cool cloudy afternoon', make({ at: 13, base: 6, swing: 2, over: () => ({ code: 3 }) }), 'Cloudy and cool, 8° at best. Bring a jacket.'],
+  ['cold grey day', make({ base: 3, swing: 1, over: () => ({ code: 3 }) }), 'Cloudy and cold, 4° at best. Wear a warm coat.'],
+  ['unremarkable 14°, no jacket', make({ base: 10, over: () => ({ code: 2 }) }), 'Sun and cloud all day. Nothing to plan around today.'],
+  ['cool evening', make({ at: 20, base: 11, swing: 3 }), 'Clear and cool tonight, down to 8°. Take a jacket if you go out.'],
+  ['unremarkable breezy evening', make({ at: 19, base: 16, swing: 2, over: () => ({ gust: 45 }) }), 'Clear tonight, sunny tomorrow. An easy evening, nothing to plan around.'],
+  ['mild night', make({ at: 1, base: 16, swing: 2, sunset: 20 }), 'Clear until dawn, then sunny. Nothing to plan around tonight.'],
   ['missing pop, gust and uv', make({ over: (i) => (i >= 5 && i < 8 ? { code: 61, pop: null, gust: null, precip: 0.5 } : { pop: null, gust: null }), days: { uv: null } }), 'Dry until about 15:00, then rain likely. Take an umbrella.'],
 ];
 
 for (const [name, w, expected] of MATRIX) {
   test(`headline: ${name}`, () => assert.equal(headline(w, f), expected));
 }
+
+test('headline reads correctly when the clock says "noon" or "midnight"', () => {
+  // The page's 12-hour formatter returns "3 pm", and "noon" / "midnight" for 12:00. Never parsed, only inserted.
+  const f12 = { ...f, time: (ms) => { const p = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', hour12: true }).format(ms).replace(' AM', ' am').replace(' PM', ' pm'); return p === '12 pm' ? 'noon' : p === '12 am' ? 'midnight' : p; } };
+  assert.equal(headline(make({ at: 9, over: (i) => (i < 3 ? rain(90) : {}) }), f12), 'Rain easing off by about noon. Take an umbrella.');
+  assert.equal(headline(make({ at: 19, over: (i) => (i >= 5 && i < 9 ? rain(40, 61, 0.3) : {}) }), f12), 'Dry, with a chance of rain after midnight. Pack an umbrella, just in case.');
+  assert.equal(headline(make({ at: 8, over: (i) => (i === 4 ? rain(75, 80, 0.8) : {}) }), f12), 'Dry, apart from a shower around noon. Take an umbrella.');
+  assert.equal(headline(make({ at: 19, base: 3, over: (i, lh) => (lh === 0 || (lh >= 1 && lh <= 8) ? { temp: -1 } : {}) }), f12), 'Clear and cold tonight, frost by about midnight. Cover the windshield before bed.');
+});
+
+test('a clothing action always comes with the number that explains it', () => {
+  for (const [name, w] of MATRIX) {
+    const { lead, action } = headlineParts(w, f);
+    if (/jacket\.|jacket if|warm coat/.test(action)) assert.match(lead, /\d°/, `${name}: ${lead} ${action}`);
+  }
+});
 
 test('headline follows the voice rules in every scenario', () => {
   const banned = /!|precipitation|convective|expect|showers? of rain/i;

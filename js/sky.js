@@ -199,25 +199,34 @@ function resize() {
 //  1. GPU timer queries (EXT_disjoint_timer_query_webgl2, or EXT_disjoint_timer_query on WebGL1). They time
 //     the sky's own draw on the GPU, so they show headroom as well as overload and are not fooled by other
 //     work on the page. Results arrive a frame or more later, and a "disjoint" event (GPU clock change,
-//     context switch) makes in-flight results meaningless, so those are thrown away. Many browsers hide or
-//     coarsen this extension (Safari, Firefox by default, some mobile Chrome), so it is a bonus, not a need.
-//  2. Otherwise, the interval between drawn frames from requestAnimationFrame timestamps. When the GPU (or
-//     the main thread) cannot keep up, the browser delivers frames late, and the interval grows past the
-//     tier's frame time. It cannot see spare capacity, which is why the governor treats it as weak evidence
-//     for stepping up. We deliberately do not call gl.finish() or readPixels() to time draws on the CPU:
-//     both stall the main thread until the GPU is idle, which is the very jank we are trying to avoid.
+//     context switch) makes in-flight results meaningless, so those are thrown away. Several browsers hide
+//     this extension (Safari, Firefox by default, many phones), so it is a bonus, not a need.
+//  2. WebGL2 fence: after a draw we insert a fence and check it, without waiting, from short timers until the
+//     GPU reports it done. The elapsed time is an upper bound on the draw's GPU time (plus queueing and a few
+//     ms of timer slack). One fence is in flight at a time, so it costs a handful of timer callbacks a frame.
+//  3. Otherwise (WebGL1 without the timer extension), the interval between drawn frames from
+//     requestAnimationFrame timestamps. This only shows overload once the browser actually delivers frames
+//     late, and some browsers keep requestAnimationFrame on time while silently dropping canvas frames (seen
+//     with software rendering), so it is the weakest signal and the governor treats it cautiously.
+// We deliberately never time draws with gl.finish() or readPixels(): both stall the main thread until the
+// GPU is idle, which is exactly the jank this is meant to prevent.
 const timer = { ext: null, gl2: false, on: false, pending: [], issued: 0, results: 0, name: 'none' };
+const fence = { on: false, sync: null, t0: 0, done: [] };
 
 function setupTimer() {
   timer.pending = []; timer.issued = 0; timer.results = 0; timer.on = false; timer.ext = null; timer.name = 'none';
+  timer.gl2 = typeof WebGL2RenderingContext !== 'undefined' && gl instanceof WebGL2RenderingContext;
   try {
-    timer.gl2 = typeof WebGL2RenderingContext !== 'undefined' && gl instanceof WebGL2RenderingContext;
-    timer.name = timer.gl2 ? 'EXT_disjoint_timer_query_webgl2' : 'EXT_disjoint_timer_query';
-    timer.ext = gl.getExtension(timer.name);
-    timer.on = !!timer.ext;
-    if (!timer.on) timer.name = 'none';
-  } catch { timer.on = false; timer.name = 'none'; }
+    const name = timer.gl2 ? 'EXT_disjoint_timer_query_webgl2' : 'EXT_disjoint_timer_query';
+    timer.ext = gl.getExtension(name);
+    if (timer.ext) { timer.on = true; timer.name = name; }
+  } catch { timer.on = false; }
+  fence.sync = null;
+  fence.done = [];
+  fence.on = timer.gl2 && typeof gl.fenceSync === 'function';
 }
+
+const timingSource = () => (timer.on ? 'gpu' : fence.on ? 'fence' : 'frame');
 
 function timerBegin() {
   if (!timer.on || timer.pending.length >= 3) return null;
@@ -250,11 +259,35 @@ function timerPoll(out) {
     }
     if (timer.gl2) gl.deleteQuery(q); else E.deleteQueryEXT(q);
   }
-  if (timer.issued >= 60 && timer.results < 5) {   // never (or hardly ever) answers: use frame intervals
+  if (timer.issued >= 60 && timer.results < 5) {   // never (or hardly ever) answers: fall back
+    for (const q of timer.pending) { if (timer.gl2) gl.deleteQuery(q); else E.deleteQueryEXT(q); }
+    timer.pending = [];
     timer.on = false;
     timer.name = 'none';
     gov.reset(performance.now());
   }
+}
+
+function fenceBegin() {
+  if (timer.on || !fence.on || fence.sync) return;
+  fence.sync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+  if (!fence.sync) { fence.on = false; return; }
+  gl.flush();   // submit now, so the time measured is the GPU's and not ours
+  fence.t0 = performance.now();
+  setTimeout(fencePoll, 1);
+}
+
+// Non-blocking check (getSyncParameter never waits); try again shortly until done or clearly hopeless.
+function fencePoll() {
+  const sync = fence.sync;
+  if (!sync) return;
+  if (gl.isContextLost()) { fence.sync = null; return; }
+  const ms = performance.now() - fence.t0;
+  const done = gl.getSyncParameter(sync, gl.SYNC_STATUS) === gl.SIGNALED;
+  if (!done && ms < 1000) { setTimeout(fencePoll, 2); return; }
+  gl.deleteSync(sync);
+  fence.sync = null;
+  fence.done.push(ms);
 }
 
 // --- Governing ---------------------------------------------------------------------------------------------
@@ -285,10 +318,13 @@ const gpuMs = [];
 function measure(ms, interval) {
   gpuMs.length = 0;
   if (timer.on) timerPoll(gpuMs);   // always collect, so finished queries are freed
+  const fenced = fence.done;
+  fence.done = [];
   if (fade < 1) return;             // crossfades are noisy (both kinds' layers are drawn): do not judge them
   let decision = null;
-  if (timer.on) {
-    for (const g of gpuMs) decision = decision || gov.sample(g, ms, 'gpu');
+  const source = timingSource();
+  if (source !== 'frame') {
+    for (const g of source === 'gpu' ? gpuMs : fenced) decision = decision || gov.sample(g, ms, source);
   } else if (interval > 0) {
     decision = gov.sample(interval, ms, 'frame');
   }
@@ -370,7 +406,7 @@ function frame(ms) {
   advance(dt);
   const query = timerBegin();
   draw(flashLevel(ms));
-  if (query) timerEnd(query);
+  if (query) timerEnd(query); else fenceBegin();
   measure(ms, interval);
 }
 
@@ -454,7 +490,7 @@ function debugSample() {
   if (!d) return;
   d.frameMs = +gov.medianMs.toFixed(2);
   d.load = +gov.lastLoad.toFixed(2);
-  d.source = timer.on ? `gpu (${timer.name})` : 'frame interval';
+  d.source = timer.on ? `gpu (${timer.name})` : fence.on ? 'fence (WebGL2 sync)' : 'frame interval';
   d.upgrades = gov.upgrades;
   d.ceiling = gov.ceiling;
   d.canvas = canvas ? `${canvas.width}x${canvas.height}` : '';

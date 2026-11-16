@@ -7,9 +7,12 @@
 // within budget, down to a single still frame with the loop stopped. It steps down fast (a few slow frames
 // are enough), steps up rarely and only on clear evidence, and never bounces between two tiers.
 //
-// Samples come from one of two sources (js/sky.js picks the best one available):
+// Samples come from one of three sources (js/sky.js picks the best one available):
 //   'gpu'   - GPU time of the sky draw from a WebGL timer query. Direct and precise, so it shows both
-//             overload and headroom. Budget: GPU_SHARE of the tier's frame interval.
+//             overload and headroom. Budget: gpuShare of the tier's frame interval.
+//   'fence' - time from submitting the draw until a WebGL2 fence after it reports done, polled without
+//             blocking. An upper bound on GPU time (it includes queueing and a few ms of polling slack),
+//             so it is judged against the same budget with a little more allowance.
 //   'frame' - interval between two drawn frames (requestAnimationFrame timestamps). It only reveals cost once
 //             the device can no longer keep the tier's frame rate (a healthy device reads ~1.0 whatever the
 //             real cost), so it is good for stepping down and weak evidence for stepping up.
@@ -37,15 +40,16 @@ export const SETTINGS = {
   warmMs: 400,           // ...and everything in the first 400 ms (shader compile, page load, layout settle)
   window: 10,            // rolling window of recent loads
   minDecide: 6,          // a downgrade needs at least this many samples in the window...
-  down: { gpu: 1.0, frame: 1.3 },   // ...with a median load above this. 'frame' allows for vsync rounding
-                         //    (75 Hz or 50 Hz screens read 1.2 when healthy; a missed vsync reads 1.5).
+  down: { gpu: 1.0, fence: 1.3, frame: 1.3 },   // ...with a median load above this. 'frame' allows for vsync
+                         //    rounding (75 Hz or 50 Hz screens read 1.2 when healthy; a missed vsync reads 1.5).
+                         //    'fence' allows ~2.5 ms of polling and queueing slack.
   severe: 2.5,           // this many times over budget...
   severeRun: 3,          // ...on this many samples in a row: step down at once, without waiting for the window
   fitLoad: 0.8,          // when stepping down, go straight to the first tier whose estimated load is below this
   lastChance: 1.5,       // ...or, if none, still try the cheapest animated tier if its estimate is below this
-  up: { gpu: 0.4, frame: 1.1 },     // a step up needs every load at or below this...
-  upRun: { gpu: 90, frame: 450 },   // ...for this many samples in a row (3 s at 30 fps, or 15 s on 'frame' timing)
-  upFit: 0.7,            // and ('gpu' only) the tier above must be estimated to stay below this load
+  up: { gpu: 0.4, fence: 0.5, frame: 1.1 },      // a step up needs every load at or below this...
+  upRun: { gpu: 90, fence: 150, frame: 450 },    // ...for this many samples in a row (3 s / 5 s / 15 s at 30 fps)
+  upFit: 0.7,            // and (not 'frame') the tier above must be estimated to stay below this load
   maxUpgrades: 2,        // per session
 };
 
@@ -59,7 +63,7 @@ const median = (xs) => {
 export function loadOf(ms, source, tier, settings = SETTINGS) {
   const fps = TIERS[tier].fps || 30;
   const frameMs = 1000 / fps;
-  return source === 'gpu' ? ms / (frameMs * settings.gpuShare) : ms / frameMs;
+  return source === 'frame' ? ms / frameMs : ms / (frameMs * settings.gpuShare);
 }
 
 // Estimated load if the same work ran at tier `to` instead of `from` (cost scales with pixels and features,
@@ -148,7 +152,7 @@ export function createGovernor({ start = 0, settings = SETTINGS } = {}) {
     const up = g.tier - 1;
     if (up >= g.ceiling && g.upgrades < S.maxUpgrades && failed[up] < 2 && goodRun >= S.upRun[source]) {
       const m = median(loads);
-      if (source !== 'gpu' || estimate(m, g.tier, up) <= S.upFit) {
+      if (source === 'frame' || estimate(m, g.tier, up) <= S.upFit) {
         return move(up, `headroom: ${source} median ${g.medianMs.toFixed(1)} ms, load ${m.toFixed(2)}`);
       }
     }
