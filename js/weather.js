@@ -285,7 +285,7 @@ function renderHero() {
         <div class="hero-wx__cond">${weatherIcon(now.code, now.day, 'wx--hero')}<p>${esc(describeCode(now.code).text)}</p></div>
       </div>
       <h1>${esc(said.lead)} <span class="hero-wx__action">${esc(said.action)}</span></h1>
-      <p class="hero-wx__meta"><span class="nw">Feels like ${f.temp(now.feels)}</span> · <span class="nw">High ${f.temp(today.max)}</span> · <span class="nw">Low ${f.temp(today.min)}</span> · <span class="nw">Wind ${f.speed(now.wind)} ${compass(now.dir)}</span></p>
+      <p class="hero-wx__meta"><span class="nw">Feels like ${f.temp(now.feels)}</span> · <span class="nw">Wind ${f.speed(now.wind)} ${compass(now.dir)}</span>${(now.gust ?? 0) >= 40 ? ` · <span class="nw">Gusts ${f.speed(now.gust)}</span>` : ''}</p>
     </div>
     <ul class="hero-wx__parts" aria-label="The day ahead">
       ${dayparts(wx).map((part) => `<li><span>${part.name}</span>${weatherIcon(part.code, part.day)}<b>${f.temp(part.temp)}</b><span>${esc(part.text)}</span></li>`).join('')}
