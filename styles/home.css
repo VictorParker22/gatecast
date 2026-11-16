@@ -239,11 +239,62 @@
 .radar-panel .radar { flex: 1; height: auto; min-height: 22rem; }
 .radar-panel .radar__controls { grid-template-columns: auto 1fr auto; }
 
+/* ---------- The brief: weather news, headlines, then statehouse votes and Both sides (styles/civic.css) ---------- */
+.brief { display: grid; gap: var(--space-6); margin-top: var(--space-7); }
+.brief__title {
+  font-family: var(--font-display); font-weight: 700; text-transform: uppercase; font-size: clamp(2.25rem, 1.6rem + 2.4vw, 3rem); line-height: 1; letter-spacing: 0.01em;
+  padding-bottom: var(--space-3); border-bottom: 2px solid var(--color-text);
+}
+.brief__block { display: grid; gap: var(--space-3); min-width: 0; }
+.brief__label { font-family: var(--font-display); font-weight: 700; text-transform: uppercase; font-size: 1.5rem; line-height: 1.1; letter-spacing: 0.02em; }
+.brief__source { font-size: var(--text-sm); color: var(--color-text-muted); line-height: 1.5; }
+
+/* Weather news: the only coloured part of the brief, and only because it is weather risk (word + shape + colour). */
+.wxnews-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr)); gap: var(--space-3); }
+.wxnews {
+  --risk: var(--risk-elevated);
+  display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-5); min-width: 0; border-radius: var(--radius-lg);
+  background: color-mix(in oklab, var(--risk) 9%, var(--color-surface)); border: 1px solid color-mix(in oklab, var(--risk) 42%, transparent); box-shadow: var(--shadow-tile);
+}
+.wxnews--high { --risk: var(--risk-high); }
+.wxnews__head { display: flex; align-items: flex-start; gap: 0.35em; font-family: var(--font-display); font-weight: 700; font-size: 1.5rem; line-height: 1.05; text-transform: uppercase; letter-spacing: 0.01em; color: var(--risk); }
+.wxnews__head .risk-icon { flex: none; width: 0.85em; height: 0.85em; margin-top: 0.05em; stroke-width: 2.4; }
+.wxnews__when { font-weight: 700; font-size: 0.9375rem; }
+.wxnews__area { font-size: var(--text-sm); color: var(--color-text-muted); line-height: 1.45; }
+.wxnews__line { font-size: 0.9375rem; line-height: 1.45; }
+.wxnews__foot { margin-top: auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 var(--space-3); padding-top: var(--space-1); font-size: var(--text-sm); color: var(--color-text-muted); }
+.wxnews__foot a { display: inline-flex; align-items: center; min-height: var(--tap-target); font-weight: 700; color: var(--color-text); text-underline-offset: 0.2em; }
+
+/* Headlines: monochrome tiles, newest first. The outlet's headline links out; the meta line names the outlet. */
+.heads { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 16.5rem), 1fr)); gap: var(--space-3); }
+.head {
+  display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4) var(--space-5); min-width: 0;
+  border-radius: var(--radius-lg); background: var(--color-surface); border: 1px solid var(--color-border); box-shadow: var(--shadow-tile);
+}
+.head__link {
+  display: block; min-height: var(--tap-target); font-size: 1.0625rem; font-weight: 600; line-height: 1.35; letter-spacing: -0.005em;
+  color: var(--color-text); text-decoration: none; text-wrap: pretty; overflow-wrap: break-word;
+}
+.head__link:hover { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 0.18em; }
+.head__meta { margin-top: auto; display: grid; gap: 2px; font-size: var(--text-sm); line-height: 1.35; color: var(--color-text-muted); }
+.head__outlet { font-weight: 700; color: var(--color-text); }
+.brief__civic:empty { display: none; }
+/* On a phone the headlines read as one list on one surface, not eight tall cards. */
+@media (max-width: 40rem) {
+  .heads { gap: 0; border-radius: var(--radius-lg); background: var(--color-surface); border: 1px solid var(--color-border); box-shadow: var(--shadow-tile); overflow: hidden; }
+  .head { gap: var(--space-2); border: 0; border-radius: 0; box-shadow: none; background: none; }
+  .head + .head { border-top: 1px solid var(--color-border); }
+  .head__link { padding-block: var(--space-1); }
+  .head__meta { display: flex; flex-wrap: wrap; gap: 0 var(--space-2); }
+}
+
 @media (max-width: 30rem) {
   .sky { padding-bottom: var(--space-6); }
   .now { padding: var(--space-4); }
   .now__temp { font-size: 4.5rem; }
   .mean, .page-today .panel { padding: var(--space-4); }
+  .wxnews, .head { padding: var(--space-4); }
+  .brief { margin-top: var(--space-6); gap: var(--space-5); }
   .radar-panel__label { padding: var(--space-4) var(--space-4) var(--space-3); }
   .radar-panel .radar { min-height: 18rem; }
   .days-panel .day { grid-template-columns: 3.75rem 1.5rem 2.25rem 2rem minmax(2rem, 1fr) 2rem; column-gap: var(--space-2); }

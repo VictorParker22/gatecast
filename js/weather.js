@@ -3,7 +3,7 @@
 // and the rain radar. Pure wording and rules live in js/today.js and js/boardcontent.js.
 import { planTrip, assessTrip, assessWindow, describeCode, fmtTime, fmtDay, fmtZone, HOUR, LEVEL_LABEL } from './core.js';
 import { headlineParts, dayKey, skyOf } from './boardcontent.js';
-import { upcomingTrip, mightBeSoon, tripQuery, commute, carry, airSun, flightsNear, nextHours } from './today.js';
+import { upcomingTrip, mightBeSoon, tripQuery, commute, carry, airSun, flightsNear, nextHours, stateOf, isUS, relTime, cleanHeadlines, alertItems, airportSignal, US_STATES } from './today.js';
 import { loadAirports, airport, searchPlaces, nearestAirports, loadWeather, loadForecasts, loadAlerts } from './data.js';
 import { $, store, prefs, initSettings } from './shell.js';
 import { initSky, setSky } from './sky.js';
@@ -11,7 +11,7 @@ import { esc, weatherIcon, riskIcon, chip, units, compass } from './ui.js';
 import { enter } from './motion.js';
 
 const POPULAR = [
-  { name: 'New York', region: 'United States', lat: 40.713, lon: -74.006, country: 'US' },
+  { name: 'New York', region: 'United States', lat: 40.713, lon: -74.006, country: 'US', state: 'NY' },
   { name: 'London', region: 'United Kingdom', lat: 51.507, lon: -0.128, country: 'GB' },
   { name: 'Tokyo', region: 'Japan', lat: 35.69, lon: 139.692, country: 'JP' },
   { name: 'Sydney', region: 'Australia', lat: -33.868, lon: 151.207, country: 'AU' },
@@ -35,6 +35,7 @@ const state = {
   wx: null, wxError: null,       // local forecast, or 'rate' / 'forecast'
   alerts: [], airports: null,     // NWS alerts; nearest airports with their next-3-hour risk (null while loading)
   trip: { status: 'none' },       // 'none' | 'checking' | 'ready' | 'failed', with { trip, plan, result, route }
+  brief: null,                    // { place, us, code (US state or null), news: null while loading | { state, items } }
 };
 if (state.place && !(Number.isFinite(state.place.lat) && Number.isFinite(state.place.lon))) state.place = null;
 let radar = null;
@@ -161,6 +162,7 @@ async function loadPlace() {
   const mine = state.place;
   state.wx = null; state.wxError = null; state.alerts = []; state.airports = null;
   destroyRadar();
+  loadBrief(mine); // headlines do not wait for the forecast
   render();
   try {
     const wx = await loadWeather(mine.lat, mine.lon);
@@ -190,13 +192,14 @@ async function enrich(mine) {
   }, () => []);
   const alerts = (mine.country ? Promise.resolve(mine.country) : near.then((n) => n[0] && n[0].airport.country))
     .then((country) => loadAlerts({ lat: mine.lat, lon: mine.lon, country }))
-    .then((list) => { if (state.place === mine) { state.alerts = list; renderAlerts(); } });
+    .then((list) => { if (state.place === mine) { state.alerts = list; renderAlerts(); renderBrief(); } });
   const fly = near.then(async (list) => {
     const fc = list.length ? await loadForecasts(list.map((x) => x.airport)).catch(() => null) : null;
     if (state.place !== mine) return;
     const now = Date.now();
     state.airports = list.map((x) => ({ ...x, code: x.airport.code, risk: assessWindow(fc ? fc.forecasts.get(x.airport.code) || [] : [], now, now + 3 * HOUR) }));
     renderToday();
+    renderBrief();
   });
   await Promise.all([alerts, fly]);
 }
@@ -250,6 +253,7 @@ function render() {
   heroEl.dataset.mode = mode;
   renderNow(mode);
   renderToday();
+  renderBrief();
 }
 
 function renderSky() {
@@ -459,7 +463,112 @@ function daysList(wx, f) {
 
 function renderAlerts() {
   const { alerts, wx } = state;
-  $('#alerts').innerHTML = (alerts || []).map((al) => `<p class="live live--alert">${riskIcon('elevated')}<span><b>${esc(al.event)}</b>${al.ends ? ` until ${fmtTime(Date.parse(al.ends), wx.tz)} ${esc(fmtDay(Date.parse(al.ends), wx.tz))}` : ''}. ${esc(al.headline || '')} <small>National Weather Service</small></span></p>`).join('');
+  // One line per alert up here; the full alert (area, times, link to weather.gov) is in The brief below.
+  $('#alerts').innerHTML = (alerts || []).map((al) => `<p class="live live--alert">${riskIcon('elevated')}<span><b>${esc(al.event)}</b>${al.ends ? ` until ${fmtTime(Date.parse(al.ends), wx?.tz)} ${esc(fmtDay(Date.parse(al.ends), wx?.tz))}` : ''}. <a href="#brief-weather">Details below</a> <small>National Weather Service</small></span></p>`).join('');
+}
+
+/* ---------- The brief: weather news, headlines from the state's newsrooms, statehouse votes and Both sides ---------- */
+
+const nwsStates = new Map();
+// A US place saved without a region (a "Use my location" spot, an older saved city): ask weather.gov, which
+// already receives this point for the alerts, which state it is in. null if it cannot say.
+function nwsState(p) {
+  const key = `${p.lat.toFixed(2)},${p.lon.toFixed(2)}`;
+  if (!nwsStates.has(key)) {
+    nwsStates.set(key, fetch(`https://api.weather.gov/points/${p.lat.toFixed(4)},${p.lon.toFixed(4)}`, { headers: { Accept: 'application/geo+json' } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { const c = String(j?.properties?.relativeLocation?.properties?.state || '').toUpperCase(); return US_STATES[c] ? c : null; })
+      .catch(() => null));
+  }
+  return nwsStates.get(key);
+}
+
+async function loadBrief(mine) {
+  const b = { place: mine, us: isUS(mine), code: stateOf(mine), news: null };
+  state.brief = b;
+  if (!b.code && b.us) b.code = await nwsState(mine);
+  if (state.brief !== b) return;
+  renderBrief();
+  // Served by server.js or the Vercel function; on a static host this fails and the headlines stay hidden.
+  const json = await fetch(`api/news${b.code ? `?state=${b.code}` : ''}`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  if (state.brief !== b) return;
+  b.news = { state: US_STATES[json?.state] ? json.state : null, items: cleanHeadlines(json) };
+  renderBrief();
+}
+
+const NWS_PAGE = (p) => `https://forecast.weather.gov/MapClick.php?lat=${p.lat.toFixed(4)}&lon=${p.lon.toFixed(4)}`;
+const at = (ms, tz) => `${fmtTime(ms, tz)} ${fmtDay(ms, tz)}`;
+
+function alertItem(a, p, tz) {
+  const soon = a.from && a.from > Date.now();
+  const when = soon ? `From ${at(a.from, tz)}${a.until ? ` until ${at(a.until, tz)}` : ''}` : a.until ? `Until ${at(a.until, tz)}` : 'In effect now';
+  return `<li class="wxnews wxnews--${a.level}">
+    <p class="wxnews__head">${riskIcon(a.level)}<span>${esc(a.event)}</span><span class="sr-only"> (${LEVEL_LABEL[a.level].toLowerCase()} risk)</span></p>
+    <p class="wxnews__when">${esc(when)}</p>
+    ${a.area ? `<p class="wxnews__area">${esc(a.area)}</p>` : ''}
+    ${a.headline ? `<p class="wxnews__line">${esc(a.headline)}</p>` : ''}
+    <p class="wxnews__foot"><span>National Weather Service</span><a href="${NWS_PAGE(p)}" rel="noopener">Read it on weather.gov</a></p>
+  </li>`;
+}
+function signalItem(s) {
+  return `<li class="wxnews wxnews--${s.level}">
+    <p class="wxnews__head">${riskIcon(s.level)}<span>${esc(s.title)}</span><span class="sr-only"> (${LEVEL_LABEL[s.level].toLowerCase()} risk)</span></p>
+    <p class="wxnews__line">${esc(s.line)}</p>
+    <p class="wxnews__foot"><span>Gatecast forecast check</span><a href="flights.html?airport=${s.code}">Flights at ${s.code}</a></p>
+  </li>`;
+}
+function headlineItem(x, now) {
+  const ms = Date.parse(x.published);
+  const full = new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: state.wx?.tz }).format(ms);
+  return `<li class="head">
+    <a class="head__link" href="${esc(x.url)}" rel="noopener">${esc(x.title)}</a>
+    <p class="head__meta"><span class="head__outlet">${esc(x.outlet)}</span><time datetime="${esc(x.published)}" title="${esc(full)}">${esc(relTime(ms, now))}</time></p>
+  </li>`;
+}
+
+let civicFor = null;
+function renderBrief() {
+  const el = $('#brief'), b = state.brief, p = state.place;
+  if (!p || !b || b.place !== p) { el.hidden = true; return; }
+  const now = Date.now();
+  // Weather news: the place's NWS alerts, then one forecast item only when a nearby airport is at risk.
+  const wx = [...alertItems(state.alerts, now).map((a) => alertItem(a, p, state.wx?.tz))];
+  const sig = airportSignal(state.airports);
+  if (sig) wx.push(signalItem(sig));
+  $('#brief-weather-list').innerHTML = wx.join('');
+  $('#brief-weather').hidden = !wx.length;
+  // Headlines: the state's newsrooms for a US place we can place in a state, otherwise the national list.
+  const local = Boolean(b.us && b.code);
+  const n = b.news;
+  const showNews = Boolean(n && n.items.length && (!n.state || (local && n.state === b.code)));
+  $('#brief-news').hidden = !showNews;
+  if (showNews) {
+    $('#brief-news-title').textContent = n.state ? `Headlines in ${US_STATES[n.state]}` : 'Weather and travel headlines';
+    $('#brief-news-list').innerHTML = n.items.map((x) => headlineItem(x, now)).join('');
+    $('#brief-news-source').textContent = `Headlines from ${n.state ? 'local' : 'weather and aviation'} newsrooms. We link to their reporting; we don’t copy it.`;
+  }
+  // Statehouse votes and Both sides: js/civic.js, US places with a known state only. It reveals itself when it
+  // has something to show; if the module is missing or fails, the block stays hidden and nothing else breaks.
+  const civic = $('#civic');
+  if (local && civicFor !== b.code) {
+    civicFor = b.code;
+    import('./civic.js')
+      .then((m) => m.mountCivic(civic, { state: b.code }))
+      .then(() => { if (civicFor === null) { civic.hidden = true; civic.innerHTML = ''; } }) // left the US meanwhile
+      .catch(() => { civic.hidden = true; })
+      .finally(syncBrief);
+  } else if (!local && civicFor !== null) {
+    civicFor = null;
+    civic.hidden = true;
+    civic.innerHTML = '';
+  }
+  syncBrief();
+}
+// The brief shows only when one of its blocks has something in it.
+function syncBrief() {
+  const el = $('#brief');
+  el.hidden = !(state.place && state.brief && state.brief.place === state.place)
+    || ($('#brief-weather').hidden && $('#brief-news').hidden && $('#civic').hidden);
 }
 
 /* ---------- Actions: copy the trip link, try again ---------- */

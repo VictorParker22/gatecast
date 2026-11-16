@@ -22,6 +22,7 @@
   <link rel="stylesheet" href="styles/tokens.css">
   <link rel="stylesheet" href="styles/app.css">
   <link rel="stylesheet" href="styles/home.css">
+  <link rel="stylesheet" href="styles/civic.css">
   <link rel="stylesheet" href="styles/sky.css">
   <link rel="stylesheet" href="styles/motion.css">
   <!-- The whole module graph, fetched in parallel instead of one import level at a time. -->
@@ -146,11 +147,27 @@
         </section>
       </div>
     </section>
+
+    <!-- The brief: shown once there is something real in it. Headlines link out to the outlet; we never copy
+         their summary, opening paragraph or images. Statehouse votes and Both sides come from js/civic.js. -->
+    <section class="brief" id="brief" aria-labelledby="brief-title" hidden>
+      <h2 class="brief__title" id="brief-title">The brief</h2>
+      <section class="brief__block" id="brief-weather" aria-labelledby="brief-weather-title" hidden>
+        <h3 class="brief__label" id="brief-weather-title">Weather news</h3>
+        <ul class="wxnews-list" id="brief-weather-list"></ul>
+      </section>
+      <section class="brief__block" id="brief-news" aria-labelledby="brief-news-title" hidden>
+        <h3 class="brief__label" id="brief-news-title">Headlines</h3>
+        <ol class="heads" id="brief-news-list"></ol>
+        <p class="brief__source" id="brief-news-source"></p>
+      </section>
+      <section class="brief__block brief__civic" id="civic" hidden></section>
+    </section>
   </main>
 
   <footer class="site-footer">
     <p>Gatecast is a planning aid, not an official source. Check your airline for the status of your flight.</p>
-    <p>Forecasts: <a href="https://open-meteo.com/" rel="noopener">Open-Meteo</a> (CC BY 4.0). Radar: <a href="https://www.rainviewer.com/" rel="noopener">RainViewer</a>. Map: © <a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a> contributors. Live aircraft: <a href="https://adsb.lol/" rel="noopener">adsb.lol</a> (ODbL). Routes: <a href="https://www.adsbdb.com/" rel="noopener">adsbdb</a>. Observations: NOAA. US status: FAA. Alerts: National Weather Service.</p>
+    <p>Forecasts: <a href="https://open-meteo.com/" rel="noopener">Open-Meteo</a> (CC BY 4.0). Radar: <a href="https://www.rainviewer.com/" rel="noopener">RainViewer</a>. Map: © <a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a> contributors. Live aircraft: <a href="https://adsb.lol/" rel="noopener">adsb.lol</a> (ODbL). Routes: <a href="https://www.adsbdb.com/" rel="noopener">adsbdb</a>. Observations: NOAA. US status: FAA. Alerts: National Weather Service. Headlines belong to the newsrooms named beside them; each links to the story.</p>
   </footer>
 </body>
 </html>

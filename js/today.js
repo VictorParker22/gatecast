@@ -208,3 +208,91 @@ export function flightsNear(list) {
     line: `${why} at ${worst.code} in the next 3 hours${risky.length > 1 ? `, and some risk at ${joinList(risky.filter((c) => c !== worst.code))}` : ''}.${others.length ? ` ${joinList(others)} ${others.length > 1 ? 'look' : 'looks'} calm.` : ''}`,
   };
 }
+
+/* ---------- The brief: weather news, state headlines (see lib/news.js for the server half) ---------- */
+
+export const US_STATES = {
+  AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas', CA: 'California', CO: 'Colorado', CT: 'Connecticut', DE: 'Delaware',
+  DC: 'District of Columbia', FL: 'Florida', GA: 'Georgia', HI: 'Hawaii', ID: 'Idaho', IL: 'Illinois', IN: 'Indiana', IA: 'Iowa',
+  KS: 'Kansas', KY: 'Kentucky', LA: 'Louisiana', ME: 'Maine', MD: 'Maryland', MA: 'Massachusetts', MI: 'Michigan', MN: 'Minnesota',
+  MS: 'Mississippi', MO: 'Missouri', MT: 'Montana', NE: 'Nebraska', NV: 'Nevada', NH: 'New Hampshire', NJ: 'New Jersey',
+  NM: 'New Mexico', NY: 'New York', NC: 'North Carolina', ND: 'North Dakota', OH: 'Ohio', OK: 'Oklahoma', OR: 'Oregon',
+  PA: 'Pennsylvania', RI: 'Rhode Island', SC: 'South Carolina', SD: 'South Dakota', TN: 'Tennessee', TX: 'Texas', UT: 'Utah',
+  VT: 'Vermont', VA: 'Virginia', WA: 'Washington', WV: 'West Virginia', WI: 'Wisconsin', WY: 'Wyoming', PR: 'Puerto Rico',
+};
+const STATE_BY_NAME = new Map(Object.entries(US_STATES).map(([code, name]) => [name.toLowerCase(), code]));
+STATE_BY_NAME.set('washington, d.c.', 'DC');
+
+// Is the place in the United States? Search results carry "US"; older saved places may carry the name.
+export function isUS(place) {
+  const c = String(place?.country || '').trim().toLowerCase();
+  return c === 'us' || c === 'usa' || c === 'united states' || c === 'united states of america';
+}
+
+// The two-letter state for a saved place, from what the page already stores: an explicit code (state), or
+// the first part of the search result's region ("New York, United States" -> NY). null when unknown.
+export function stateOf(place) {
+  if (!place || !isUS(place)) return null;
+  const direct = String(place.state || '').trim().toUpperCase();
+  if (US_STATES[direct]) return direct;
+  // Longest name that the region starts with, so "Washington, D.C., United States" is DC, not WA.
+  const region = String(place.region || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  let best = null;
+  for (const [name, code] of STATE_BY_NAME) {
+    if ((region === name || region.startsWith(name + ',')) && (!best || name.length > best[0].length)) best = [name, code];
+  }
+  return best ? best[1] : null;
+}
+
+// "Just now", "25 min ago", "3 hr ago", "Yesterday", "4 days ago". Future times (clock skew) read as just now.
+export function relTime(when, now = Date.now()) {
+  const ms = typeof when === 'number' ? when : Date.parse(when);
+  if (!Number.isFinite(ms)) return '';
+  const min = Math.floor((now - ms) / 60000);
+  if (min < 5) return 'Just now';
+  if (min < 60) return `${min} min ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr} hr ago`;
+  const days = Math.floor(hr / 24);
+  return days === 1 ? 'Yesterday' : `${days} days ago`;
+}
+
+// Headlines from /api/news, re-checked on this side: an https link, a title and a date, or the item is left out.
+export function cleanHeadlines(json) {
+  const items = Array.isArray(json?.items) ? json.items : [];
+  return items.filter((x) => x && typeof x.title === 'string' && x.title.trim() && typeof x.outlet === 'string'
+    && /^https:\/\//.test(x.url || '') && Number.isFinite(Date.parse(x.published))).slice(0, 8);
+}
+
+const SEVERITY = { Extreme: 3, Severe: 2, Moderate: 1, Minor: 0, Unknown: 0 };
+// NWS alerts (from data.js loadAlerts) as brief items, most severe first: Extreme and Severe read as high risk,
+// the rest as elevated. Alerts that have already ended are dropped.
+export function alertItems(alerts, now = Date.now()) {
+  return (Array.isArray(alerts) ? alerts : [])
+    .filter((a) => a && a.event && !(Date.parse(a.ends) < now))
+    .map((a) => ({
+      event: a.event,
+      level: (SEVERITY[a.severity] ?? 0) >= 2 ? 'high' : 'elevated',
+      headline: a.headline || '',
+      area: a.area || '',
+      from: Number.isFinite(Date.parse(a.onset)) ? Date.parse(a.onset) : null,
+      until: Number.isFinite(Date.parse(a.ends)) ? Date.parse(a.ends) : null,
+      rank: SEVERITY[a.severity] ?? 0,
+    }))
+    .sort((a, b) => b.rank - a.rank);
+}
+
+// The one forecast signal worth a news item: the riskiest nearby airport over the next 3 hours, when it is
+// elevated or high (same list flightsNear reads). Calm or unknown -> null: no filler.
+export function airportSignal(list) {
+  const risky = (Array.isArray(list) ? list : []).filter((x) => x.risk && (x.risk.level === 'elevated' || x.risk.level === 'high'));
+  if (!risky.length) return null;
+  const worst = risky.reduce((a, b) => (b.risk.score > a.risk.score ? b : a));
+  const why = cap(factorPhrase(worst.risk.factors) || 'Rough weather');
+  const others = risky.filter((x) => x !== worst).map((x) => x.code);
+  return {
+    code: worst.code, level: worst.risk.level,
+    title: `${why} near ${worst.code} in the next 3 hours`,
+    line: `${LEVEL_LABEL[worst.risk.level]} weather risk for flights there${others.length ? `, and at ${joinList(others)}` : ''}. Check with your airline before you leave.`,
+  };
+}
