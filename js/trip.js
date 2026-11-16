@@ -1,10 +1,11 @@
 import {
-  planTrip, assessTrip, estimateFlightMin, distanceKm, describeCode, factorPhrase,
-  fmtTime, fmtDay, fmtZone, fmtDuration, utcToLocalInput, HOUR, LEVEL_LABEL,
+  planTrip, assessTrip, estimateFlightMin, fmtTime, fmtDay, fmtDuration, utcToLocalInput, HOUR,
 } from './core.js';
 import { loadAirports, airport, searchAirports, loadForecasts, loadAlerts, loadLive } from './data.js';
 import { $, store, prefs, initSettings } from './shell.js';
-import { esc, weatherIcon, riskIcon, chip, units, compass, routeMap, hourlyStrip } from './view.js';
+import { esc, riskIcon, units } from './view.js';
+import { journeyModel } from './journey.js';
+import { verdictHTML, stripHTML, stopCardHTML, adviceHTML, mapHTML } from './tripview.js';
 
 /* ---------- State ---------- */
 
@@ -215,6 +216,45 @@ function fillForm(trip) {
   renderStops();
 }
 
+/* ---------- Collapsed form: a summary row once a trip is shown ---------- */
+
+const heroEl = $('#trip-hero');
+const editEl = $('#trip-edit');
+const changeBtn = $('#change-trip');
+
+// The departure as typed (wall-clock at the first airport), e.g. "Tue 17 Nov 09:15".
+function whenText(t) {
+  const [d, hm] = t.split('T');
+  const ms = Date.UTC(...d.split('-').map((x, i) => +x - (i === 1 ? 1 : 0)), ...hm.split(':').map(Number));
+  return `${fmtDay(ms, 'UTC')} ${fmtTime(ms, 'UTC')}`;
+}
+function showSummary(trip) {
+  $('#summary-route').textContent = trip.r.join(' · ');
+  $('#summary-when').textContent = whenText(trip.t);
+  $('#trip-summary').hidden = false;
+  heroEl.classList.add('has-trip');
+}
+function hideSummary() {
+  $('#trip-summary').hidden = true;
+  heroEl.classList.remove('has-trip');
+  setCollapsed(false);
+}
+function setCollapsed(on) {
+  editEl.hidden = on;
+  heroEl.classList.toggle('is-collapsed', on);
+  changeBtn.setAttribute('aria-expanded', String(!on));
+}
+changeBtn.addEventListener('click', () => {
+  if (editEl.hidden) {
+    setCollapsed(false);
+    $('[role=combobox]', stopsEl)?.focus();
+  } else {
+    if (last) fillForm(last.trip); // closing without checking puts the form back to the trip on screen
+    setError('');
+    setCollapsed(true);
+  }
+});
+
 /* ---------- Results ---------- */
 
 const resultsEl = $('#results');
@@ -222,27 +262,35 @@ const resultsEl = $('#results');
 function loading(trip) {
   resultsEl.hidden = false;
   resultsEl.setAttribute('aria-busy', 'true');
-  resultsEl.innerHTML = `<div class="verdict verdict--loading"><div><h2>Checking the forecast for ${trip.r.map(esc).join(' → ')}…</h2>
-    <p>Lining up each airport with the time you are there.</p></div></div>
-    <div class="skeleton" aria-hidden="true"><span></span><span></span><span></span></div>`;
+  resultsEl.innerHTML = `<div class="tverdict tverdict--calm tverdict--loading"><div class="tverdict__text">
+    <h2 id="verdict-title" tabindex="-1">Checking the forecast for ${trip.r.map(esc).join(' → ')}…</h2>
+    <p class="tverdict__meta">Lining up each airport with the time you are there.</p></div></div>
+    <div class="skeleton" aria-hidden="true"><span></span><span></span></div>`;
 }
+
+// Results that mean the trip itself needs changing open the form again.
+const fixTrip = (html) => { resultsEl.innerHTML = html; setCollapsed(false); };
 
 async function run(trip) {
   const aps = trip.r.map(airport);
+  showSummary(trip);
   if (aps.some((a) => !a)) {
     resultsEl.hidden = false;
-    resultsEl.innerHTML = message('We do not recognise one of those airports', 'Check the airport codes in the link, or pick the airports again above.');
+    fixTrip(message('We do not recognise one of those airports', 'Check the airport codes in the link, or pick the airports again above.'));
     return;
   }
+  const hadFocus = editEl.contains(document.activeElement);
+  setCollapsed(true);
   loading(trip);
+  if (hadFocus) $('#verdict-title').focus(); // the form just closed under the keyboard: land on the result
   const plan = planTrip(aps, trip.t, trip.l, trip.d);
   const now = Date.now();
   if (plan.end < now - HOUR) {
-    resultsEl.innerHTML = message('That trip is in the past', 'Gatecast looks ahead. Pick a departure time from now up to 16 days out.');
+    fixTrip(message('That trip is in the past', 'Gatecast looks ahead. Pick a departure time from now up to 16 days out.'));
     return done();
   }
   if (plan.start > now + 15.5 * 24 * HOUR) {
-    resultsEl.innerHTML = message('That is too far ahead to forecast', `Forecasts reach about 16 days. Come back from ${fmtDay(plan.start - 15 * 24 * HOUR, aps[0].tz)} and this link will work.`);
+    fixTrip(message('That is too far ahead to forecast', `Forecasts reach about 16 days. Come back from ${fmtDay(plan.start - 15 * 24 * HOUR, aps[0].tz)} and this link will work.`));
     return done();
   }
   try {
@@ -258,7 +306,7 @@ async function run(trip) {
     resultsEl.innerHTML = message(
       rate ? 'The forecast service is busy' : 'We could not load the forecast',
       rate ? 'The free forecast service has hit its request limit for this network. Try again in a little while.'
-        : 'Check your connection and try again. Your trip details are still in the form.',
+        : 'Check your connection and try again. Your trip details are still in the form under Change trip.',
       true,
     );
     done();
@@ -268,121 +316,31 @@ async function run(trip) {
 function done(focus) {
   resultsEl.setAttribute('aria-busy', 'false');
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  resultsEl.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
-  if (focus) $('.verdict h2', resultsEl)?.focus({ preventScroll: true });
+  const top = resultsEl.getBoundingClientRect().top;
+  if (top < 0 || top > innerHeight * 0.6) $('#trip-hero').scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+  if (focus) $('#verdict-title')?.focus({ preventScroll: true });
 }
-const message = (title, body, retry) => `<div class="verdict verdict--unknown">${riskIcon('unknown')}<div><h2 tabindex="-1">${esc(title)}</h2><p>${esc(body)}</p>
+const message = (title, body, retry) => `<div class="verdict verdict--unknown">${riskIcon('unknown')}<div><h2 id="verdict-title" tabindex="-1">${esc(title)}</h2><p>${esc(body)}</p>
   ${retry ? '<button class="btn btn--primary" type="button" data-retry>Try again</button>' : ''}</div></div>`;
-
-function timeLine(label, ms, tz, refDay) {
-  const day = fmtDay(ms, tz);
-  return `<div class="when"><dt>${label}</dt><dd><b>${fmtTime(ms, tz)}</b> <span>${esc(fmtZone(ms, tz))}</span>${day !== refDay ? ` <span class="when__day">${esc(day)}</span>` : ''}</dd></div>`;
-}
-
-function stopCard(s, hours, u, startDay) {
-  const a = s.airport, tz = a.tz, w = s.weather;
-  const roleText = s.role === 'origin' ? 'Departure' : s.role === 'destination' ? 'Arrival' : `Connection · ${fmtDuration(s.layover)} layover`;
-  const useWorst = w.score >= 30 && w.worst;
-  const h = useWorst ? w.worst : (s.atDep && s.role === 'origin' ? s.atDep : s.atArr || s.atDep);
-  const whenLabel = useWorst ? `Worst hour while you are here, ${fmtTime(h.t, tz)}`
-    : s.role === 'origin' ? 'At take-off' : 'At landing';
-  let why;
-  if (s.level === 'unknown') why = 'No forecast available for this time yet.';
-  else if (w.factors.length) why = `Forecast shows ${factorPhrase(w.factors)} while you are here.`;
-  else why = 'Nothing in the forecast that usually slows this airport down.';
-  if (s.role === 'connection') {
-    why += s.buffer === 'tight' ? ` A ${fmtDuration(s.layover)} layover leaves very little buffer.`
-      : s.buffer === 'generous' ? ` Your ${fmtDuration(s.layover)} layover gives you room to absorb a delay.` : '';
-    if (s.level !== 'low' && w.level === 'low') why += ' The risk here comes from weather where your inbound flight departs.';
-  }
-  const d = h ? describeCode(h.code) : null;
-  return `<li class="stop stop--${s.level}">
-    <header class="stop__head">
-      <div><p class="stop__role">${esc(roleText)}</p>
-        <h3><span class="code">${a.code}</span> ${esc(a.city || a.name)}</h3>
-        <p class="stop__name">${esc(a.name)}</p></div>
-      ${chip(s.level, s.level === 'unknown' ? 'No forecast' : `${LEVEL_LABEL[s.level]} risk`)}
-    </header>
-    <dl class="stop__times">
-      ${s.arr != null ? timeLine('Land', s.arr, tz, startDay) : ''}
-      ${s.dep != null ? timeLine('Take off', s.dep, tz, startDay) : ''}
-    </dl>
-    ${h ? `<div class="stop__wx">
-      <div class="stop__now">${weatherIcon(h.code, h.day, 'wx--lg')}<div><p class="stop__temp">${u.temp(h.temp)}<small>${u.tempUnit.slice(1)}</small></p><p>${esc(d.text)}</p></div></div>
-      <dl class="facts">
-        <div><dt>Gusts</dt><dd>${u.speed(h.gust)} <small>${compass(h.dir)}</small></dd></div>
-        <div><dt>Rain or snow</dt><dd>${h.pop ?? 0}% <small>chance</small></dd></div>
-        <div><dt>Visibility</dt><dd>${u.vis(h.vis)}</dd></div>
-      </dl>
-      <p class="stop__when">${esc(whenLabel)}</p>
-    </div>` : ''}
-    <p class="stop__why">${esc(why)}</p>
-    ${hourlyStrip(s, hours, u)}
-    <div class="stop__live" data-live="${a.code}"></div>
-  </li>`;
-}
 
 function render() {
   if (!last) return;
   const { plan, result, forecasts, at, trip } = last;
   const u = units(prefs);
   const startDay = fmtDay(plan.start, plan.stops[0].airport.tz);
-  const items = [];
-  result.stops.forEach((s, i) => {
-    items.push(stopCard(s, forecasts.get(s.airport.code) || [], u, startDay));
-    const leg = plan.legs[i];
-    if (leg) {
-      const km = distanceKm(leg.from, leg.to);
-      const dist = prefs.wind === 'mph' ? `${Math.round(km / 1.609).toLocaleString()} mi` : `${Math.round(km).toLocaleString()} km`;
-      items.push(`<li class="leg"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M6 14l6 6 6-6"/></svg>
-        <span>Flight ${leg.from.code} → ${leg.to.code} · ${fmtDuration(leg.dur)}${leg.estimated ? ' (estimated)' : ''} · ${dist}</span></li>`);
-    }
-  });
-  const hl = result.headline;
+  const model = journeyModel(result, plan, forecasts);
+  const open = [...resultsEl.querySelectorAll('.tcard__hours[open]')].map((d) => d.closest('[data-stop]')?.dataset.stop);
   resultsEl.innerHTML = `
-    <div class="verdict verdict--${result.level}">
-      ${riskIcon(result.level)}
-      <div>
-        <p class="verdict__eyebrow">${trip.r.map(esc).join(' → ')} · ${esc(startDay)}</p>
-        <h2 tabindex="-1">${esc(hl.title)}</h2>
-        <p>${esc(hl.body)}</p>
-        <p class="verdict__meta">${esc(result.confidence.text)} Forecast loaded ${fmtTime(at, Intl.DateTimeFormat().resolvedOptions().timeZone)} your time.</p>
-      </div>
-      <button class="btn btn--ghost" type="button" data-share>
-        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>
-        <span>Copy link</span></button>
-    </div>
-    <div class="results__grid">
-      <div class="journey">
-        <h2>Your journey, stop by stop</h2>
-        <p class="journey__note">All times are local to each airport.</p>
-        <ol class="journey__list">${items.join('')}</ol>
-      </div>
-      <aside class="side" aria-label="Route overview">
-        <figure class="map-card">${routeMap(result.stops)}
-          <figcaption>${result.stops.map((s) => `<span>${chip(s.level, s.airport.code)}</span>`).join('<i aria-hidden="true">→</i>')}</figcaption>
-        </figure>
-        <div class="tips">
-          <h3>What you can do</h3>
-          <ul>${tips(result).map((t) => `<li>${esc(t)}</li>`).join('')}</ul>
-        </div>
-      </aside>
-    </div>`;
+    ${verdictHTML(result, trip, startDay, at)}
+    ${stripHTML(model, u, prefs, startDay)}
+    <section class="tstops" aria-labelledby="tstops-title">
+      <h2 id="tstops-title">Stop by stop</h2>
+      <ol class="tstops__list">${result.stops.map((s, i) => stopCardHTML(s, forecasts.get(s.airport.code) || [], u, startDay, i)).join('')}</ol>
+    </section>
+    ${adviceHTML(result)}
+    ${mapHTML(result, model, prefs)}`;
+  for (const i of open) resultsEl.querySelector(`[data-stop="${i}"] .tcard__hours`)?.setAttribute('open', '');
   if (last.live) paintLive();
-}
-
-function tips(result) {
-  const out = [];
-  const conn = result.stops.filter((s) => s.role === 'connection');
-  const risky = conn.find((s) => s.level !== 'low');
-  if (risky) {
-    out.push(`Ask your airline about a later onward flight from ${risky.airport.code}, or an earlier inbound one, while seats are still available.`);
-    if (result.level === 'high') out.push('Airlines often publish a weather waiver before a big storm that lets you rebook for free. Check their travel alerts page.');
-  }
-  if (result.level !== 'low') out.push('Turn on notifications in your airline app so you hear about changes before you reach the airport.');
-  if (result.confidence.key !== 'good') out.push('Open this link again a day or two before you fly: the forecast will be sharper.');
-  if (!out.length) out.push('No action needed for weather. Check in as normal and keep an eye on your airline app.');
-  return out;
 }
 
 resultsEl.addEventListener('click', async (e) => {
@@ -471,21 +429,24 @@ function decorateLegend() {
 }
 
 async function start() {
-  initSettings(render);
+  initSettings(() => { render(); if (last) showSummary(last.trip); });
   decorateLegend();
   depEl.value = defaultDeparture();
   depEl.max = utcToLocalInput(Date.now() + 15 * 24 * HOUR, Intl.DateTimeFormat().resolvedOptions().timeZone);
   renderStops();
+  const shared = fromQuery();
+  if (shared) { showSummary(shared); setCollapsed(true); } // no flash of the full form while airports load
   try {
     await loadAirports();
   } catch {
+    setCollapsed(false);
     setError('The airport list did not load. Check your connection and reload the page.');
     return;
   }
   renderExamples();
   const apply = () => {
     const trip = fromQuery();
-    if (trip) { fillForm(trip); run(trip); } else { resultsEl.hidden = true; last = null; }
+    if (trip) { fillForm(trip); run(trip); } else { resultsEl.hidden = true; last = null; hideSummary(); }
   };
   window.addEventListener('popstate', apply);
   apply();
