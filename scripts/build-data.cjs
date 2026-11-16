@@ -44,7 +44,7 @@ async function airportRanks() {
 
 async function build() {
   fs.rmSync(out, { recursive: true, force: true });
-  for (const dir of ['styles', 'js', 'vendor']) fs.cpSync(path.join(root, dir), path.join(out, dir), { recursive: true });
+  for (const dir of ['styles', 'js', 'vendor', 'assets']) fs.cpSync(path.join(root, dir), path.join(out, dir), { recursive: true });
   for (const file of STATIC_FILES) fs.copyFileSync(path.join(root, file), path.join(out, file));
   fs.writeFileSync(path.join(out, 'sitemap.xml'), sitemapXml());
   fs.mkdirSync(path.join(out, 'data'), { recursive: true });
