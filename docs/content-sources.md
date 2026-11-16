@@ -32,6 +32,8 @@ The owner did not want to use api.data.gov for now and asked for Open States plu
 | USGS earthquakes | None | Works. A candidate for a place-based box ("felt near you"). Not built. |
 | GDELT news search | None | Refused with "limit requests to one every 5 seconds" on the first call, because Supabase's servers share addresses with other users. Not dependable from there. Parked. |
 
+The box is switched off for visitors until the owner agrees to point 2 (`private.switches`, key `state_votes`). The collector records, per state, how many votes it kept and why it left the others out (too old, committee-sized, no names on record, not a passage vote), so an empty state can be told apart from a wrong filter. First results: Ohio 9 votes and New Jersey 11; Alaska and Arizona none, because their sessions ended more than 120 days ago and many Arizona votes carry no names.
+
 Open States' rate limits and terms of use could not be read, so the collector is cautious: at most 8 requests a run, one run an hour, under 200 requests a day. Its terms are on the list to verify before launch.
 
 ## Recommendation at a glance

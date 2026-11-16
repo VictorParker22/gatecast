@@ -82,26 +82,33 @@ function rowsFor(state: string, bills: any[], seats: { upper: number | null; low
   const oldest = Date.now() - MAX_AGE_DAYS * 864e5;
   const rows = new Map<string, Record<string, unknown>>();
   let seen = 0;
+  // Why votes were left out, so a state with nothing to show can be told apart from a filter that is wrong.
+  const dropped: Record<string, number> = {};
+  const drop = (why: string) => { dropped[why] = (dropped[why] ?? 0) + 1; };
 
   for (const b of bills) {
     const kinds: string[] = b.classification ?? [];
-    if (kinds.length && kinds.every((k) => CEREMONIAL.has(k))) continue;
-    if (!b.identifier || !b.title || !isHttp(b.openstates_url)) continue;
+    const nVotes = (b.votes ?? []).length;
+    if (kinds.length && kinds.every((k) => CEREMONIAL.has(k))) { seen += nVotes; dropped.ceremonial = (dropped.ceremonial ?? 0) + nVotes; continue; }
+    if (!b.identifier || !b.title || !isHttp(b.openstates_url)) { seen += nVotes; dropped.incomplete = (dropped.incomplete ?? 0) + nVotes; continue; }
 
     for (const v of b.votes ?? []) {
       seen++;
       const chamber = v.organization?.classification;
-      if (!['upper', 'lower', 'legislature'].includes(chamber)) continue;
+      if (!['upper', 'lower', 'legislature'].includes(chamber)) { drop('not_a_chamber'); continue; }
       const size = chamber === 'lower' ? seats.lower : seats.upper;
       const voters: any[] = v.votes ?? [];
-      if (!size || voters.length < FLOOR_SHARE * size) continue; // committee vote, or no names on record
+      if (!size) { drop('no_seat_count'); continue; }
+      if (!voters.length) { drop('no_names_on_record'); continue; }
+      if (voters.length < FLOOR_SHARE * size) { drop('committee_sized'); continue; }
 
       const cls: string[] = v.motion_classification ?? [];
       const motion = String(v.motion_text ?? '').trim();
-      if (cls.length ? !cls.includes('passage') : PROCEDURAL.test(motion)) continue;
+      if (cls.length ? !cls.includes('passage') : PROCEDURAL.test(motion)) { drop('not_a_passage_vote'); continue; }
 
       const at = new Date(v.start_date);
-      if (!v.id || !motion || Number.isNaN(+at) || +at < oldest || +at > Date.now() + 864e5) continue;
+      if (!v.id || !motion || Number.isNaN(+at) || +at > Date.now() + 864e5) { drop('incomplete'); continue; }
+      if (+at < oldest) { drop('older_than_120_days'); continue; }
 
       const n = { dem_yes: 0, dem_no: 0, dem_other: 0, rep_yes: 0, rep_no: 0, rep_other: 0, oth_yes: 0, oth_no: 0, oth_other: 0 };
       let unknown = 0;
@@ -136,7 +143,7 @@ function rowsFor(state: string, bills: any[], seats: { upper: number | null; low
       });
     }
   }
-  return { rows: [...rows.values()], seen };
+  return { rows: [...rows.values()], seen, dropped };
 }
 
 async function collectState(s: any) {
@@ -146,6 +153,9 @@ async function collectState(s: any) {
   const started = used;
   let upper: number | null = s.upper_seats, lower: number | null = s.lower_seats;
 
+  // Stamped first, so a state that fails goes to the back of the queue instead of blocking it.
+  await db(`collector_states?state=eq.${state}`, { method: 'PATCH', body: JSON.stringify({ last_run_at: new Date().toISOString(), last_result: { started: true } }) });
+
   if (!s.seats_at || Date.now() - +new Date(s.seats_at) > SEATS_MAX_AGE_MS) {
     const count = async (cls: string) => (await openStates(`people?jurisdiction=${q}&org_classification=${cls}&per_page=1`))?.pagination?.total_items ?? null;
     if (state === 'NE') { upper = await count('legislature'); lower = null; }
@@ -154,11 +164,13 @@ async function collectState(s: any) {
   }
 
   let kept: Record<string, unknown>[] = [], seen = 0;
+  const dropped: Record<string, number> = {};
   for (let page = 1; page <= 2; page++) {
     const j = await openStates(`bills?jurisdiction=${q}&sort=latest_action_desc&include=votes&include=sources&per_page=20&page=${page}`);
     const r = rowsFor(state, j?.results ?? [], { upper, lower });
     kept = kept.concat(r.rows);
     seen += r.seen;
+    for (const [why, n] of Object.entries(r.dropped)) dropped[why] = (dropped[why] ?? 0) + n;
     if (kept.length >= 3 || page >= (j?.pagination?.max_page ?? 1) || used >= RUN_BUDGET) break;
   }
 
@@ -169,8 +181,8 @@ async function collectState(s: any) {
       headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
     });
   }
-  const result = { kept: unique.length, votes_seen: seen, requests: used - started };
-  await db(`collector_states?state=eq.${state}`, { method: 'PATCH', body: JSON.stringify({ last_run_at: new Date().toISOString(), last_result: result }) });
+  const result = { kept: unique.length, votes_seen: seen, dropped, seats: { upper, lower }, requests: used - started };
+  await db(`collector_states?state=eq.${state}`, { method: 'PATCH', body: JSON.stringify({ last_result: result }) });
   return result;
 }
 
@@ -184,7 +196,8 @@ Deno.serve(async (req: Request) => {
   const today = runs.reduce((a, r) => a + (r.requests ?? 0), 0);
   if (today + RUN_BUDGET > DAY_BUDGET) return json({ ran: false, reason: 'daily request budget used' });
 
-  const [run] = await db('collector_runs', { method: 'POST', body: JSON.stringify({ requests: 0 }), headers: { Prefer: 'return=representation' } });
+  // Counted as a full run until it finishes, so a crashed run still uses up its share of the day.
+  const [run] = await db('collector_runs', { method: 'POST', body: JSON.stringify({ requests: RUN_BUDGET }), headers: { Prefer: 'return=representation' } });
 
   const asked = (new URL(req.url).searchParams.get('states') ?? '').toUpperCase().split(',').filter((s) => STATES[s]).slice(0, 4);
   const states: any[] = asked.length
@@ -200,6 +213,7 @@ Deno.serve(async (req: Request) => {
     } catch (e) {
       if (e instanceof Stop) { stopped = e.message; break; }
       done[s.state] = { error: String((e as Error).message).slice(0, 120) };
+      await db(`collector_states?state=eq.${s.state}`, { method: 'PATCH', body: JSON.stringify({ last_result: done[s.state] }) }).catch(() => {});
     }
   }
 
