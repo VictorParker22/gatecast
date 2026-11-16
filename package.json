@@ -2,10 +2,21 @@
   "name": "gatecast",
   "version": "1.0.0",
   "private": true,
+  "description": "Checks whether the weather will disrupt your flights and connections, with a plain-language verdict for every airport on the trip.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/VictorParker22/gatecast.git"
+  },
+  "homepage": "https://github.com/VictorParker22/gatecast#readme",
+  "bugs": {
+    "url": "https://github.com/VictorParker22/gatecast/issues"
+  },
   "scripts": {
     "build": "node scripts/build-data.cjs",
     "start": "node server.js",
-    "test": "node --test tests/*.mjs tests/*.cjs"
+    "dev": "node server.js",
+    "test": "node --test tests/*.mjs tests/*.cjs",
+    "ci": "npm test && npm run build"
   },
   "dependencies": {
     "topojson-client": "^3.1.0",

@@ -1,0 +1,34 @@
+name: Feature request
+description: Suggest an improvement or a new idea for Gatecast.
+title: "Idea: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: Describe the traveller's situation, for example "I have a tight connection through a winter hub and want to know ...".
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you have considered
+  - type: textarea
+    id: data
+    attributes:
+      label: Data it would need
+      description: Gatecast only uses free or keyless sources today (see "Data sources and limits" in the README). If this needs new data, say where it could come from and on what terms, if you know.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you submit
+      options:
+        - label: I searched the existing issues for a similar request.
+          required: true

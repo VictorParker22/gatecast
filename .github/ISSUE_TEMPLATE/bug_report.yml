@@ -1,0 +1,66 @@
+name: Bug report
+description: Something on Gatecast is wrong, broken or misleading.
+title: "Bug: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this. Please do not report security problems here; see SECURITY.md instead.
+  - type: dropdown
+    id: page
+    attributes:
+      label: Which page?
+      options:
+        - Weather (index.html)
+        - Flights (flights.html)
+        - Connections (trip.html)
+        - More than one page
+        - Local server or build (server.js, scripts/build-data.cjs)
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you saw, in a sentence or two. A screenshot helps.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The link you were on helps most, since every result is a shareable URL. Leave out anything you would rather not share, such as your exact location.
+      placeholder: |
+        1. Open ...
+        2. Enter ...
+        3. See ...
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and device
+      placeholder: e.g. Safari 19 on iPhone 16, Firefox 140 on Windows 11
+    validations:
+      required: true
+  - type: dropdown
+    id: risk
+    attributes:
+      label: Could this mislead a traveller?
+      description: For example, a wrong verdict, a wrong local time, or a risk level shown by colour alone.
+      options:
+        - "No"
+        - "Yes"
+        - Not sure
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Console errors, settings you changed (units, clock, appearance), reduced motion, a screen reader in use.
