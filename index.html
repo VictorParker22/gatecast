@@ -85,18 +85,11 @@
     </section>
 
     <section id="hero" class="hero-wx" aria-live="polite" hidden></section>
-  </div>
-
-  <div id="settings" class="settings" popover aria-labelledby="settings-title"></div>
-
-  <main id="main">
-    <div id="alerts"></div>
-    <div id="status" aria-live="polite"></div>
 
     <section class="pedestal" id="pedestal" aria-labelledby="pedestal-title" hidden>
-      <div>
+      <div class="pedestal__intro">
         <h2 id="pedestal-title">Your board</h2>
-        <p>Make a box bigger to read more. Drag it by its grip to move it, or onto the shelf to keep it close. It is saved on this device.</p>
+        <p>Make a box bigger to read more, drag it by its grip to move it, or drop it on the shelf to keep it close. Saved on this device.</p>
       </div>
       <ul class="pedestal__stats" id="stats"></ul>
       <div class="pedestal__actions">
@@ -104,6 +97,13 @@
         <button type="button" class="btn btn--ghost" id="reset-board">Reset my board</button>
       </div>
     </section>
+  </div>
+
+  <div id="settings" class="settings" popover aria-labelledby="settings-title"></div>
+
+  <main id="main">
+    <div id="alerts"></div>
+    <div id="status" aria-live="polite"></div>
 
     <div class="board" id="board" hidden></div>
     <p class="sr-only" id="announce" aria-live="polite"></p>

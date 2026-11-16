@@ -56,7 +56,8 @@
   /* Fixed-colour surfaces used for emphasis boxes in both themes. */
   --color-sun: #ffc233;
   --color-on-sun: #0f1728;
-  --color-ink-surface: light-dark(#0f1728, #1c2640);
+  /* Dark value is a deep cobalt-ink so "Get ready" still reads as an emphasis box next to dark cards. */
+  --color-ink-surface: light-dark(#0f1728, #1f2d55);
   --color-on-ink: #ffffff;
   --color-on-ink-muted: #c9d3e6;
   --color-control-border: light-dark(#8791a6, #6b7892);
@@ -94,9 +95,12 @@
   --radius-sm: 6px;
   --radius-md: 12px;
   --radius-lg: 20px;
+  --radius-xl: 28px;
   --radius-pill: 999px;
   --shadow-1: 0 1px 2px light-dark(rgb(23 32 43 / 0.08), rgb(0 0 0 / 0.4));
   --shadow-2: 0 8px 28px light-dark(rgb(23 32 43 / 0.12), rgb(0 0 0 / 0.5));
+  /* Resting box on the board: a soft lift in light, a faint top edge light in dark where shadows vanish. */
+  --shadow-tile: inset 0 1px 0 light-dark(rgb(255 255 255 / 0), rgb(255 255 255 / 0.05)), 0 1px 2px light-dark(rgb(23 32 43 / 0.06), rgb(0 0 0 / 0.3)), 0 4px 16px light-dark(rgb(23 32 43 / 0.05), rgb(0 0 0 / 0.25));
   --duration-fast: 120ms;
   --duration-base: 240ms;
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -118,6 +122,8 @@
     --color-map-land: #d3dae6; --color-map-sea: #e8edf5;
     --risk-low: #0b6b5f; --risk-elevated: #8f4e00; --risk-high: #a81c48;
     --shadow-1: 0 1px 2px rgb(23 32 43 / 0.08); --shadow-2: 0 8px 28px rgb(23 32 43 / 0.12);
+    --shadow-tile: 0 1px 2px rgb(23 32 43 / 0.06), 0 4px 16px rgb(23 32 43 / 0.05);
+    --color-ink-surface: #0f1728; --color-control-border: #8791a6; --color-live: #0b6b5f;
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -127,6 +133,8 @@
       --color-map-land: #3a4a60; --color-map-sea: #101822;
       --risk-low: #5fd3c0; --risk-elevated: #f2b450; --risk-high: #ff8aa8;
       --shadow-1: 0 1px 2px rgb(0 0 0 / 0.4); --shadow-2: 0 8px 28px rgb(0 0 0 / 0.5);
+      --shadow-tile: inset 0 1px 0 rgb(255 255 255 / 0.05), 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 16px rgb(0 0 0 / 0.25);
+      --color-ink-surface: #1f2d55; --color-control-border: #6b7892; --color-live: #5fd3c0;
     }
   }
 }

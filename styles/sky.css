@@ -1,4 +1,10 @@
-/* Animated sky canvas. Owned by the WebGL sky work. */
-.sky { position: relative; }
-.sky__canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
-.sky > :not(.sky__canvas) { position: relative; }
+/* Animated sky canvas (js/sky.js). It fills .sky behind the header and hero text. It stays invisible
+   until WebGL has drawn a frame, so the flat --sky-* colour of .sky is the fallback at all times. */
+.sky { position: relative; isolation: isolate; }
+.sky__canvas {
+  position: absolute; inset: 0; z-index: -1;
+  width: 100%; height: 100%; display: block; pointer-events: none;
+  opacity: 0; transition: opacity 600ms ease-out;
+}
+.sky__canvas.is-live { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .sky__canvas { transition: none; } }

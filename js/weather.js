@@ -6,6 +6,7 @@ import { loadAirports, searchPlaces, nearestAirports, loadWeather, loadForecasts
 import { $, store, prefs, initSettings } from './shell.js';
 import { initSky, setSky } from './sky.js';
 import { esc, weatherIcon, riskIcon, chip, units, compass } from './view.js';
+import { morph as motionMorph, flip, enter, react, landOnShelf, lift } from './motion.js';
 
 const POPULAR = [
   { name: 'New York', region: 'United States', lat: 40.713, lon: -74.006, country: 'US' },
@@ -185,6 +186,7 @@ async function show() {
     current = { place: mine, wx, alerts: [], airports: null, there: null };
     renderHero();
     buildBoard();
+    enter(); // first forecast of this visit: a short staggered arrival (once per page load)
     enrich(current);
   } catch (err) {
     if (place !== mine) return;
@@ -295,10 +297,10 @@ function paint(id) {
   body.innerHTML = BODY[id](board.size[id]);
 }
 
-// Runs a layout change as a view transition so boxes glide to their new place and size.
+// Runs a layout change as a view transition so boxes glide to their new place and size
+// (in-page FLIP while the options sheet is over the board; instant under reduced motion).
 function morph(change) {
-  if (document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) document.startViewTransition(change);
-  else change();
+  motionMorph(change, () => boardEl.querySelectorAll('[data-tile]'));
 }
 function announce(text) {
   const el = $('#announce');
@@ -334,6 +336,7 @@ function toggleShelf(id, on = !board.shelf.includes(id)) {
   board.shelf = board.shelf.filter((x) => x !== id);
   if (on) board.shelf.push(id);
   saveBoard(); renderShelf(); renderPedestal();
+  if (on) landOnShelf(shelfEl, id);
   announce(on ? `${TILES[id].title} is on your shelf.` : `${TILES[id].title} taken off your shelf.`);
 }
 function jumpTo(id) {
@@ -520,6 +523,7 @@ boardEl.addEventListener('click', (e) => {
     store.set('gatecast:quiz', { key: q.key, place: current.place.name, picked: +opt.dataset.quiz });
     stats.answered += 1; store.set('gatecast:stats', stats);
     paint('quiz'); renderPedestal();
+    react(tileEl('quiz'), 'just-answered');
     announce($('.quiz__result', tileEl('quiz')).textContent);
   }
 });
@@ -573,54 +577,86 @@ sheet.addEventListener('click', async (e) => {
 
 /* ---------- Dragging a box by its grip (mouse, pen and touch) ---------- */
 
+// The box lifts (a floating copy follows the pointer, see motion.js), its place on the board shows as
+// an empty slot, and the other boxes glide out of the way. Layout is read at the start and after each
+// reorder, never per pointer move; the follow and hit test run once per animation frame.
 let drag = null;
-const chipEl = document.createElement('div');
-chipEl.className = 'drag-chip'; chipEl.hidden = true;
-document.body.append(chipEl);
+const allTiles = () => boardEl.querySelectorAll('[data-tile]');
+
+// Where each other box sits (board coordinates, transforms ignored), for hit testing without layout reads.
+function measureTiles(d) {
+  const bx = boardEl.offsetLeft, by = boardEl.offsetTop;
+  d.rects = [...allTiles()].filter((t) => !t.hidden && t !== d.el)
+    .map((t) => ({ t, x: t.offsetLeft - bx, y: t.offsetTop - by, w: t.offsetWidth, h: t.offsetHeight }));
+}
 
 boardEl.addEventListener('pointerdown', (e) => {
   const handle = e.target.closest('[data-handle]');
   if (!handle || e.button > 0) return;
   const el = handle.closest('[data-tile]');
-  drag = { id: el.dataset.tile, el, handle, pointerId: e.pointerId, x: e.clientX, y: e.clientY, active: false, last: 0, startOrder: board.order.join() };
+  drag = { id: el.dataset.tile, el, handle, pointerId: e.pointerId, x: e.clientX, y: e.clientY, px: e.clientX, py: e.clientY, active: false, last: 0, frame: 0, startOrder: board.order.join() };
   e.preventDefault(); // no text selection or native drag while moving a box
 });
 // Move and release are tracked on the document: reordering re-inserts the box, which drops pointer capture.
 document.addEventListener('pointermove', (e) => {
   if (!drag || e.pointerId !== drag.pointerId) return;
+  drag.px = e.clientX; drag.py = e.clientY;
   if (!drag.active) {
     if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 8) return;
     drag.active = true;
+    drag.lift = lift(drag.el, drag.x, drag.y, { shelf: shelfEl });
+    const br = boardEl.getBoundingClientRect();
+    drag.origin = { x: br.left + scrollX, y: br.top + scrollY };
+    measureTiles(drag);
     drag.el.classList.add('is-dragging');
     document.documentElement.classList.add('is-dragging-tile');
-    chipEl.textContent = `Moving: ${TILES[drag.id].title}`; chipEl.hidden = false;
   }
-  chipEl.style.translate = `${e.clientX + 14}px ${e.clientY + 14}px`;
-  const under = document.elementFromPoint(e.clientX, e.clientY);
-  const overShelf = !!under?.closest('#shelf');
-  shelfEl.classList.toggle('is-target', overShelf);
-  const target = under?.closest('[data-tile]');
-  if (!target || target === drag.el || overShelf || performance.now() - drag.last < 260) return;
-  drag.last = performance.now();
-  const el = drag.el;
-  morph(() => {
-    if (el.compareDocumentPosition(target) & Node.DOCUMENT_POSITION_FOLLOWING) target.after(el); else target.before(el);
-    board.order = [...boardEl.querySelectorAll('[data-tile]')].map((t) => t.dataset.tile);
-  });
+  if (!drag.frame) drag.frame = requestAnimationFrame(dragFrame);
 });
+function dragFrame() {
+  const d = drag;
+  if (!d) return;
+  d.frame = 0;
+  d.lift.move(d.px, d.py);
+  if (d.lift.autoScroll()) d.frame = requestAnimationFrame(dragFrame); // keep going while resting in an edge zone
+  const overShelf = !!document.elementFromPoint(d.px, d.py)?.closest('#shelf');
+  shelfEl.classList.toggle('is-target', overShelf);
+  d.lift.overShelf(overShelf);
+  if (overShelf || performance.now() - d.last < 260) return;
+  const x = d.px + scrollX - d.origin.x, y = d.py + scrollY - d.origin.y;
+  const hit = d.rects.find((r) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
+  if (!hit) return;
+  d.last = performance.now();
+  const el = d.el, target = hit.t;
+  flip(allTiles(), () => {
+    if (el.compareDocumentPosition(target) & Node.DOCUMENT_POSITION_FOLLOWING) target.after(el); else target.before(el);
+    board.order = [...allTiles()].map((t) => t.dataset.tile);
+  }, { scale: false });
+  measureTiles(d);
+}
 function endDrag(e, cancelled) {
   if (!drag || e.pointerId !== drag.pointerId) return;
   const d = drag; drag = null;
   if (!d.active) return;
+  cancelAnimationFrame(d.frame);
   suppressClick = true; setTimeout(() => { suppressClick = false; }, 0);
-  d.el.classList.remove('is-dragging');
   document.documentElement.classList.remove('is-dragging-tile');
-  chipEl.hidden = true;
-  const overShelf = shelfEl.classList.contains('is-target');
+  const reveal = () => d.el.classList.remove('is-dragging');
+  const overShelf = !cancelled && shelfEl.classList.contains('is-target');
   shelfEl.classList.remove('is-target');
-  if (cancelled) { board.order = d.startOrder.split(','); morph(applyOrder); return; }
+  if (cancelled) {
+    board.order = d.startOrder.split(',');
+    flip(allTiles(), applyOrder, { scale: false });
+    d.lift.settle(d.el, reveal);
+    return;
+  }
   saveBoard();
-  if (overShelf) return toggleShelf(d.id, true);
+  if (overShelf) {
+    toggleShelf(d.id, true);
+    d.lift.flyTo($(`[data-jump="${d.id}"]`, shelfEl), d.el, reveal);
+    return;
+  }
+  d.lift.settle(d.el, reveal);
   if (board.order.join() !== d.startOrder) {
     const vis = visibleOrder();
     announce(`${TILES[d.id].title} moved to position ${vis.indexOf(d.id) + 1} of ${vis.length}.`);
