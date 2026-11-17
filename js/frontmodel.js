@@ -59,7 +59,8 @@ export function cleanYoutube(v) {
 // What a story shows where a picture would go, and so which layout it gets (lead, favourites, grid cards):
 //   'image': the publisher's picture (with a small "Has video" play control when there is a video too);
 //   'video': a click-to-play facade (the still from Gatecast, a play button, the length when known, the channel);
-//   'text':  neither, so no frame at all: the text-led layout. Never a stand-in picture or an empty box.
+//   'text':  neither. The front page and story mode then show Gatecast's category illustration (artFor, below),
+//            labelled as such; never an empty box.
 // failed: a set of picture addresses that did not load (or were a pixel) on this page; they count as no picture.
 export function storyMedia(x, failed) {
   const image = x?.image && !(failed && failed.has(x.image)) ? x.image : null;
@@ -67,6 +68,17 @@ export function storyMedia(x, failed) {
   if (image) return { kind: 'image', image, credit: x.imageCredit || `Image: ${x.outlet}`, video };
   if (video) return { kind: 'video', image: null, credit: null, video };
   return { kind: 'text', image: null, credit: null, video: null };
+}
+
+// Gatecast's own illustration for a story with neither picture nor video (owner decision, 17 Nov 2026: no text-only
+// cards; readers come for pictures). One per category, drawn for Gatecast in its own zine style, never a picture of
+// the story itself: the slot says "Illustration" so nobody takes it for the outlet's photo. Files: assets/art/<cat>-<w>.webp.
+export const ART_CATEGORIES = ['people', 'animals', 'laws', 'records', 'unexplained', 'weather', 'other'];
+export const ART_CREDIT = 'Illustration: Gatecast';
+export function artFor(category) {
+  const c = ART_CATEGORIES.includes(category) ? category : 'other';
+  const at = (w) => `assets/art/${c}-${w}.webp`;
+  return { category: c, src: at(480), srcset: `${at(240)} 240w, ${at(480)} 480w, ${at(960)} 960w`, credit: ART_CREDIT, width: 960, height: 645 };
 }
 
 // The facade's visible label and the play button's name, in plain words.

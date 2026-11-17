@@ -14,7 +14,7 @@
 import * as data from './data.js';
 import {
   cleanWeird, splitFront, gridFor, favourites, favCaption, favVotes, storyFor, PAGE, CATEGORIES, catLabel, stickerTone, metaLine, shortMeta, ratingLabel, videoLabel,
-  monogram, editionLine, starPolygon, tickerSeconds, nextStreak, streakDigits, meterAngle, meterNote, METER_WORDS, tipUrl,
+  monogram, editionLine, starPolygon, tickerSeconds, nextStreak, streakDigits, meterAngle, meterNote, METER_WORDS, tipUrl, storyMedia, artFor,
 } from './frontmodel.js';
 import { mediaSlot, playerFor } from './frontmedia.js';
 import { X_WIDGETS } from './mediaproviders.js';
@@ -107,9 +107,9 @@ function tvHTML(x, c) {
         <p class="stv-words__by">Written by Gatecast’s editor from ${esc(x.outlet)}’s report. Their full story is one click away.</p>
       </section>`
     : `<p class="stv-only stv-block" style="--i:3">${esc(v.only)}</p>`;
-  const credits = [...v.credits, `Headline: ${x.outlet}`];
+  const credits = [...(slot.kind === 'art' ? ['Illustration: Gatecast (not a picture of this story)'] : []), ...v.credits, `Headline: ${x.outlet}`];
   const orig = v.video && v.video.url ? `<a class="stv-credits__orig" href="${esc(v.video.url)}" rel="noopener">Original post on ${esc(v.video.name)}</a>` : '';
-  return `<article class="stv-story stv-story--${v.media} stv-tone--${tone}${v.hook ? ' has-hook' : ''}${v.summary ? ' has-words' : ''}">
+  return `<article class="stv-story stv-story--${slot.kind === 'art' ? 'art' : v.media} stv-tone--${tone}${v.hook ? ' has-hook' : ''}${v.summary ? ' has-words' : ''}">
     <header class="stv-hero stv-block" style="--i:0">
       <p class="stv-hero__tags"><span class="sticker sticker--${tone} stv-hero__cat">${esc(v.kicker)}</span>${v.pick ? '<span class="stv-hero__pick">Editor’s pick</span>' : ''}<span class="stv-hero__ch">${esc(channelLabel(c.number))}</span></p>
       <span class="stv-hero__burst" aria-hidden="true"><span class="stv-hero__burst-ink burst" style="--burst:${starPolygon(18, 40)}"></span><span class="stv-hero__burst-t">${x.pick ? '<small>Editor’s</small>Pick' : `<small>Straight from</small>${esc(monogram(x.outlet))}`}</span></span>
@@ -288,6 +288,15 @@ reduced.addEventListener?.('change', syncTicker);
 
 /* ---------- The lead and its Weird-o-meter ---------- */
 
+// A small square picture beside an Also odd story: the outlet's picture when it has one, else Gatecast's category
+// illustration. Decorative (the headline is the link), so it is hidden from screen readers.
+function alsoThumb(x) {
+  const m = storyMedia(x, failedPics);
+  if (m.kind === 'image') return `<span class="also__thumb" aria-hidden="true"><img src="${esc(m.image)}" alt="" width="96" height="96" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-pic="${esc(m.image)}"></span>`;
+  const a = artFor(x.category);
+  return `<span class="also__thumb also__thumb--art" aria-hidden="true"><img src="${esc(a.srcset.split(' ')[0])}" alt="" width="96" height="96" loading="lazy" decoding="async"></span>`;
+}
+
 function renderLead() {
   const x = view.items[0], el = $('#lead');
   el.hidden = !x;
@@ -412,7 +421,7 @@ function renderAlso() {
   const { also } = splitFront(view.items, view.skip);
   $('#also').hidden = !also.length;
   $('#also-list').innerHTML = also.map((x, i) => `<li><span class="also__n" aria-hidden="true">${i + 1}</span>
-    <span class="also__body"><a class="stretch" ${storyAttrs(x)}>${esc(x.title)}</a><span class="also__meta">${esc(shortMeta(x, locale))}${x.video ? '<span class="also__video"> · VIDEO</span>' : ''}</span></span></li>`).join('');
+    ${alsoThumb(x)}<span class="also__body"><a class="stretch" ${storyAttrs(x)}>${esc(x.title)}</a><span class="also__meta">${esc(shortMeta(x, locale))}${x.video ? '<span class="also__video"> · VIDEO</span>' : ''}</span></span></li>`).join('');
 }
 
 /* ---------- Believe it or not: filters, the grid, show more ---------- */

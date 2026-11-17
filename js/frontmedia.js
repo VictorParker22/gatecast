@@ -6,7 +6,7 @@
 // here points a visitor's browser at any video provider. The facade's still is Gatecast's own (api/yt-thumb,
 // api/media-thumb) or Gatecast's own poster; the provider's player exists only in playerFor(), which js/front.js calls
 // from the Play button's click handler. Instagram never embeds: its facade is a plain link to the post.
-import { storyMedia, videoLabel, playLabel } from './frontmodel.js';
+import { storyMedia, videoLabel, playLabel, artFor } from './frontmodel.js';
 import { ytEmbed, isVideoId } from './storymedia.js';
 import { embedSrc, isVideo, originalUrl, providerName } from './mediaproviders.js';
 
@@ -17,6 +17,7 @@ const ICON = {
   play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg>',
   film: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="M10 9.5v5l4.5-2.5z"/></svg>',
   out: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6"/><path d="M20 4l-9 9"/><path d="M18 14v6H4V6h6"/></svg>',
+  pencil: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l1-4L16 5l3 3L8 19z"/><path d="M14 7l3 3"/></svg>',
 };
 
 // The picture's link: by default the story's own address; story mode and the front page pass `href` (the story's
@@ -25,6 +26,15 @@ function pictureHTML(x, m, { cls, w, h, eager, href, link = true }) {
   const img = `<img class="${cls}__img" src="${esc(m.image)}" alt="" width="${w}" height="${h}" ${eager ? 'fetchpriority="high"' : 'loading="lazy"'} decoding="async" referrerpolicy="no-referrer" data-pic="${esc(m.image)}">`;
   if (!link) return `${img}<span class="credit">${ICON.camera}${esc(m.credit)}</span>`;
   return `<a class="smedia__link" href="${esc(href || x.url)}"${href ? '' : ' rel="noopener"'} tabindex="-1" aria-hidden="true"${href ? ` data-story-id="${esc(x.id)}"` : ''}><img class="${cls}__img" src="${esc(m.image)}" alt="" width="${w}" height="${h}" ${eager ? 'fetchpriority="high"' : 'loading="lazy"'} decoding="async" referrerpolicy="no-referrer" data-pic="${esc(m.image)}"></a><span class="credit">${ICON.camera}${esc(m.credit)}</span>`;
+}
+
+// Gatecast's category illustration (js/frontmodel.js artFor): same frame and link as a picture, labelled
+// "Illustration" so it is never taken for the outlet's photo of the story.
+function artHTML(x, a, { cls, eager, href, link, sizes }) {
+  const img = `<img class="${cls}__img smedia__art" src="${esc(a.src)}" srcset="${esc(a.srcset)}" sizes="${esc(sizes || '(width <= 46rem) 100vw, 480px')}" alt="" width="${a.width}" height="${a.height}" ${eager ? 'fetchpriority="high"' : 'loading="lazy"'} decoding="async">`;
+  const credit = `<span class="credit credit--art">${ICON.pencil}Illustration</span>`;
+  if (!link) return img + credit;
+  return `<a class="smedia__link" href="${esc(href || x.url)}"${href ? '' : ' rel="noopener"'} tabindex="-1" aria-hidden="true"${href ? ` data-story-id="${esc(x.id)}"` : ''}>${img}</a>${credit}`;
 }
 
 // The provider's provider id, "youtube" for the YouTube shape of older answers.
@@ -57,13 +67,17 @@ const chipHTML = (v) => (v.embeddable === false
   ? `<a class="vchip" href="${esc(v.url)}" rel="noopener" aria-label="${esc(`Has video. Watch it on ${v.name} (opens ${v.name})`)}"><span class="vchip__knob" aria-hidden="true">${ICON.out}</span>Has video</a>`
   : `<button type="button" class="vchip" data-play="${esc(refOf(v))}" aria-label="${esc(`Has video. ${playLabel(v)}`)}"><span class="vchip__knob" aria-hidden="true">${ICON.play}</span>Has video</button>`);
 
-// The media slot's inner markup for a story, or '' for the text-led layout. opts: { cls: 'lead' | 'fav' | 'card' |
+// The media slot's inner markup for a story: the picture, the video facade, or (art, the default) Gatecast's
+// category illustration when the story has neither; '' only when a caller passes art: false. opts: { cls: 'lead' | 'fav' | 'card' |
 // 'stv', w, h, eager, failed (pictures that did not load), extra (markup placed inside the slot, e.g. card stickers),
 // href (where the picture links: the story's Gatecast address), link: false (the picture links nowhere: story mode) }.
 //   -> { kind, html }
-export function mediaSlot(x, { cls, w = 640, h = 400, eager = false, failed, extra = '', href = '', link = true } = {}) {
+export function mediaSlot(x, { cls, w = 640, h = 400, eager = false, failed, extra = '', href = '', link = true, art = true, sizes = '' } = {}) {
   const m = storyMedia(x, failed);
-  if (m.kind === 'text') return { kind: 'text', html: '' };
+  if (m.kind === 'text') {
+    if (!art) return { kind: 'text', html: '' };
+    return { kind: 'art', html: `<div class="${cls}__media smedia smedia--art" data-story="${esc(x.url)}">${extra}${artHTML(x, artFor(x.category), { cls, eager, href, link, sizes })}</div>` };
+  }
   const inner = m.kind === 'image'
     ? pictureHTML(x, m, { cls, w, h, eager, href, link }) + (m.video ? chipHTML(m.video) : '')
     : facadeHTML(x, m.video, { eager });
