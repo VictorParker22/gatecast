@@ -166,7 +166,9 @@ function stacksSitemapEntries(all = readData()) {
   const introDate = (s) => { const e = introFor(s, data); return e && DATE.test(e.updated || '') ? e.updated : null; };
   const shelves = data.shelves.map((s) => ({ loc: pageUrl(s.id), lastmod: newest([data.checked, introDate(s), ...byShelf(s.id).map((b) => bookLastmod(b, data))]) }));
   const index = { loc: pageUrl(null), lastmod: newest([data.checked, ...data.books.map((b) => bookLastmod(b, data))]) };
-  return [index, ...shelves, ...books];
+  // The guides show notes from many books: dated like the index, by the newest book.
+  const guides = GUIDES.map((g) => ({ loc: pageUrl(g.id), lastmod: index.lastmod }));
+  return [index, ...shelves, ...guides, ...books];
 }
 
 // Siblings for "More on this shelf": the books after this one in the editor's shelf order, wrapping round.
@@ -196,6 +198,7 @@ const UI_TEXT = [
   'Titles, authors and dates are checked by our editor. Descriptions are written by us. Covers and records:', 'Open Library', 'How the books are chosen', 'How Gatecast works',
   'Suggested by the author', 'Suggested by the publisher',
   'Where a book has a cover, your browser loads it from Open Library. Links to WorldCat, Bookshop.org, Open Library, YouTube, C-SPAN, PBS, Criterion, Google Books and the Internet Archive go to those sites; nothing from them loads here until you follow one.',
+  'Across the shelves', // and the guides' own wording, added below GUIDES
 ];
 
 /* ---------- Page shell ---------- */
@@ -509,6 +512,87 @@ function shelfPage(shelf, data, m) {
   return shell({ title, description, id: shelf.id, ld: [ld, trail.ld], body });
 }
 
+/* ---------- The guides: one kind of note from every shelf, in one place ---------- */
+
+// Two pages made only from text the book pages already show (owner request, 17 Nov 2026: search and AI answer
+// engines need the notes on pages they can index; most book pages are noindex until they have a take). No new
+// writing about any book: each entry is the book's own "Worth knowing" or content note, word for word.
+//   /stacks/worth-knowing/   the "Worth knowing" notes of the true-story shelves (what is disputed about a book)
+//   /stacks/content-notes/   the content notes of every shelf
+// Their ids are reserved: a shelf or book may not use them (renderStacks checks).
+const GUIDES = [
+  {
+    id: 'worth-knowing', field: 'caveat', label: 'Worth knowing.', noteClass: 'stk-note stk-note--caveat', trueStoriesOnly: true,
+    name: 'Worth knowing', h1: 'True-story books, and what is disputed about them',
+    title: 'True-story books and what is disputed about them · Gatecast',
+    lede: 'What is disputed about famous true-story books, in our editor’s words.',
+    intro: 'Some of the best-known true stories are also the most argued over, so we keep them and say what is disputed. These are the “Worth knowing” notes from our true-story shelves, in one place.',
+    description: 'What is disputed about famous true-story books, from In Cold Blood to Catch Me If You Can: the “Worth knowing” notes from The Stacks, in our own words.',
+  },
+  {
+    id: 'content-notes', field: 'contentNote', label: 'Content note.', noteClass: 'stk-note', trueStoriesOnly: false,
+    name: 'Content notes', h1: 'Content notes for the books in The Stacks',
+    title: 'Content notes for the books in The Stacks · Gatecast',
+    lede: 'What each book describes, so you can decide before you start.',
+    intro: 'A content note says what a book describes, such as real killings, abuse or self-harm. These are the content notes from every shelf in The Stacks, in one place.',
+    description: 'Content notes for the true crime, unsolved mystery, weird history and other books in The Stacks: what each describes, so you can decide before you start.',
+  },
+];
+UI_TEXT.push(...GUIDES.flatMap((g) => [g.name, g.h1, g.title, g.lede, g.intro, g.description]));
+const guideFor = (id) => GUIDES.find((g) => g.id === id) || null;
+
+// The shelves a guide covers, each with its books that carry the note, in the editor's order.
+function guideShelves(g, data) {
+  return data.shelves
+    .filter((s) => !(g.trueStoriesOnly && s.fiction))
+    .map((s) => ({ shelf: s, books: data.books.filter((b) => b.shelf === s.id && typeof b[g.field] === 'string' && b[g.field].trim()) }))
+    .filter((x) => x.books.length);
+}
+
+function guidePage(g, data, m) {
+  const groups = guideShelves(g, data);
+  const books = groups.flatMap((x) => x.books);
+  const trail = crumbs([{ name: g.name, path: pagePath(g.id) }]);
+  const sections = groups.map(({ shelf, books: list }) => `    <section class="stk-section" aria-labelledby="guide-${shelf.id}">
+      <h2 id="guide-${shelf.id}" class="stk-section__title"><a href="${pagePath(shelf.id)}">${esc(shelf.name)}</a></h2>
+      <ul class="grid gap-6">
+        ${list.map((b) => `<li class="grid justify-items-start gap-2">
+          <h3 class="text-xl/snug font-bold"><a href="${pagePath(b.id)}">${esc(b.title)}</a></h3>
+          <p class="text-sm text-np-muted">${esc(m.authorLine(b.authors))} · ${b.year}</p>
+          <p class="${g.noteClass}"><strong>${g.label}</strong> ${esc(b[g.field])}</p>
+        </li>`).join('\n        ')}
+      </ul>
+    </section>`).join('\n\n');
+  const body = `${trail.html}
+
+    <section class="stk-head" aria-labelledby="guide-title">
+      <p class="stk-kicker">The Stacks</p>
+      <h1 id="guide-title" class="stk-title">${esc(g.h1)}</h1>
+      <p class="stk-lede">${esc(g.lede)}</p>
+      <p class="stk-intro">${esc(g.intro)}</p>
+    </section>
+
+${sections}
+
+    <nav class="stk-section" aria-labelledby="others-title">
+      <h2 id="others-title" class="stk-section__title">Across the shelves</h2>
+      <ul class="stk-shelves">
+        ${GUIDES.filter((o) => o.id !== g.id).map((o) => `<li><a href="${pagePath(o.id)}">${esc(o.name)}</a></li>`).join('\n        ')}
+        <li><a href="/stacks/">All shelves</a></li>
+      </ul>
+    </nav>`;
+  const ld = {
+    '@context': 'https://schema.org', '@type': 'CollectionPage',
+    name: g.h1, description: g.description, url: pageUrl(g.id), inLanguage: 'en-GB',
+    isPartOf: { '@type': 'WebSite', name: 'Gatecast', url: SITE_ORIGIN + '/' },
+    mainEntity: {
+      '@type': 'ItemList', numberOfItems: books.length,
+      itemListElement: books.map((b, i) => ({ '@type': 'ListItem', position: i + 1, url: pageUrl(b.id), name: b.title })),
+    },
+  };
+  return shell({ title: g.title, description: g.description, id: g.id, ld: [ld, trail.ld], body });
+}
+
 /* ---------- The index ---------- */
 
 function indexPage(data, m) {
@@ -536,7 +620,14 @@ function indexPage(data, m) {
       </ul>
     </section>
 
-${shelves}`;
+${shelves}
+
+    <nav class="stk-section" aria-labelledby="guides-title">
+      <h2 id="guides-title" class="stk-section__title">Across the shelves</h2>
+      <ul class="stk-shelves">
+        ${GUIDES.map((g) => `<li><a href="${pagePath(g.id)}">${esc(g.name)}</a></li>`).join('\n        ')}
+      </ul>
+    </nav>`;
   const description = 'Every shelf and book in The Stacks: real books on true crime, unsolved mysteries, weird history, strange science, cults and cons, and classic fantasy and science fiction, described in our own words.';
   const ld = {
     '@context': 'https://schema.org', '@type': 'CollectionPage',
@@ -577,12 +668,13 @@ ${shelves}
 function renderStacks(given, m) {
   const all = given.intros ? given : { ...given, intros: readIntros() }; // read once for every page
   const data = stocked(all);
-  const ids = [...all.shelves.map((s) => s.id), ...all.books.map((b) => b.id)]; // every shelf, with books or not
+  const ids = [...GUIDES.map((g) => g.id), ...all.shelves.map((s) => s.id), ...all.books.map((b) => b.id)]; // the guides, every shelf (with books or not), every book
   const dup = ids.find((id, i) => ids.indexOf(id) !== i);
   if (dup) throw new Error(`stacks pages: "${dup}" is used by more than one shelf or book`);
   const page = (id, html) => ({ id, path: pagePath(id), file: id ? path.join('stacks', id, 'index.html') : path.join('stacks', 'index.html'), html });
   return [
     page(null, indexPage(data, m)),
+    ...GUIDES.map((g) => page(g.id, guidePage(g, data, m))),
     ...data.shelves.map((s) => page(s.id, shelfPage(s, data, m))),
     ...data.books.map((b) => page(b.id, bookPage(b, data, m))),
   ];
@@ -614,6 +706,8 @@ async function pageFor(urlPath) {
   const data = stocked(readData()); // locally the static books only (no database call per request)
   const id = mm[1] || null;
   if (!id) return indexPage(data, m);
+  const guide = guideFor(id);
+  if (guide) return guidePage(guide, data, m);
   const shelf = data.shelves.find((s) => s.id === id);
   if (shelf) return shelfPage(shelf, data, m);
   const book = data.books.find((b) => b.id === id);
@@ -624,6 +718,7 @@ module.exports = {
   SITE_ORIGIN, OG_IMAGE, OG_ALT, DESC_MAX, MORE_ON_SHELF, TAKE_MIN_WORDS, TAKE_MAX_WORDS, INTRO_TITLE_MAX, INTRO_MIN_WORDS, INTRO_MAX_WORDS,
   UI_TEXT, MONTHS, wordCount, takeParagraphs, indexable, longDate, contentErrors, readIntros, introFor,
   loadModel, readData, buildData, stocked, esc, pagePath, pageUrl, firstSentence, metaDescription, bookLastmod, stacksSitemapEntries, siblings, shelfIntro,
+  GUIDES, guideFor, guideShelves, guidePage,
   bookPage, shelfPage, indexPage, renderStacks, writeStacksPages, pageFor, noscriptHtml,
 };
 

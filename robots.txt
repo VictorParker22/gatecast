@@ -29,4 +29,5 @@ Allow: /api/news
 Allow: /api/book-covers
 Disallow: /api/
 
+# A short guide to the site for AI assistants: https://gatecast.vercel.app/llms.txt
 Sitemap: https://gatecast.vercel.app/sitemap.xml

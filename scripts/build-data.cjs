@@ -101,6 +101,54 @@ function sitemapXml(opts = {}) {
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;
 }
 
+// /llms.txt: a short plain-text guide to the site for AI assistants and answer engines (the llms.txt convention:
+// a Markdown file at the root with a title, a one-paragraph summary and lists of the pages worth reading). Made
+// from the same data as the pages, so the counts and shelves never drift. Facts only, in the site's own words.
+function llmsTxt(all = stacks.readData()) {
+  const data = stacks.stocked(all);
+  const fiction = data.shelves.filter((s) => s.fiction);
+  const trueShelves = data.shelves.filter((s) => !s.fiction);
+  const count = (list) => data.books.filter((b) => list.some((s) => s.id === b.shelf)).length;
+  const link = (name, url, note) => `- [${name}](${url})${note ? `: ${note}` : ''}`;
+  const takes = data.books.filter(stacks.indexable);
+  const lines = [
+    '# Gatecast',
+    '',
+    `> Gatecast is a free website with three parts: weird news from real outlets (each story is the outlet’s own headline, linked to the original), the local weather told plainly, and The Stacks, a library of ${data.books.length} real books with content notes and “Worth knowing” accuracy notes written by its editor.`,
+    '',
+    'Gatecast is independent: no ads, no affiliate links, no tracking cookies, no accounts. It lives at https://gatecast.vercel.app and is not connected to other projects called Gatecast.',
+    '',
+    'How Gatecast handles sources: it never copies an outlet’s article. A story shows the outlet’s headline, its name, the date and a link. For the editor’s picks it adds a short hook and a summary in its own words. Stories whose oddness is someone’s misfortune (deaths, injuries, children, crime) are held back.',
+    '',
+    '## The Stacks (books)',
+    '',
+    link('The Stacks, all shelves and books', SITE + 'stacks/', `${count(trueShelves)} true-story books on ${trueShelves.length} shelves and ${count(fiction)} fiction classics on ${fiction.length}, each with the editor’s own description`),
+    link('Worth knowing', SITE + 'stacks/worth-knowing/', 'what is disputed about famous true-story books (for example In Cold Blood and Catch Me If You Can), one note per book'),
+    link('Content notes', SITE + 'stacks/content-notes/', 'what each book describes, so a reader can decide before starting'),
+    ...data.shelves.map((s) => link(s.name, stacks.pageUrl(s.id), s.note)),
+    ...takes.map((b) => link(`${b.title}: Gatecast’s take`, stacks.pageUrl(b.id), 'why the book is on the shelf, what it does well and what to keep in mind')),
+    link('The 3D library', SITE + 'library.html', 'the same books in a 3D reading room'),
+    '',
+    '## Weird news',
+    '',
+    link('Front page', SITE, 'today’s weird news from real outlets, with the weather'),
+    link('Weird news, week by week', SITE + 'weekly/', 'the editor’s picks, grouped by week'),
+    link('RSS feed', SITE + 'feed.xml', 'the editor’s picks'),
+    '',
+    '## How it works',
+    '',
+    link('How Gatecast works', SITE + 'how.html', 'how stories and books are chosen, where the data comes from, what Gatecast never does, corrections'),
+    link('How the books are chosen', SITE + 'how.html#books'),
+    '',
+    '## Weather tools',
+    '',
+    link('Trips', SITE + 'trip.html', 'will the weather disrupt a flight connection?'),
+    link('Flights', SITE + 'flights.html', 'a flight’s status with the weather at both ends'),
+    '',
+  ];
+  return lines.join('\n');
+}
+
 // Airport importance from OurAirports (public domain): 2 = large with airline service, 1 = medium with airline service.
 // If the download fails the site still builds; airports are then simply unranked.
 async function airportRanks() {
@@ -137,6 +185,7 @@ async function build() {
   const js = await buildJs(out); // after the pages: it rewrites public/library.html
   const sitemap = sitemapXml();
   fs.writeFileSync(path.join(out, 'sitemap.xml'), sitemap);
+  fs.writeFileSync(path.join(out, 'llms.txt'), llmsTxt());
   const stackPages = await stacks.writeStacksPages(out);
   fs.mkdirSync(path.join(out, 'data'), { recursive: true });
   fs.copyFileSync(path.join(root, 'data', 'books.json'), path.join(out, 'data', 'books.json'));
@@ -174,6 +223,6 @@ async function build() {
 
 if (require.main === module) build().catch((err) => { console.error(err); process.exit(1); });
 module.exports = {
-  sitemapXml, sitemapEntries, gitDate, shallowEdges, pageLastmod, indexNowKeyFile, verifyFiles,
+  sitemapXml, sitemapEntries, llmsTxt, gitDate, shallowEdges, pageLastmod, indexNowKeyFile, verifyFiles,
   SITEMAP_PAGES, PAGE_SOURCES, STATIC_FILES, ICON_FILES, SITE,
 };
