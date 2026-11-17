@@ -410,7 +410,7 @@
   .lib-submit__toggle[aria-expanded="true"] { filter: brightness(0.93); }
   .lib-submit__form { @apply grid gap-4 mt-2 pt-4 grid-cols-2 gap-x-4; border-top: 2px dashed rgb(30 26 20 / 0.45); }
   .lib-submit__form[hidden] { @apply hidden; }
-  .lib-field { @apply grid gap-1 col-span-2 min-w-0 m-0 p-0 border-0; }
+  .lib-field { @apply grid gap-1 col-span-2 min-w-0 m-0 p-0 border-0 content-start; }
   .lib-field--half { @apply col-span-2 sm:col-span-1; }
   .lib-field > label, .lib-field legend { font-size: var(--text-sm); @apply font-bold p-0; }
   .lib-field__opt { @apply font-normal; color: #4A443A; }

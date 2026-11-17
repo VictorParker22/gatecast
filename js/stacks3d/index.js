@@ -652,16 +652,19 @@ export async function mount(opts) {
       for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
         if (!m) continue;
         if (m.transmission) { m.transmission = 0; } // no extra transmission pass
-        if ('envMapIntensity' in m) m.envMapIntensity = 1.8;
+        if ('envMapIntensity' in m) m.envMapIntensity = 2.6; // the metal ones (rocket, microscope) live on reflections
+        // A little of their own colour as a glow, as if caught by the lamps below: the tops of the cases are dark.
+        if (m.emissive && m.map && !m.emissiveMap) { m.emissiveMap = m.map; m.emissive.setRGB(0.32, 0.26, 0.2); }
         for (const k of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap']) if (m[k]) { m[k].anisotropy = maxAniso; keep(m[k]); }
         keep(m);
       }
     });
     for (const o of drop) o.removeFromParent();
-    const inner = new THREE.Group(); inner.rotation.y = t.front; inner.add(model);
-    const fit = new THREE.Group(); fit.add(inner);
+    // Fitted by its own bounding box (before any turn, so a square base is not measured on the diagonal), then turned
+    // about its middle: `front` makes it face the visitor, the pose turns it toward the middle of its case.
+    const fit = new THREE.Group(); fit.add(model);
     fit.updateMatrixWorld(true);
-    const box = new THREE.Box3().setFromObject(inner);
+    const box = new THREE.Box3().setFromObject(model);
     const f = fitFigurine(box, t);
     if (!f) return;
     fit.scale.setScalar(f.scale);
@@ -679,7 +682,7 @@ export async function mount(opts) {
     const fx = feat ? feat.group.position.x : Infinity; // no Book of the Week: every figurine on the left end
     const pose = figurinePose(bay.figurineT, figurineSide(bay.index, bays.length, fx));
     bay.figurine.position.x = pose.x;
-    bay.figurine.rotation.y = pose.rotY;
+    bay.figurine.rotation.y = pose.rotY + bay.figurineT.front;
   }
 
   function addProps(g, plan, free, i) {

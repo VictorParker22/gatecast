@@ -570,8 +570,8 @@ function finish() {
   bookEl.style.transition = 'none';
   front.inert = false; back.inert = false;
   writeHash();
-  const back = o.returnTo || o.spine;
-  if (back && back.isConnected) back.focus({ preventScroll: true });
+  const ret = o.returnTo || o.spine;
+  if (ret && ret.isConnected) ret.focus({ preventScroll: true });
 }
 
 function closeBook(now = false) {
@@ -711,8 +711,8 @@ async function putBack3d() {
   if (dlg.open) dlg.close();
   state.open = null;
   writeHash();
-  const back = o.returnTo || o.spine;
-  if (back && back.isConnected) back.focus({ preventScroll: true });
+  const ret = o.returnTo || o.spine;
+  if (ret && ret.isConnected) ret.focus({ preventScroll: true });
   await s3d.putBack();
 }
 

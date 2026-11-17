@@ -6,7 +6,7 @@
 -- (2) Approved books carry "Suggested by the author" (or "by the publisher"). (3) The editor picks a Book of the Week
 -- (any book on the shelves) with a one-line reason; it shows within about 5 minutes, and stays up until the next pick.
 --
--- Written 17 Nov 2026, not applied yet. Depends on 20261116160000_weird_community.sql (private.weird_take,
+-- Written and applied to the live project 17 Nov 2026. Depends on 20261116160000_weird_community.sql (private.weird_take,
 -- private.weird_rate) and 20261117090000_reader_favourites.sql (whose private.weird_retention() this replaces, keeping
 -- everything it does). Safe to run twice. See docs/community.md and supabase/README.md.
 --

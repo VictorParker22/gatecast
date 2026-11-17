@@ -518,7 +518,7 @@ ${shelves}
 // Every page as { id, path, file, html }: the index, the shelves, the books. Throws if an id would collide.
 function renderStacks(all, m) {
   const data = stocked(all);
-  const ids = [...data.shelves.map((s) => s.id), ...data.books.map((b) => b.id)];
+  const ids = [...all.shelves.map((s) => s.id), ...all.books.map((b) => b.id)]; // every shelf, with books or not
   const dup = ids.find((id, i) => ids.indexOf(id) !== i);
   if (dup) throw new Error(`stacks pages: "${dup}" is used by more than one shelf or book`);
   const page = (id, html) => ({ id, path: pagePath(id), file: id ? path.join('stacks', id, 'index.html') : path.join('stacks', 'index.html'), html });
