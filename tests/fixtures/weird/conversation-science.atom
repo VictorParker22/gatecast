@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- TEST FIXTURE, hand-written for tests/weird-mix.test.mjs. Modelled on the shape of The Conversation's section
+     feeds (theconversation.com/us/technology/articles.atom, 17 Nov 2026): Atom, no <category> labels, the whole
+     article as escaped HTML in <content type="html"> with a figure, an <img> and a photo credit, an author block.
+     NOT real stories: headlines, "fixture-" addresses and the article text are made up. -->
+<feed xml:lang="en-US" xmlns="http://www.w3.org/2005/Atom">
+  <id>tag:theconversation.com,2011:/us/technology/articles</id>
+  <link rel="alternate" type="text/html" href="https://theconversation.com"/>
+  <link rel="self" type="application/atom+xml" href="https://theconversation.com/us/technology/articles.atom"/>
+  <title>Science + Tech – The Conversation</title>
+  <updated>2026-11-16T10:00:00Z</updated>
+  <entry>
+    <id>tag:theconversation.com,2011:article/900001</id>
+    <published>2026-11-16T10:00:00Z</published>
+    <updated>2026-11-16T10:00:00Z</updated>
+    <link rel="alternate" type="text/html" href="https://theconversation.com/fixture-mysterious-hum-baffles-seismologists-900001"/>
+    <title>A mysterious hum baffles seismologists listening to the deep ocean floor</title>
+    <content type="html">&lt;figure&gt;&lt;img src="https://images.theconversation.com/files/1/original/fixture.jpg" /&gt;&lt;figcaption&gt;&lt;span class="caption"&gt;NEVER-SHOW caption&lt;/span&gt; &lt;span class="attribution"&gt;&lt;a class="source" href="https://www.gettyimages.com/detail/photo/fixture"&gt;Photographer via Getty Images&lt;/a&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;/figure&gt;&lt;p&gt;NEVER-SHOW article text &amp;lt;category&amp;gt;Hidden&amp;lt;/category&amp;gt;&lt;/p&gt;</content>
+    <summary>NEVER-SHOW summary</summary>
+    <author>
+      <name>Fixture Author</name>
+      <foaf:homepage xmlns:foaf="http://xmlns.com/foaf/0.1/" rdf:resource="https://theconversation.com/profiles/fixture-author-1" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"/>
+    </author>
+  </entry>
+  <entry>
+    <id>tag:theconversation.com,2011:article/900002</id>
+    <published>2026-11-15T09:00:00Z</published>
+    <updated>2026-11-15T12:00:00Z</updated>
+    <link rel="alternate" type="text/html" href="https://theconversation.com/fixture-how-to-back-up-your-photos-900002"/>
+    <title>How to back up your photos before your phone fills up</title>
+    <content type="html">&lt;p&gt;NEVER-SHOW&lt;/p&gt;</content>
+    <author><name>Fixture Author</name></author>
+  </entry>
+  <entry>
+    <id>tag:theconversation.com,2011:article/900003</id>
+    <published>2026-11-14T08:00:00Z</published>
+    <updated>2026-11-14T08:00:00Z</updated>
+    <link rel="alternate" type="text/html" href="https://theconversation.com/fixture-new-battery-chemistry-900003"/>
+    <title>A new battery chemistry could make phones charge faster</title>
+    <content type="html">&lt;p&gt;NEVER-SHOW&lt;/p&gt;</content>
+    <author><name>Fixture Author</name></author>
+  </entry>
+</feed>

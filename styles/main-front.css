@@ -3,3 +3,4 @@
    the page tokens are defined once in site.css (the "@theme static" block in main.css). */
 @reference "./main.css";
 @import "./components/front.css";
+@import "./components/tv.css";

@@ -3,6 +3,7 @@
 // starburst polygon; the reader's own streak (this device only); tip checks; the Weird-o-meter needle.
 // No DOM and no network, so it is unit-tested with plain Node (tests/front.test.mjs).
 import { isVideoId, ytThumb, cleanDuration } from './storymedia.js';
+import { cleanVideo, fromYoutube, providerName } from './mediaproviders.js';
 
 export const CATEGORIES = [
   ['people', 'Weird people'], ['animals', 'Strange animals'], ['laws', 'Odd laws'], ['records', 'World records'],
@@ -23,7 +24,10 @@ const httpsUrl = (u) => {
 const text = (s, max = 400) => (typeof s === 'string' && s.trim() ? s.trim().replace(/\s+/g, ' ').slice(0, max) : null);
 
 // One item from /api/weird as the page will show it, or null when it lacks a title, an outlet, an https link or a date.
-// Everything shown comes from the item; nothing is filled in (no summary, no rating, no picture made up).
+// Everything shown comes from the item; nothing is filled in (no rating, no picture made up). summary is the editor's
+// own "In our words" summary, on picks only; a feed story never has one.
+// player: the story's video from any provider (media.video, else the older youtube field), cleaned by
+// js/mediaproviders.js cleanVideo, which rebuilds the still and the post's address from the provider and id.
 export function cleanItem(x) {
   if (!x || typeof x !== 'object') return null;
   const title = text(x.title, 300), outlet = text(x.outlet, 80), url = httpsUrl(x.url);
@@ -32,12 +36,15 @@ export function cleanItem(x) {
   const rating = Number.isInteger(x.rating) && x.rating >= 1 && x.rating <= 5 ? x.rating : null;
   const image = httpsUrl(x.image);
   const youtube = cleanYoutube(x.youtube);
+  const player = cleanVideo(x.media?.video) || fromYoutube(youtube);
+  const pick = x.pick === true;
   return {
     id: text(x.id, 120) || url, title, url, outlet, outletUrl: httpsUrl(x.outletUrl), published: new Date(ms).toISOString(), ms,
     category: isCategory(x.category) ? x.category : 'other',
     image: image && !/\.svgz?(\?|$)/i.test(image) ? image : null,
     imageCredit: image ? (text(x.imageCredit, 80) || `Image: ${outlet}`) : null,
-    video: x.video === true || Boolean(youtube), youtube, pick: x.pick === true, rating, note: text(x.note, 280),
+    video: x.video === true || Boolean(youtube) || Boolean(player), youtube, player, pick, rating, note: text(x.note, 280),
+    summary: pick ? text(x.summary, 700) : null,
   };
 }
 
@@ -56,18 +63,20 @@ export function cleanYoutube(v) {
 // failed: a set of picture addresses that did not load (or were a pixel) on this page; they count as no picture.
 export function storyMedia(x, failed) {
   const image = x?.image && !(failed && failed.has(x.image)) ? x.image : null;
-  const video = x?.youtube && isVideoId(x.youtube.id) ? x.youtube : null;
+  const video = x?.player || (x?.youtube && isVideoId(x.youtube.id) ? x.youtube : null);
   if (image) return { kind: 'image', image, credit: x.imageCredit || `Image: ${x.outlet}`, video };
   if (video) return { kind: 'video', image: null, credit: null, video };
   return { kind: 'text', image: null, credit: null, video: null };
 }
 
 // The facade's visible label and the play button's name, in plain words.
-export const videoLabel = (v) => (v?.channel ? `Video: ${v.channel} on YouTube` : 'Video on YouTube');
+// Any provider: "Video: <author> on <Provider>"; a video without a provider is the YouTube shape of older answers.
+const nameOf = (v) => v?.name || providerName(v?.provider) || 'YouTube';
+export const videoLabel = (v) => (v?.channel ? `Video: ${v.channel} on ${nameOf(v)}` : `Video on ${nameOf(v)}`);
 export function playLabel(v) {
   if (!v) return '';
   const len = v.duration ? `, ${durationWords(v.duration)}` : '';
-  return `Play the video${v.title ? `: ${v.title}` : ''} (${v.channel ? `${v.channel} on YouTube` : 'YouTube'}${len})`;
+  return `Play the video${v.title ? `: ${v.title}` : ''} (${v.channel ? `${v.channel} on ${nameOf(v)}` : nameOf(v)}${len})`;
 }
 // "2:31" -> "2 minutes 31 seconds"; "1:04:05" -> "1 hour 4 minutes 5 seconds".
 export function durationWords(d) {

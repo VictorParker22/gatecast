@@ -52,6 +52,11 @@
   <link rel="modulepreload" href="js/weather.js">
   <link rel="modulepreload" href="js/front.js">
   <link rel="modulepreload" href="js/frontmodel.js">
+  <link rel="modulepreload" href="js/frontmedia.js">
+  <link rel="modulepreload" href="js/mediaproviders.js">
+  <link rel="modulepreload" href="js/storymedia.js">
+  <link rel="modulepreload" href="js/tvmodel.js">
+  <link rel="modulepreload" href="js/tvscreen.js">
   <link rel="modulepreload" href="js/today.js">
   <link rel="modulepreload" href="js/changes.js">
   <link rel="modulepreload" href="js/riskwords.js">
@@ -192,6 +197,7 @@
     </section>
 
     <div class="front">
+      <p class="front__gone" id="front-gone" role="status" hidden></p>
       <div class="front__top" id="front-top">
         <article class="lead" id="lead" aria-labelledby="lead-h" hidden></article>
         <aside class="front__aside" aria-label="Also odd, and your streak">
@@ -347,7 +353,8 @@
           <h2 class="about__h" id="about-h">How we pick the weird</h2>
           <ul class="about__list">
             <li>Every story comes from a real outlet, and links back to it.</li>
-            <li>We use the outlet’s own headline and preview image. We never rewrite facts or write a summary for them.</li>
+            <li>We use the outlet’s own headline and preview image. A story opens here on Gatecast TV; the full story is always one click away at the outlet.</li>
+            <li>For the editor’s picks we write a short summary in our own words. We never copy the outlet’s text.</li>
             <li>A story runs only if the strangeness is in the situation, not in someone’s misfortune.</li>
             <li>A weird rating on a card is our editor’s opinion, shown only when they gave one. The Weird-o-meter on the lead is yours.</li>
           </ul>

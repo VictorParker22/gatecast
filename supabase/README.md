@@ -17,6 +17,7 @@ Gatecast's database lives in the Supabase project `gatecast` (`hfdwmzuedjcsaxgzh
 | `migrations/20261117090000_reader_favourites.sql` | **Applied** (17 Nov 2026). Reader favourites (`weird_favourites()`), the 140-character hook line on `weird_picks.note`, anonymous click totals (`weird_clicks`, `weird_count_click()`, `weird_click_totals()`) and 90-day click retention in `private.weird_retention()`. Replaces the old `paused/weird_favourites.sql`. See `docs/community.md` |
 | `migrations/20261117120000_stacks_submissions.sql` | **Applied** (17 Nov 2026). The Stacks: books put forward by their author or publisher (`stacks_submissions`, `stacks_submit_book()`), approved books (`stacks_books`, `stacks_approve_submission()`, `stacks_reject_submission()`, `stacks_set_hidden()`), the Book of the Week (`stacks_featured`, `stacks_set_featured()`), and their retention in `private.weird_retention()`. See `docs/community.md` |
 | `migrations/20261117150000_pick_media.sql` | **Applied** (17 Nov 2026). The editor's media for a pick: `weird_picks.video_id` (a YouTube id, `^[A-Za-z0-9_-]{11}$`) and `weird_picks.image_url` (https, ≤2,048 characters), readable by visitors on published picks; `private.weird_picks_guard()` counts a change to either on a published pick as a logged edit. See `docs/community.md`, "Pick media" |
+| `migrations/20261117170000_pick_summary.sql` | **Applied** (17 Nov 2026). The editor's summary of a pick (`weird_picks.summary`, 1–700 characters, "In our words" in story mode) and a pick's video from any provider (`video_provider` in `youtube`, `vimeo`, `facebook`, `x`, `tiktok`, `instagram`, and `video_ref` in that provider's shape); existing `video_id` rows are copied to YouTube, and `video_id` stays readable for one release. Visitors read the three columns on published picks; `private.weird_picks_guard()` counts a change to any of them on a published pick as a logged edit. Safe to run twice. See `docs/community.md`, "Pick summary and videos from any provider" |
 | `functions/community/` | Edge Function for anonymous visitors: `POST /vote`, `GET /ratings`, `GET /favourites`, `POST /tip`, `POST /click`, `POST /book`. Hashes the visitor's address with a secret salt; never stores it. See `docs/community.md` |
 
 Which pages read it:
@@ -44,7 +45,7 @@ Weird news (once `20261116160000_weird_community.sql` is applied):
 | `weird_cast_vote(...)` | no | no | call it (one vote per voter per story, 60 per voter per hour) |
 | `weird_tips` | nothing | read (not the address hash); set status only, signed by a trigger | nothing directly: only through `weird_submit_tip` |
 | `weird_submit_tip(...)` | no | no | call it (5 per sender per UTC day, 200 per day in all) |
-| `weird_picks` | read published picks (public columns only, including `video_id` and `image_url` once `20261117150000_pick_media.sql` is applied) | read all, add, edit, publish, withdraw; delete when not published | nothing |
+| `weird_picks` | read published picks (public columns only, including `video_id`, `image_url`, `summary`, `video_provider` and `video_ref`) | read all, add, edit, publish, withdraw; delete when not published | nothing |
 | `weird_pick_activity(pick)` | no | read a pick's history | no |
 | `weird_favourites(days, min_votes)` | call it: up to 12 stories with 10+ votes in the window, averages from 50 votes | same | same |
 | `weird_clicks` | nothing | nothing directly: only through `weird_click_totals` | nothing directly: only through `weird_count_click` |
@@ -154,6 +155,17 @@ Before step 1, the console's Books view says it arrives with the migration, and 
 3. Check: `select id, video_id, image_url from public.weird_picks where status = 'published';` in the SQL editor; `curl -s "https://gatecast.vercel.app/api/weird?limit=3"` shows `"youtube": {...}` for a pick with a working video; `curl -sI "https://gatecast.vercel.app/api/yt-thumb?id=<id>"` answers `200 image/jpeg` with `Cache-Control: public, max-age=86400, s-maxage=86400, …`.
 
 Before step 1, the site reads picks without the two columns (one extra request when the first is refused), and the console saves picks without media and says the migration is needed when media is given.
+
+## Pick summaries and videos from any provider: going live
+
+Steps 1 and 2 are done (17 Nov 2026: migration applied, `assist` version 2 deployed). Step 3 is the site deploy.
+
+1. Apply `migrations/20261117170000_pick_summary.sql` (after `20261117150000_pick_media.sql`). It is safe to run twice. It adds three nullable columns, copies existing `video_id` values to `video_provider = 'youtube'` / `video_ref` (with the guard trigger off for that one statement, so nothing is logged and no `updated_at` moves), and replaces `private.weird_picks_guard()`.
+2. Deploy `assist` with JWT checks on, all three files (`index.ts`, `logic.mjs`, `summaryrules.mjs`): `supabase functions deploy assist --project-ref hfdwmzuedjcsaxgzhzmu`. Until then "Draft with Claude" for summaries answers `400 bad_request` (unknown action), and the console says so.
+3. Deploy the site (Vercel) for story mode, `/api/media-thumb` and the new `/api/weird` fields (`summary`, `media.video`). Nothing to configure: Vimeo, X and TikTok oEmbed are public; Facebook and Instagram are not checked (they need an app token).
+4. Check: `select id, summary, video_provider, video_ref, video_id from public.weird_picks where status = 'published';`; `curl -s "https://gatecast.vercel.app/api/weird?limit=3"` shows `"summary"` and `"media":{"video":…}` on picks; `curl -sI "https://gatecast.vercel.app/api/media-thumb?p=vimeo&id=<id>"` answers `200 image/jpeg` for a public Vimeo video.
+
+Before step 1, the site reads picks without the three columns (one or two extra requests when they are refused), and the console saves picks without a summary (and with a YouTube video or none) and says the migration is needed otherwise.
 
 To remove a vote or tip by hand (for example after abuse), use the SQL editor: `delete from public.weird_tips where id = '<id>';`. To see today's tip volume: `select hits from private.weird_rate where key = 'tip:all' order by window_start desc limit 1;`.
 

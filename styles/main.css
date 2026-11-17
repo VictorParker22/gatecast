@@ -21,6 +21,8 @@
 @source "../js/shell.js";
 @source "../js/front.js";
 @source "../js/frontmodel.js";
+@source "../js/frontmedia.js";
+@source "../js/tvscreen.js";
 @source "../js/weather.js";
 @source "../js/today.js";
 @source "../js/changes.js";
@@ -296,6 +298,19 @@
   --text-wx-first: clamp(1.625rem, 1.53rem + 0.38vw, 1.875rem); /* the first-visit title in the weather box: 26px at 390 -> 30px at 1440 */
   --text-wx-line: clamp(0.8125rem, 0.766rem + 0.19vw, 0.9375rem); /* the weather box sentence: 13px at 390 -> 15px at 1440 */
   --text-wx-temp: clamp(3.875rem, 3.3179rem + 2.2857vw, 5.375rem); /* the weather box temperature: 62px at 390 -> 86px at 1440 */
+  /* Story mode, "Gatecast TV" (styles/components/tv.css): the studio behind the story is always dark, like a lit screen
+     in a dark room (a deep cobalt-black in the day edition, near-black at night); the screen glass behind a picture or
+     a player; and the spread's fluid type, each from 390px to 1440px. */
+  --color-tv-stage: light-dark(#0F1430, #0A0907);
+  --color-tv-stage-2: light-dark(#1A2366, #1A1712);  /* the diagonal band across the studio */
+  --color-tv-glass: #07080A;
+  --color-tv-plastic: light-dark(#2A2620, #1E1B16); /* the control deck: dark plastic */
+  --color-tv-plastic-hi: light-dark(#4A443A, #3A352D);
+  --text-tv-head: clamp(2rem, 1.1857rem + 3.3397vw, 4.5rem);      /* the story's slab headline: 32px at 390 -> 72px at 1440 */
+  --text-tv-card: clamp(2.75rem, 1.3571rem + 5.7143vw, 6.5rem);   /* the station ident's category: 44px at 390 -> 104px at 1440 */
+  --text-tv-hook: clamp(1.375rem, 1.0964rem + 1.1429vw, 2.125rem); /* the hook as a pull quote: 22px at 390 -> 34px at 1440 */
+  --text-tv-words: clamp(1.1875rem, 1.1411rem + 0.1905vw, 1.3125rem); /* "In our words": 19px at 390 -> 21px at 1440 */
+  --text-tv-next: clamp(1.75rem, 1.4714rem + 1.1429vw, 2.5rem);   /* "Next on Gatecast": 28px at 390 -> 40px at 1440 */
   --breakpoint-masthead: 52rem;   /* below this the starburst leaves the masthead and the weather box takes the full row */
   --breakpoint-desk: 56rem;       /* the weather desk's two columns */
   --breakpoint-wxbox: 62.5rem;    /* the weather box sits beside the masthead with its taller screen */

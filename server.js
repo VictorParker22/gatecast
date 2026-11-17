@@ -29,6 +29,7 @@ const weird = require('./lib/weird.js');
 const books = require('./lib/books.js');
 const stacks = require('./lib/stacks-db.js');
 const youtube = require('./lib/youtube.js');
+const videos = require('./lib/videos.js');
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
@@ -70,6 +71,12 @@ const server = http.createServer(async (req, res) => {
   // A YouTube video's still image, fetched by the server so the visitor's browser contacts only Gatecast (api/yt-thumb.js).
   if (url.pathname === '/api/yt-thumb') {
     const out = await youtube.thumbFor(url.searchParams.get('id'));
+    res.writeHead(out.status, { 'Referrer-Policy': 'strict-origin-when-cross-origin', ...out.headers });
+    return res.end(req.method === 'HEAD' ? undefined : out.body);
+  }
+  // Any provider's video still (YouTube, Vimeo, TikTok), the same way (api/media-thumb.js, lib/videos.js).
+  if (url.pathname === '/api/media-thumb') {
+    const out = await videos.mediaThumb(url.searchParams.get('p'), url.searchParams.get('id'));
     res.writeHead(out.status, { 'Referrer-Policy': 'strict-origin-when-cross-origin', ...out.headers });
     return res.end(req.method === 'HEAD' ? undefined : out.body);
   }

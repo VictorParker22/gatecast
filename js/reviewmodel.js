@@ -4,7 +4,10 @@
 // plain Node. The database (row rules and triggers) stays the authority; these checks only explain early.
 import { STATE_NAMES, stateCode, safeUrl, fmtDate, SIDE_LABEL } from './civicmodel.js';
 import { normaliseStoryUrl } from './community.js';
-import { youtubeId, ytThumb, ytWatch, pickImageProblem, pickVideoProblem, registrableDomain, sourceFor } from './storymedia.js';
+import { pickImageProblem, registrableDomain, sourceFor } from './storymedia.js';
+import { parseVideoLink, videoLinkProblem, classifyMediaLink, originalUrl, thumbPath, providerName, isVideo, PROVIDERS } from './mediaproviders.js';
+import { summaryChecks, SUMMARY_MAX, SUMMARY_LABEL } from './summaryrules.js';
+export { summaryChecks, SUMMARY_MAX, SUMMARY_LABEL, classifyMediaLink };
 
 /* ---------- Views, statuses and counts ---------- */
 
@@ -350,7 +353,7 @@ export const TIP_STATUS_LABEL = { new: 'New', accepted: 'Accepted', rejected: 'R
 // database). Claude may draft it (assist draft_hook); a reviewer edits it and saves every one.
 export const HOOK_MAX = 140;
 export const HOOK_LABEL = 'Hook (your words, shown under the headline)';
-export const PICK_LIMITS = { url: 2048, title: 300, outlet: 120, note: HOOK_MAX, image: 2048 };
+export const PICK_LIMITS = { url: 2048, title: 300, outlet: 120, note: HOOK_MAX, image: 2048, summary: SUMMARY_MAX, notes: 1500 };
 
 export const WEIRD_OFF = 'Tips and picks arrive when the weird-community migration is applied.';
 
@@ -413,6 +416,52 @@ export function hookDraftNotes(r) {
   return out;
 }
 
+// The summary ("In our words"): Claude may draft it (assist draft_summary) from the headline, the editor's notes and,
+// when the reviewer ticks it, the story page; a reviewer edits it and saves every one. Its checklist is
+// js/summaryrules.js summaryChecks, the same rules the assistant applies to every draft.
+export const SUMMARY_GUIDANCE = 'Who, what, where and when, and what makes it odd, in your own words. Nothing the sources do not say.';
+
+// The draft_summary request from the pick form's values: the headline and outlet, the editor's notes when there are
+// any, and the story's link only when the reviewer asked Claude to read the page. -> { ok, body } or { ok: false, message }.
+export function summaryDraftRequest(f, { readPage = false, notes = '' } = {}) {
+  const one = (v) => String(v ?? '').replace(/\s+/g, ' ').trim();
+  const title = one(f?.title);
+  if (!title) return { ok: false, message: 'Add the outlet’s headline first: Claude drafts the summary from it.' };
+  const body = { action: 'draft_summary', title: title.slice(0, PICK_LIMITS.title), outlet: one(f?.outlet).slice(0, PICK_LIMITS.outlet) };
+  const n = String(notes ?? '').trim();
+  if (n) body.notes = n.slice(0, PICK_LIMITS.notes);
+  if (readPage) {
+    const url = String(f?.url ?? '').trim();
+    if (pickUrlProblem(url)) return { ok: false, message: 'Add the story’s https link so Claude can read it, or untick “Let Claude read the story page”.' };
+    body.url = url;
+  }
+  return { ok: true, body };
+}
+
+// A draft_summary reply's drafts (at most 2), each with its own checklist against the headline and the page Claude
+// read (page_grams, the page's 8-word runs, hashed), so the reviewer sees what each passes.
+export function summarySuggestions(r, { title = '' } = {}) {
+  return (Array.isArray(r?.summaries) ? r.summaries : [])
+    .filter((x) => typeof x?.text === 'string' && x.text.trim())
+    .slice(0, 2)
+    .map((x) => ({ text: x.text.trim(), basis: typeof x.basis === 'string' ? x.basis.trim() : '', checks: summaryChecks(x.text, { title, pageGrams: Array.isArray(r?.page_grams) ? r.page_grams : null }) }));
+}
+
+// What a draft_summary reply says about itself, in words.
+export function summaryDraftNotes(r) {
+  const out = [];
+  const from = ['the headline'];
+  if (r?.notes_used) from.push('your notes');
+  if (r?.source === 'page') from.push(`the story page${r.truncated ? ' (its first part)' : ''}`);
+  out.push(`Drawn from ${from.length > 2 ? `${from.slice(0, -1).join(', ')} and ${from.at(-1)}` : from.join(' and ')}.`);
+  if (r?.page_problem?.message) out.push(`The story page was not read: ${r.page_problem.message}`);
+  const d = Number(r?.dropped) || 0;
+  if (d) out.push(`${d} ${d === 1 ? 'draft' : 'drafts'} Claude made ${d === 1 ? 'was' : 'were'} left out for breaking the rules (length, sentences, or words copied from the headline, page or notes).`);
+  if (r && Array.isArray(r.summaries) && !r.summaries.length) out.push('Claude found no summary it could stand behind. Write one yourself, or leave it empty.');
+  if (r?.fallback) out.push('Answered by Anthropic’s fallback model after the first model declined.');
+  return out;
+}
+
 // "12 clicks in 7 days" for a published pick, from weird_click_totals; '' when the count is unknown.
 export function clicksLabel(n, days = 7) {
   if (n == null || n === '') return '';
@@ -438,7 +487,9 @@ export function pickUrlProblem(raw) {
 
 // Field -> message, mirroring the database checks. The picture rule needs the outlets (data/weird-sources.json):
 // opts.sources; without them a picture must be on the story's own site.
-export function pickErrors(f, { sources = [] } = {}) {
+// opts.pageGrams: the hashed 8-word runs of the page Claude read for the summary (draft_summary page_grams), so a summary
+// edited after a draft still may not copy the page.
+export function pickErrors(f, { sources = [], pageGrams = null } = {}) {
   const e = {};
   const urlProblem = pickUrlProblem(f.url);
   if (urlProblem) e.url = urlProblem;
@@ -450,24 +501,30 @@ export function pickErrors(f, { sources = [] } = {}) {
   if (!Object.hasOwn(CATEGORY_LABEL, f.category)) e.category = 'Choose a category.';
   if (f.rating !== '' && f.rating != null && !/^[1-5]$/.test(String(f.rating))) e.rating = 'Rate it 1 to 5, or leave it unrated.';
   if ([...String(f.note ?? '').replace(/\s+/g, ' ').trim()].length > PICK_LIMITS.note) e.note = `Keep the hook to ${PICK_LIMITS.note} characters.`;
-  const video = pickVideoProblem(f.video);
+  const video = videoLinkProblem(f.video);
   if (video) e.video = video;
+  const summary = String(f.summary ?? '').trim();
+  if (summary) {
+    const bad = summaryChecks(summary, { title: f.title, pageGrams }).filter((c) => c.hard && !c.ok);
+    if (bad.length) e.summary = bad.map((c) => (c.detail && c.id !== 'length' ? `${c.label} (${c.detail})` : c.label)).join('. ');
+  }
   const image = pickImageProblem(f.image_url, String(f.url ?? '').trim(), { outlet: f.outlet, sources });
   if (image) e.image_url = image;
   return e;
 }
 
 // The pick form's two media fields as the live previews show them:
-//   video: null (empty) | { problem } | { id, thumb: Gatecast's still, watch: the YouTube page }
+//   video: null (empty) | { problem } | { id, thumb: Gatecast's still (null for a provider without one), watch: the
+//          original post, provider, name: the provider's name, embeddable: false for Instagram (a link-out card) }
 //   image: null (empty) | { problem } | { url, host, site }: site is the story's registrable domain
 export function pickMediaView(f, { sources = [] } = {}) {
   const v = String(f?.video ?? '').trim();
   const i = String(f?.image_url ?? '').trim();
   let video = null, image = null;
   if (v) {
-    const problem = pickVideoProblem(v);
-    const id = problem ? null : youtubeId(v);
-    video = id ? { id, thumb: ytThumb(id), watch: ytWatch(id) } : { problem };
+    const problem = videoLinkProblem(v);
+    const p = problem ? null : parseVideoLink(v);
+    video = p ? { id: p.ref, thumb: thumbPath(p), watch: originalUrl(p), provider: p.provider, name: providerName(p.provider), embeddable: PROVIDERS[p.provider].play !== 'link' } : { problem };
   }
   if (i) {
     const story = String(f?.url ?? '').trim();
@@ -480,13 +537,21 @@ export function pickMediaView(f, { sources = [] } = {}) {
   return { video, image };
 }
 
-// A saved pick's media as the form shows it again: the video as its YouTube link.
-export const pickVideoLink = (id) => (id ? ytWatch(id) || '' : '');
+// A saved pick's video as the form shows it again: the original post's link. Takes the row (video_provider and
+// video_ref, else the older YouTube video_id) or a bare YouTube id.
+export function pickVideoLink(p) {
+  if (!p) return '';
+  if (typeof p === 'string') return originalUrl({ provider: 'youtube', ref: p }) || '';
+  const v = { provider: p.video_provider, ref: p.video_ref };
+  if (isVideo(v)) return originalUrl(v) || '';
+  return p.video_id ? originalUrl({ provider: 'youtube', ref: p.video_id }) || '' : '';
+}
 
 // Trimmed values ready to send. The link is stored normalised (no tracking parameters, fragment or trailing
 // slash), the same form story ids are made from, so one story is one pick.
 export function cleanPick(f) {
   const url = String(f.url ?? '').trim();
+  const video = parseVideoLink(f.video);
   const image = String(f.image_url ?? '').trim();
   return {
     url: normaliseStoryUrl(url) || url,
@@ -496,21 +561,30 @@ export function cleanPick(f) {
     category: f.category,
     rating: /^[1-5]$/.test(String(f.rating ?? '')) ? Number(f.rating) : null,
     note: String(f.note ?? '').replace(/\s+/g, ' ').trim() || null,
-    video_id: youtubeId(f.video) || null,
+    // The video from any provider; a YouTube one is also written to video_id for one release, for older readers.
+    video_id: video && video.provider === 'youtube' ? video.ref : null,
     image_url: image || null,
+    video_provider: video ? video.provider : null,
+    video_ref: video ? video.ref : null,
+    summary: String(f.summary ?? '').replace(/\s+/g, ' ').trim() || null,
   };
 }
+// The columns of 20261117170000_pick_summary.sql, which a save leaves out (when empty) until it is applied.
+export const SUMMARY_COLUMNS = ['summary', 'video_provider', 'video_ref'];
 
 // True when a save was refused only because the media columns do not exist yet (the pick-media migration is not
 // applied): PostgREST's "column not found in the schema cache".
-export const mediaColumnsMissing = (status, body) => body?.code === 'PGRST204' || (body?.code === '42703' && /video_id|image_url/.test(String(body?.message ?? '')));
+export const mediaColumnsMissing = (status, body) => body?.code === 'PGRST204' || (body?.code === '42703' && /video_id|image_url|video_provider|video_ref|summary/.test(String(body?.message ?? '')));
+// Which migration a refusal is about: the summary one names summary, video_provider or video_ref.
+export const summaryColumnsMissing = (status, body) => mediaColumnsMissing(status, body) && /summary|video_provider|video_ref/.test(String(body?.message ?? ''));
+export const SUMMARY_OFF = 'Summaries, and videos from providers other than YouTube, arrive when the pick-summary migration (20261117170000_pick_summary.sql) is applied. Clear the summary (and use a YouTube video) to save the pick without them.';
 export const MEDIA_OFF = 'Pictures and videos for picks arrive when the pick-media migration (20261117150000_pick_media.sql) is applied. Clear both fields to save the pick without them.';
 
 // Why a pick cannot be published yet, or null.
 export function pickBlock(p, { sources = [] } = {}) {
   if (!p) return 'Choose a pick.';
   if (p.status === 'published') return 'Already published.';
-  const e = pickErrors({ ...p, rating: p.rating ?? '', video: pickVideoLink(p.video_id), image_url: p.image_url ?? '' }, { sources });
+  const e = pickErrors({ ...p, rating: p.rating ?? '', video: pickVideoLink(p), image_url: p.image_url ?? '', summary: p.summary ?? '' }, { sources });
   const first = Object.values(e)[0];
   return first ? `Edit the pick first: ${first}` : null;
 }
@@ -551,7 +625,7 @@ export function tipHost(url) {
 // What "Accept" puts in a new pick draft: the link only. The headline, outlet and date come from the story
 // itself, and the hook is the reviewer's (written or drafted with Claude, then edited), never the visitor's.
 export function pickFromTip(tip) {
-  return { url: normaliseStoryUrl(tip?.url) || String(tip?.url ?? ''), title: '', outlet: '', published: '', category: 'other', rating: '', note: '', video: '', image_url: '' };
+  return { url: normaliseStoryUrl(tip?.url) || String(tip?.url ?? ''), title: '', outlet: '', published: '', category: 'other', rating: '', note: '', video: '', image_url: '', summary: '' };
 }
 
 // A refused pick save as one sentence.

@@ -45,6 +45,7 @@ test('picks are saved trimmed, with the link normalised like story ids', () => {
   assert.deepEqual(cleanPick({ ...GOOD, title: '  Sheep  on the run ', note: '  ' }), {
     url: 'https://www.upi.com/Odd_News/2026/11/13/sheep/6691794592131', title: 'Sheep on the run', outlet: 'UPI',
     published: '2026-11-13', category: 'animals', rating: 4, note: null, video_id: null, image_url: null,
+    video_provider: null, video_ref: null, summary: null,
   });
   assert.equal(cleanPick({ ...GOOD, rating: '' }).rating, null);
   assert.equal(cleanPick({ ...GOOD, published: '' }).published, null);

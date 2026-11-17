@@ -1,84 +1,204 @@
 {
-  "comment": "Outlets whose public RSS/Atom feeds fill the weird-news front page (/api/weird, lib/weird.js). As with the brief (data/news-sources.json) we show only the outlet's own headline, its name, the time, a link to the story and the outlet's own link-preview image: never its description, opening paragraph or article text. Every item passes the moderation rules in lib/moderation.js first. Feed addresses come from the scout's research (the build sandbox could not reach any of them); the lead checked them on a Vercel preview with /api/weird?debug=1 on 16 Nov 2026 (results in each entry's 'checked' note). The owner should review and approve this list before launch. Guardian and NPR are left out on purpose: their feed terms are personal, non-commercial use only.",
-  "fields": "name: shown as the outlet. section: the outlet's section the feed covers. home: the outlet's page we link to (also its own-site boundary for og:image reads). enabled: false = the feed is still read for ?debug=1 but none of its stories is used. stale: the date its feed was last seen with nothing from the past 14 days (kept: it may post again). images: false = no picture is read or shown (not even one the editor supplies for a pick), and its article pages are never fetched. imageHosts: the outlet's own image CDN hosts (exact names; a subdomain of one also counts), for pictures the editor gives a pick in the reviewer console: a pick's picture must be on the story's own site (the same registrable domain) or on one of these. review: true = a higher-risk outlet; its items appear only if moderation passes, never above a regular outlet's item, at most 3 at a time. minWeirdness: the lowest weirdness() score (lib/weird.js) a story needs to run; 0 for an odd-news desk, 1 for an outlet's own offbeat section, 2 for a general feed. cap: at most this many of its stories at once (default 8, 3 for review outlets). listicles: false = drop listicles, quizzes and evergreen explainers. categoryHints: lower-case words found in the feed's own <category> labels -> our category. filter: when present, an item is kept only if one of its feed categories contains one of 'categories' or its URL path contains one of 'paths'. exclude: an item is dropped when its headline contains one of 'titles' (whole words, any case) or its URL path one of 'paths'. licence: what we know about the terms.",
+  "comment": "Outlets whose public RSS/Atom feeds fill the weird-news front page (/api/weird, lib/weird.js). As with the brief (data/news-sources.json) we show only the outlet's own headline, its name, the time, a link to the story and the outlet's own link-preview image: never its description, opening paragraph or article text. Every item passes the moderation rules in lib/moderation.js first. Feed addresses come from the scout's research (the build sandbox could not reach any of them); the lead checked them on a Vercel preview with /api/weird?debug=1 on 16 Nov 2026 (results in each entry's 'checked' note). The owner should review and approve this list before launch. Guardian and NPR are left out on purpose: their feed terms are personal, non-commercial use only. Mix rule (owner request, 17 Nov 2026: 'not only UPI'): within each freshness band (under 2 days, 2-7, 7-14, older) the outlets take turns, each outlet's strangest story first, and no outlet may take more than 3 of the first 12 feed stories or 10 of the first 30 while other outlets have stories (LIMITS.mix in lib/weird.js); editor's picks stay on top and are not counted. On 17 Nov 2026 the build sandbox could reach theconversation.com, www.atlasobscura.com, www.smithsonianmag.com, www.mentalfloss.com and www.livescience.com; every other host was refused by the sandbox's network proxy, so those feeds and terms are unverified here.",
+  "fields": "name: shown as the outlet. section: the outlet's section the feed covers. home: the outlet's page we link to (also its own-site boundary for og:image reads). enabled: false = the feed is still read for ?debug=1 but none of its stories is used. stale: the date its feed was last seen with nothing from the past 14 days (kept: it may post again). images: false = no picture is read or shown (not even one the editor supplies for a pick), and its article pages are never fetched. imageHosts: the outlet's own image CDN hosts (exact names; a subdomain of one also counts), for pictures the editor gives a pick in the reviewer console: a pick's picture must be on the story's own site (the same registrable domain) or on one of these. review: true = a higher-risk outlet; its items appear only if moderation passes, never above a regular outlet's item, at most 3 at a time. minWeirdness: the lowest weirdness() score (lib/weird.js) a story needs to run; 0 for an odd-news desk, 1 for an outlet's own offbeat section, 2 for a general feed. cap: at most this many of its stories at once (default 8, 3 for review outlets); entries with the same name share one count, so give them the same cap. maxAgeDays: how far back a story may be (default 14, at most 90); evergreen outlets get longer windows, and a story older than 14 days always sorts after every fresher one (lib/weird.js freshness bands). listicles: false = drop listicles, quizzes and evergreen explainers. categoryHints: lower-case words found in the feed's own <category> labels -> our category. filter: when present, an item is kept only if one of its feed categories contains one of 'categories' or its URL path contains one of 'paths'. exclude: an item is dropped when its headline contains one of 'titles' (whole words, any case) or its URL path one of 'paths'. licence: what we know about the terms. terms: what the outlet's robots.txt and terms say about reading its feed and article pages and showing its preview images, and how we checked. comment: why this entry's settings are what they are. evaluated (top level): candidates looked at and not added, with the reason; they are never read.",
   "checked": "2026-11-16",
   "sources": [
     {
       "id": "upi-odd", "name": "UPI", "section": "Odd News",
       "home": "https://www.upi.com/Odd_News/", "feed": "https://rss.upi.com/news/odd_news.rss",
-      "images": true, "review": false, "minWeirdness": 0, "categoryHints": {},
+      "images": true, "review": false, "minWeirdness": 0, "maxAgeDays": 14,
+      "categoryHints": {},
       "licence": "Unknown: no feed reuse terms found (upi.com footer Terms of Use not read). Preview photos are often Reuters/AP/Getty wire photos: keep the images switch and takedown route ready.",
-      "checked": "2026-11-16: ok on the Vercel preview, 25 items, 20 kept"
+      "checked": "2026-11-16: ok on the Vercel preview, 25 items, 20 kept",
+      "comment": "The odd-news desk, posting daily: the default 14-day window and cap 8. Before the mix rule it filled 8 of the 10 feed places at the top of the page (17 Nov 2026 production debug: 8 of 21 shown plus 3 picks); now it gets at most 3 of the first 12 and 10 of the first 30 while other outlets have stories.",
+      "terms": "www.upi.com/robots.txt answered 200 to the sandbox (17 Nov 2026); article pages answer automated requests with a Cloudflare challenge (HTTP 403), which we do not work around, so UPI pictures come from the feed or the editor. rss.upi.com was refused by the sandbox's proxy. Feed terms not found."
     },
     {
       "id": "sky-offbeat", "name": "Sky News", "section": "Offbeat",
       "home": "https://news.sky.com/offbeat", "feed": "https://feeds.skynews.com/feeds/rss/strange.xml",
-      "images": true, "imageHosts": ["e3.365dm.com"], "review": false, "minWeirdness": 1, "categoryHints": {}, "stale": "2026-11-16",
+      "images": true, "imageHosts": ["e3.365dm.com"], "review": false, "minWeirdness": 1, "maxAgeDays": 14, "stale": "2026-11-16",
+      "categoryHints": {},
       "licence": "Unknown (news.sky.com/info/terms-and-conditions not read).",
-      "checked": "2026-11-16: ok on the Vercel preview, but all 4 items older than 14 days. Kept in case it posts again"
+      "checked": "2026-11-16: ok on the Vercel preview, but all 4 items older than 14 days. Kept in case it posts again",
+      "comment": "An offbeat section that posts rarely; the default window.",
+      "terms": "Not reachable from the sandbox (proxy refused feeds.skynews.com). Terms (news.sky.com/info/terms-and-conditions) not read."
     },
     {
       "id": "smithsonian-smartnews", "name": "Smithsonian Magazine", "section": "Smart News",
       "home": "https://www.smithsonianmag.com/smart-news/", "feed": "https://www.smithsonianmag.com/rss/smart-news/",
-      "images": true, "imageHosts": ["th-thumbnailer.cdn-si-edu.com"], "review": false, "minWeirdness": 2, "cap": 3, "listicles": false,
+      "images": true, "imageHosts": ["th-thumbnailer.cdn-si-edu.com"], "review": false, "minWeirdness": 2, "cap": 5, "maxAgeDays": 45, "listicles": false,
       "categoryHints": { "animal": "animals", "wildlife": "animals", "weather": "weather", "climate": "weather" },
       "licence": "Unknown (si.edu/termsofuse not read in full).",
-      "checked": "2026-11-16: ok on the Vercel preview, 268 items, 41 kept before the weirdness minimum: mostly ordinary science and culture, hence minWeirdness 2 and cap 3"
+      "checked": "2026-11-16: ok on the Vercel preview, 268 items, 41 kept before the weirdness minimum: mostly ordinary science and culture, hence minWeirdness 2 and cap 3; 17 Nov 2026 sandbox: feed 200, 269 items, all with pictures",
+      "comment": "maxAgeDays 45: Smart News finds (archaeology, odd animals, lost objects) still read as new for weeks, and the feed carries about 60 days (269 items on 17 Nov 2026), so 211 of 268 were dropped as 'old' at 14 days. At 45 days the 17 Nov feed gives about 30 stories that pass the weirdness minimum and moderation. Cap 3 -> 5: every item has its own feed picture and the headlines are careful. minWeirdness stays 2: most of the feed is ordinary science and culture.",
+      "terms": "robots.txt (read 17 Nov 2026) allows every agent except /accounts, /search, '/rss?' with a query string, previews, /dashboard, /email and /membership: our feed addresses and article pages are allowed. Every feed item carries its own picture (media:content), so no article page needs reading; the article pages and terms page answered the sandbox with a Cloudflare 'Just a moment...' challenge (403), which we do not work around. Terms (si.edu/termsofuse) not reachable from the sandbox."
+    },
+    {
+      "id": "smithsonian-science", "name": "Smithsonian Magazine", "section": "Science & Nature",
+      "home": "https://www.smithsonianmag.com/science-nature/", "feed": "https://www.smithsonianmag.com/rss/science-nature/",
+      "images": true, "imageHosts": ["th-thumbnailer.cdn-si-edu.com"], "review": false, "minWeirdness": 2, "cap": 5, "maxAgeDays": 45, "listicles": false,
+      "categoryHints": { "animal": "animals", "wildlife": "animals", "weather": "weather", "climate": "weather" },
+      "licence": "Unknown (si.edu/termsofuse not reachable from the sandbox).",
+      "terms": "robots.txt (read 17 Nov 2026) allows every agent except /accounts, /search, '/rss?' with a query string, previews, /dashboard, /email and /membership: our feed addresses and article pages are allowed. Every feed item carries its own picture (media:content), so no article page needs reading; the article pages and terms page answered the sandbox with a Cloudflare 'Just a moment...' challenge (403), which we do not work around. Terms (si.edu/termsofuse) not reachable from the sandbox.",
+      "comment": "Smithsonian's longer science and nature features (about 19 items over two months, each with a picture). Same outlet, so it shares Smart News's cap of 5. minWeirdness 2 and maxAgeDays 45 as for Smart News; on the 17 Nov 2026 feed one story passed.",
+      "checked": "2026-11-17 sandbox: feed 200, 19 items, all with pictures"
     },
     {
       "id": "atlasobscura", "name": "Atlas Obscura", "section": "Articles",
       "home": "https://www.atlasobscura.com/", "feed": "https://www.atlasobscura.com/feeds/articles",
-      "images": true, "review": false, "minWeirdness": 1, "cap": 3, "listicles": false,
+      "images": false, "review": false, "minWeirdness": 1, "cap": 3, "maxAgeDays": 60, "listicles": false,
       "categoryHints": { "animal": "animals", "weather": "weather" },
       "licence": "Unknown (terms page found, not read in full). Prefer /feeds/articles over /feeds/latest, which is mostly user-submitted places.",
-      "checked": "2026-11-16: ok on the Vercel preview, 18 items, 3 kept"
+      "checked": "2026-11-16: ok on the Vercel preview, 18 items, 3 kept; 17 Nov 2026 sandbox: feed 200, 18 items, none with a picture; pages and robots.txt behind a Cloudflare challenge",
+      "comment": "maxAgeDays 60: Atlas Obscura's articles are evergreen (guides, folklore, history) and it publishes a few a week: 15 of 18 were 'old' at 14 days. minWeirdness stays 1 and listicles stay off (its feed mixes in podcasts, playlists and numbered guides). Pictures off (was on): the feed carries no pictures, so each one needed an article-page read, and the pages answer with a Cloudflare challenge (see terms).",
+      "terms": "www.atlasobscura.com/robots.txt, /terms and article pages all answered the sandbox with Cloudflare 'Attention Required' (403) on 17 Nov 2026, while /feeds/articles, /feeds/latest and /feeds/places answered 200. We do not work around a challenge, so article pages are not read (images false). If a preview deploy reads its pages without a challenge and its robots.txt allows it, pictures can be switched back on."
     },
     {
       "id": "sciencedaily-strange", "name": "ScienceDaily", "section": "Strange & Offbeat",
       "home": "https://www.sciencedaily.com/news/strange_offbeat/", "feed": "https://www.sciencedaily.com/rss/strange_offbeat.xml",
-      "images": false, "review": false, "minWeirdness": 1, "cap": 4, "categoryHints": {},
+      "images": false, "review": false, "minWeirdness": 1, "cap": 6, "maxAgeDays": 30,
+      "categoryHints": {},
       "licence": "Known: feeds free for commercial and non-commercial use with ScienceDaily credited as the source (terms dated 7 Jan 2026); the outlet name is shown on every item. The terms count 'altering content or failing to display it' as a breach: ask ScienceDaily whether headline-and-link complies before launch. Images off: they are usually credited to the releasing institution.",
-      "checked": "2026-11-16: ok on the Vercel preview, 60 items, 26 kept"
+      "checked": "2026-11-16: ok on the Vercel preview, 60 items, 26 kept",
+      "comment": "ScienceDaily's own Strange & Offbeat section: cap 4 -> 6 (minWeirdness 1 already keeps out the ordinary releases; production showed 8 kept and only 4 shown) and maxAgeDays 30 (research findings stay current for weeks; 33 of 60 were 'old' at 14 days).",
+      "terms": "Not reachable from the sandbox (proxy refused www.sciencedaily.com). Feed terms dated 7 Jan 2026 allow commercial use with credit (see licence). Pictures stay off."
     },
     {
       "id": "mentalfloss", "name": "Mental Floss", "section": "All stories",
       "home": "https://www.mentalfloss.com/", "feed": "https://www.mentalfloss.com/feed",
-      "images": true, "imageHosts": ["images2.minutemediacdn.com"], "review": false, "minWeirdness": 2, "cap": 3, "listicles": false, "categoryHints": {},
+      "images": true, "imageHosts": ["images2.minutemediacdn.com"], "review": false, "minWeirdness": 2, "cap": 3, "maxAgeDays": 45, "listicles": false,
+      "categoryHints": {},
       "exclude": { "titles": ["deal", "deals", "sale", "% off", "amazon", "prime day", "black friday", "cyber monday", "gift guide", "gifts", "coupon", "discount", "best buys"], "paths": ["/shopping", "/deals", "/commerce"] },
       "licence": "Unknown (mentalfloss.com/terms-of-use not read). Shopping posts, listicles, quizzes and evergreen explainers are filtered out.",
-      "checked": "2026-11-16: ok on the Vercel preview, 75 items, 65 kept before the listicle filter and weirdness minimum (it flooded the page with evergreen lists and quizzes)"
+      "checked": "2026-11-16: ok on the Vercel preview, 75 items, 65 kept before the listicle filter and weirdness minimum (it flooded the page with evergreen lists and quizzes); 17 Nov 2026 sandbox: feed 200, 75 items, all with pictures; article page 200 with og:image",
+      "comment": "maxAgeDays 45: its pieces are evergreen (the feed only spans about 12 days, so this mostly keeps a strange story a little longer). Listicle filter reviewed on the 17 Nov 2026 feed (75 items): every one it caught was a numbered list, ranking, quiz, joke list or 'Why do we call...' word origin; the only single-story pieces it caught were word-origin explainers that score below the weirdness minimum anyway, so it stays. minWeirdness stays 2: the rest is trivia and entertainment history, not odd news. Cap stays 3.",
+      "terms": "robots.txt (read 17 Nov 2026) allows all agents ('User-agent: * Allow: /'), apart from query-string, shopping, trivia, store and embed paths; our feed and article pages are allowed. Article pages answered the sandbox 200 with an og:image on images2.minutemediacdn.com (confirming imageHosts). Terms page not found at /terms-of-use (404)."
     },
     {
       "id": "livescience", "name": "Live Science", "section": "Strange news",
       "home": "https://www.livescience.com/", "feed": "https://www.livescience.com/feeds.xml",
-      "images": true, "imageHosts": ["cdn.mos.cms.futurecdn.net"], "review": false, "minWeirdness": 2, "cap": 3, "listicles": false,
-      "filter": { "categories": ["strange news", "strange", "mysteries", "oddities", "weird", "animals", "archaeology", "human behavior", "planet earth", "history", "ancient history", "life's little mysteries", "dinosaurs", "fossils"], "paths": ["/strange-news", "/mysteries", "/animals", "/archaeology", "/planet-earth", "/human-behavior"] },
+      "images": true, "imageHosts": ["cdn.mos.cms.futurecdn.net"], "review": false, "minWeirdness": 2, "cap": 4, "maxAgeDays": 21, "listicles": false,
       "categoryHints": { "animals": "animals", "weather": "weather", "extreme weather": "weather", "mysteries": "unexplained" },
+      "filter": { "categories": ["strange news", "strange", "mysteries", "oddities", "weird", "animals", "archaeology", "human behavior", "planet earth", "history", "ancient history", "life's little mysteries", "dinosaurs", "fossils", "space", "astronomy"], "paths": ["/strange-news", "/mysteries", "/animals", "/archaeology", "/planet-earth", "/human-behavior", "/space"] },
       "licence": "Unknown (Future plc terms not read). General feed, filtered to these sections and then to stories with a weirdness signal. Runs graphic medical case reports: the injury and health rule holds those.",
-      "checked": "2026-11-16: ok on the Vercel preview, 50 items, all 50 dropped by the first filter (strange-news labels only). Filter widened to the feed's section labels; /api/weird?debug=1 now lists the labels each feed uses"
+      "checked": "2026-11-16: ok on the Vercel preview, 50 items, all 50 dropped by the first filter (strange-news labels only). Filter widened to the feed's section labels; /api/weird?debug=1 now lists the labels each feed uses; 17 Nov 2026 sandbox: feed 200, 50 items, all with pictures; article page 200 with og:image",
+      "comment": "Filter reviewed on the 17 Nov 2026 feed: it was not dropping archaeology or animal stories (those labels match); the 27 it filtered were Health (11), Space (8), Physics, Technology and Chemistry. Space and Astronomy are added (odd sky and planet stories, no people at risk); Health stays out (graphic medical case reports). minWeirdness stays 2 (a quote alone scores 1 and is not odd). Cap 3 -> 4 now that three Live Science feeds share it. maxAgeDays 21: the main feed spans about 10 days.",
+      "terms": "robots.txt (read 17 Nov 2026) allows every agent except a list of AI crawlers (bytespider, cohere, diffbot, amazonbot, meta-externalagent, Applebot...) and some search/embed paths; 'gatecast' is not listed, so feeds and article pages are allowed. Article pages answered the sandbox 200 with an og:image on cdn.mos.cms.futurecdn.net; their videos are JW Player, which we do not embed. Feed items carry pictures. Future plc terms not reachable (www.futureplc.com refused by the proxy). The feed is large (about 1.3 MB)."
+    },
+    {
+      "id": "livescience-animals", "name": "Live Science", "section": "Animals",
+      "home": "https://www.livescience.com/animals", "feed": "https://www.livescience.com/feeds/tag/animals",
+      "images": true, "imageHosts": ["cdn.mos.cms.futurecdn.net"], "review": false, "minWeirdness": 2, "cap": 4, "maxAgeDays": 45, "listicles": false,
+      "categoryHints": { "animals": "animals" },
+      "licence": "Unknown (Future plc terms not reachable from the sandbox).",
+      "terms": "robots.txt (read 17 Nov 2026) allows every agent except a list of AI crawlers (bytespider, cohere, diffbot, amazonbot, meta-externalagent, Applebot...) and some search/embed paths; 'gatecast' is not listed, so feeds and article pages are allowed. Article pages answered the sandbox 200 with an og:image on cdn.mos.cms.futurecdn.net; their videos are JW Player, which we do not embed. Feed items carry pictures. Future plc terms not reachable (www.futureplc.com refused by the proxy). The feed is large (about 1.3 MB).",
+      "comment": "Live Science's Animals tag feed reaches back about three months (the main feed about 10 days), so odd animal and fossil stories the main feed has already dropped can still run: on the 17 Nov 2026 feed, 3 in 45 days passed (a cartwheeling snake, a museum-drawer dinosaur, a 47-million-year-old owl). Shares Live Science's cap of 4.",
+      "checked": "2026-11-17 sandbox: feed 200, 50 items, all with pictures"
+    },
+    {
+      "id": "livescience-archaeology", "name": "Live Science", "section": "Archaeology",
+      "home": "https://www.livescience.com/archaeology", "feed": "https://www.livescience.com/feeds/tag/archaeology",
+      "images": true, "imageHosts": ["cdn.mos.cms.futurecdn.net"], "review": false, "minWeirdness": 2, "cap": 4, "maxAgeDays": 45, "listicles": false,
+      "categoryHints": {},
+      "licence": "Unknown (Future plc terms not reachable from the sandbox).",
+      "terms": "robots.txt (read 17 Nov 2026) allows every agent except a list of AI crawlers (bytespider, cohere, diffbot, amazonbot, meta-externalagent, Applebot...) and some search/embed paths; 'gatecast' is not listed, so feeds and article pages are allowed. Article pages answered the sandbox 200 with an og:image on cdn.mos.cms.futurecdn.net; their videos are JW Player, which we do not embed. Feed items carry pictures. Future plc terms not reachable (www.futureplc.com refused by the proxy). The feed is large (about 1.3 MB).",
+      "comment": "Live Science's Archaeology tag feed (about 36 days). Many finds are burials, which moderation holds (H1); on the 17 Nov 2026 feed 2 odd finds in 45 days passed (a 400-year-old padlock, Stone Age figurines). Shares Live Science's cap of 4.",
+      "checked": "2026-11-17 sandbox: feed 200, 50 items, all with pictures"
+    },
+    {
+      "id": "theconversation-science", "name": "The Conversation", "section": "Science + Tech (US)",
+      "home": "https://theconversation.com/us/technology", "feed": "https://theconversation.com/us/technology/articles.atom",
+      "images": false, "review": false, "minWeirdness": 2, "cap": 2, "maxAgeDays": 30, "listicles": false,
+      "categoryHints": {},
+      "licence": "Known: articles are published under Creative Commons Attribution/No Derivatives (CC BY-ND 4.0), so linking with the headline as written is plainly allowed. Images are NOT covered: its republishing guidelines say many are licensed from commercial providers (Getty, AP) and must not be reused without a licence; hence pictures off.",
+      "terms": "robots.txt (read 17 Nov 2026) allows every agent except listed AI crawlers (ClaudeBot, GPTBot, CCBot...), which are disallowed everywhere, and paths such as /content/, /comments/ and search; 'gatecast' is not listed, so the feed and article pages are allowed. Article pages answered the sandbox 200 with an og:image on images.theconversation.com, but we do not show it (licence). Republishing guidelines and terms read at theconversation.com/us/republishing-guidelines and /us/terms-and-conditions.",
+      "comment": "Academics writing for the public; there is no offbeat section, so the US Science + Tech feed (Atom, about 25 items over 18 days, no category labels, no feed pictures) with the general-feed minimum of 2 and a small cap of 2. Explainers ('How to...', 'Why do we...') are dropped as listicles. Expect one or two stories a month: on the 17 Nov 2026 feed most items were health, AI or space policy.",
+      "checked": "2026-11-17 sandbox: feed 200, 25 entries (Atom), none with a feed picture"
     },
     {
       "id": "soranews24", "name": "SoraNews24", "section": "All stories",
       "home": "https://soranews24.com/", "feed": "https://soranews24.com/feed/",
-      "images": true, "imageHosts": ["i0.wp.com", "i1.wp.com", "i2.wp.com"], "review": false, "minWeirdness": 2, "cap": 2, "listicles": false,
+      "images": true, "imageHosts": ["i0.wp.com", "i1.wp.com", "i2.wp.com"], "review": false, "minWeirdness": 2, "cap": 2, "maxAgeDays": 14, "listicles": false,
       "categoryHints": { "animals": "animals", "weather": "weather" },
       "licence": "Unknown (no terms page found). General feed: only stories with a weirdness signal run (a 'weird' label from the outlet counts); crime and sexual content are held or dropped by moderation.",
-      "checked": "2026-11-16: ok on the Vercel preview, 20 items, 2 kept (18 dropped by the old 'weird' category filter, now replaced by the weirdness minimum)"
+      "checked": "2026-11-16: ok on the Vercel preview, 20 items, 2 kept (18 dropped by the old 'weird' category filter, now replaced by the weirdness minimum)",
+      "comment": "General feed; 17 of 20 were 'dull' in production. Not loosened: the sandbox could not read the feed to see what the dull stories are, and with minWeirdness 1 its own 'weird' label or a quoted phrase alone would let a story run. Check its labels in /api/weird?debug=1 on a preview first.",
+      "terms": "Not reachable from the sandbox (proxy refused soranews24.com). No terms page found."
+    },
+    {
+      "id": "iflscience", "name": "IFLScience", "section": "All stories",
+      "home": "https://www.iflscience.com/", "feed": "https://www.iflscience.com/rss/feed.xml",
+      "enabled": false,
+      "images": true, "review": false, "minWeirdness": 2, "cap": 3, "maxAgeDays": 21, "listicles": false,
+      "categoryHints": { "animals": "animals", "nature": "animals" },
+      "licence": "Unknown (terms not read).",
+      "terms": "Not verified: the sandbox's proxy refused www.iflscience.com, so its robots.txt, feed and terms could not be read. The feed address is from memory. Disabled: read for ?debug=1 only; on a preview check the feed answers ok, then read robots.txt and the terms (page reads, preview images) before setting enabled true.",
+      "comment": "Popular science with a strong odd-animal and odd-body streak; a general feed, so minWeirdness 2 and cap 3.",
+      "checked": "2026-11-17 sandbox: proxy refused the host"
+    },
+    {
+      "id": "futurity", "name": "Futurity", "section": "All stories",
+      "home": "https://www.futurity.org/", "feed": "https://www.futurity.org/feed/",
+      "enabled": false,
+      "images": false, "review": false, "minWeirdness": 2, "cap": 2, "maxAgeDays": 21, "listicles": false,
+      "categoryHints": {},
+      "licence": "Believed to publish its stories under a Creative Commons licence (from memory, unverified). Images off: they come from the universities' releases.",
+      "terms": "Not verified: the sandbox's proxy refused www.futurity.org (robots.txt, feed and terms unread). Disabled until a preview shows the feed ok and robots.txt and the licence are read.",
+      "comment": "University research news from its member universities; a general feed, so minWeirdness 2 and cap 2.",
+      "checked": "2026-11-17 sandbox: proxy refused the host"
+    },
+    {
+      "id": "physorg", "name": "Phys.org", "section": "All stories",
+      "home": "https://phys.org/", "feed": "https://phys.org/rss-feed/",
+      "enabled": false,
+      "images": false, "review": false, "minWeirdness": 2, "cap": 2, "maxAgeDays": 21, "listicles": false,
+      "categoryHints": {},
+      "licence": "Unknown (Science X terms not read). Mostly institutions' press releases: images off, as for ScienceDaily.",
+      "terms": "Not verified: the sandbox's proxy refused phys.org (robots.txt, feed and terms unread). Disabled until a preview shows the feed ok and robots.txt and the terms are read; check also that its pages are not behind a bot challenge.",
+      "comment": "Research news in volume, mostly ordinary; a general feed, so minWeirdness 2 and cap 2.",
+      "checked": "2026-11-17 sandbox: proxy refused the host"
+    },
+    {
+      "id": "popsci", "name": "Popular Science", "section": "All stories",
+      "home": "https://www.popsci.com/", "feed": "https://www.popsci.com/feed/",
+      "enabled": false,
+      "images": true, "review": false, "minWeirdness": 2, "cap": 3, "maxAgeDays": 21, "listicles": false,
+      "categoryHints": { "animals": "animals", "environment": "weather" },
+      "exclude": { "titles": ["deal", "deals", "sale", "% off", "amazon", "prime day", "black friday", "cyber monday", "gift guide", "gifts", "coupon", "discount"], "paths": ["/gear", "/reviews", "/deals"] },
+      "licence": "Unknown (terms not read).",
+      "terms": "Not verified: the sandbox's proxy refused www.popsci.com (robots.txt, feed and terms unread). Disabled until a preview shows the feed ok and robots.txt and the terms are read. Its shopping and gear posts are excluded.",
+      "comment": "Science and odd-history stories alongside gear reviews; a general feed, so minWeirdness 2 and cap 3.",
+      "checked": "2026-11-17 sandbox: proxy refused the host"
     },
     {
       "id": "odditycentral", "name": "Oddity Central", "section": "All stories",
       "home": "https://www.odditycentral.com/", "feed": "https://www.odditycentral.com/feed",
-      "images": false, "review": true, "minWeirdness": 1, "categoryHints": {}, "stale": "2026-11-16",
+      "images": false, "review": true, "minWeirdness": 1, "maxAgeDays": 14, "stale": "2026-11-16",
+      "categoryHints": {},
       "licence": "Unknown (no terms page found). High risk: rewrites other outlets' stories and runs viral private individuals, medical conditions and poverty. Images off; lower priority; review outlet.",
-      "checked": "2026-11-16: ok on the Vercel preview, but all 10 items older than 14 days. Kept in case it posts again"
+      "checked": "2026-11-16: ok on the Vercel preview, but all 10 items older than 14 days. Kept in case it posts again",
+      "comment": "Review outlet: high risk, kept to the default window.",
+      "terms": "Not reachable from the sandbox (proxy refused www.odditycentral.com). No terms page found."
     },
     {
       "id": "ndtv-offbeat", "name": "NDTV", "section": "Offbeat",
       "home": "https://www.ndtv.com/offbeat", "feed": "https://feeds.feedburner.com/ndtvnews-offbeat-news",
       "enabled": false,
-      "images": false, "review": true, "minWeirdness": 1, "categoryHints": {},
+      "images": false, "review": true, "minWeirdness": 1, "maxAgeDays": 14,
+      "categoryHints": {},
       "licence": "Unknown (footer terms not read). High risk: heavy on viral clips of private people and accidents. Images off; lower priority; review outlet.",
-      "checked": "2026-11-16: the old address (feeds.feedburner.com/ndtvnews-offbeat) answered 200 but was not a feed. This address (…/ndtvnews-offbeat-news) is the one a third-party RSS reader lists for NDTV Offbeat; it is not confirmed by NDTV. Disabled until /api/weird?debug=1 shows it ok, then set enabled to true"
+      "checked": "2026-11-16: the old address (feeds.feedburner.com/ndtvnews-offbeat) answered 200 but was not a feed. This address (…/ndtvnews-offbeat-news) is the one a third-party RSS reader lists for NDTV Offbeat; it is not confirmed by NDTV. Disabled until /api/weird?debug=1 shows it ok, then set enabled to true",
+      "comment": "Review outlet, disabled until its address is confirmed.",
+      "terms": "Not reachable from the sandbox. Footer terms not read."
     }
+  ],
+  "evaluated": [
+    { "id": "atlasobscura-places", "feed": "https://www.atlasobscura.com/feeds/places", "why": "Reachable (200, 18 items), but these are user-submitted place entries ('Glass Wonders Gallery in Karpacz, Poland'), not stories: none showed a weirdness signal on 17 Nov 2026, and the pages are behind a Cloudflare challenge. /feeds/latest is these places plus the articles feed." },
+    { "id": "smithsonian-history", "feed": "https://www.smithsonianmag.com/rss/history/", "why": "Reachable (200, 17 items over 55 days), but on 17 Nov 2026 nothing scored 2 and most items were deaths, war and trials that moderation holds." },
+    { "id": "smithsonian-other", "feed": "https://www.smithsonianmag.com/rss/smithsonian-institution/ (also /travel/, /innovation/, /arts-culture/, /latest_articles/)", "why": "Reachable, but museum, travel and arts features: one story scored 2 or more across all of them in two months; latest_articles repeats the other feeds." },
+    { "id": "livescience-other", "feed": "https://www.livescience.com/feeds/tag/strange-news and /feeds/tag/mysteries", "why": "Strange News is no longer updated (its newest item was years old on 17 Nov 2026); Mysteries is the 'Life's Little Mysteries' question explainers ('Which animal farts the most?'), evergreen Q&As rather than news." },
+    { "id": "theconversation-other", "feed": "https://theconversation.com/us/articles.atom, /global/home-page.atom, Curious Kids topic feeds", "why": "Reachable, but the all-stories feeds are mostly politics and health, and Curious Kids answers children's questions (the children rule, and explainers rather than news). Science + Tech is the closest to offbeat it has." },
+    { "id": "npr", "feed": "(NPR's odd-news stories have no feed of their own)", "why": "Left out: NPR's feed terms are personal, non-commercial use only (as before)." },
+    { "id": "bigthink", "feed": "https://bigthink.com/feed/", "why": "Not added: essays and ideas rather than news, so almost nothing would pass the weirdness minimum; also unreachable from the sandbox." }
   ]
 }

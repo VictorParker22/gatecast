@@ -1,0 +1,237 @@
+/* Story mode, "Gatecast TV" (js/tvscreen.js, content from js/front.js tvHTML): a story opens over the page as a
+   late-night 90s music-TV broadcast of the odd news desk. The studio is dark; the story is a zine spread of cut-out
+   paper blocks (the slab headline with the outlet and date as a lower third, the picture or the video in a glass
+   screen with scanlines, the hook as a sun pull quote, "In our words" in large reading type, the read-more button,
+   the Weird-o-meter, "Next on Gatecast"); a station ident (static, then the category as a big rotated title card)
+   plays on open and between channels. Original design: no network's logo, ident or graphics.
+   Decoration (scanlines, vignette, static, the title card, tape, the dial) is aria-hidden or pseudo-content and never
+   covers text. Text sits on paper or on the dark studio at 4.5:1 or more in both editions. Under reduced motion there
+   is no static, no ident and no drop-in: js/tvscreen.js cross-fades instead. Compiled into styles/site-front.css. */
+
+@layer theme {
+  @supports not (color: light-dark(#000, #fff)) {
+    :root { --color-tv-stage: #0F1430; --color-tv-stage-2: #1A2366; --color-tv-plastic: #2A2620; --color-tv-plastic-hi: #4A443A; }
+    @media (prefers-color-scheme: dark) {
+      :root { --color-tv-stage: #0A0907; --color-tv-stage-2: #1A1712; --color-tv-plastic: #1E1B16; --color-tv-plastic-hi: #3A352D; }
+    }
+  }
+}
+
+@layer components {
+  /* The page behind keeps its place: it simply stops scrolling while story mode is on. */
+  html:has(dialog.stv[open]) { overflow: hidden; }
+
+  .stv { position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; background: transparent; color: var(--color-np-ink); overflow: hidden; }
+  .stv::backdrop { background: rgb(0 0 0 / 0.72); }
+  .stv :focus-visible { outline: 3px solid var(--color-np-sun); outline-offset: 3px; }
+  .stv :is(.stv-hero, .stv-words, .meter, .stv-hook) :focus-visible { outline-color: var(--color-np-cobalt); }
+  .stv-h:focus { outline: none; }
+
+  /* The set: the bar, the screen that scrolls, the control deck. The studio behind is dark, with a cobalt diagonal
+     band and halftone dots; scanlines and a vignette lie over everything (pointer-events: none). */
+  .stv__set {
+    position: absolute; inset: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; isolation: isolate;
+    background:
+      radial-gradient(rgb(255 255 255 / 0.07) 1px, transparent 1.6px) 0 0 / 7px 7px,
+      linear-gradient(115deg, transparent 0 18%, var(--color-tv-stage-2) 18% 46%, transparent 46% 100%),
+      var(--color-tv-stage);
+    transform-origin: 50% 50%;
+  }
+  .stv__set::after {
+    content: ""; position: absolute; inset: 0; z-index: 4; pointer-events: none;
+    background:
+      repeating-linear-gradient(0deg, rgb(0 0 0 / 0.07) 0 1px, transparent 1px 3px),
+      radial-gradient(ellipse 120% 90% at 50% 45%, transparent 62%, rgb(0 0 0 / 0.5) 100%);
+  }
+
+  /* The bar: Gatecast TV's own station bug, the channel number, Copy link and the power button. */
+  .stv__bar { position: relative; z-index: 2; display: flex; align-items: center; gap: --spacing(3); padding: --spacing(2) var(--spacing-gutter); background: var(--color-np-night); color: var(--color-np-on-night); border-bottom: 3px solid var(--color-np-sun); }
+  .stv__bug { display: inline-flex; align-items: stretch; margin: 0; rotate: -3deg; flex: none; }
+  .stv__bug-gc { display: grid; place-items: center; padding: 2px --spacing(2); background: var(--color-np-sun); color: var(--color-np-on-sun); font-family: var(--font-slab); font-size: var(--text-lg); line-height: 1; text-transform: uppercase; border: 2px solid var(--color-np-on-sun); }
+  .stv__bug-tv { display: grid; place-items: center; padding: 2px --spacing(2); background: var(--color-np-lime); color: var(--color-np-on-lime); font-family: var(--font-sign); font-weight: 800; font-size: var(--text-lg); line-height: 1; border: 2px solid var(--color-np-on-lime); border-left: 0; }
+  .stv__ch { margin: 0; font-family: var(--font-pixel); font-size: var(--text-sub); line-height: 1; color: var(--color-np-sun); letter-spacing: 0.04em; white-space: nowrap; }
+  .stv__ch-of { color: var(--color-np-on-night-muted); }
+  .stv__tools { margin-left: auto; display: flex; gap: --spacing(2); }
+  .stv__btn { display: inline-flex; align-items: center; gap: --spacing(2); min-height: var(--spacing-tap); min-width: var(--spacing-tap); justify-content: center; padding: 0 --spacing(3.5); border: 2px solid var(--color-np-on-night); border-radius: 2px; background: transparent; color: var(--color-np-on-night); font: inherit; font-family: var(--font-sign); font-weight: 800; font-size: var(--text-base); letter-spacing: var(--tracking-caps); text-transform: uppercase; cursor: pointer; }
+  .stv__btn svg { width: 1.25em; height: 1.25em; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+  .stv__btn:hover { background: rgb(255 255 255 / 0.1); }
+  .stv__power { background: var(--color-np-sun); color: var(--color-np-on-sun); border-color: var(--color-np-sun); box-shadow: var(--shadow-bevel); }
+  .stv__power:hover { background: var(--color-np-lime); border-color: var(--color-np-lime); }
+
+  /* The screen: the story scrolls here, inside the set. */
+  .stv__screen { position: relative; z-index: 1; overflow-y: auto; overscroll-behavior: contain; scrollbar-color: var(--color-np-sun) transparent; padding: clamp(1rem, 0.5rem + 2.4vw, 2.75rem) var(--spacing-gutter) clamp(2rem, 1rem + 3vw, 4rem); }
+  .stv__content { width: min(100%, 78rem); margin-inline: auto; }
+
+  /* ---------- The spread ---------- */
+  .stv-story { display: grid; gap: clamp(1.25rem, 0.9rem + 1.5vw, 2.5rem); }
+
+  /* The hero: a paper cut-out with a strip of tape, the category sticker, the slab headline, and the lower third. */
+  .stv-hero { position: relative; padding: clamp(1rem, 0.6rem + 1.6vw, 2.25rem) clamp(1rem, 0.6rem + 1.8vw, 2.5rem) clamp(1.25rem, 0.8rem + 1.6vw, 2.25rem); background: var(--color-np-card); border: 2px solid var(--color-np-ink); box-shadow: 10px 10px 0 var(--color-np-cobalt); rotate: -0.5deg; }
+  .stv-hero::before { content: ""; position: absolute; top: -14px; left: 12%; width: 7rem; height: 26px; background: color-mix(in oklab, var(--color-np-lime) 80%, transparent); rotate: -4deg; box-shadow: 0 1px 0 rgb(0 0 0 / 0.15); }
+  .stv-hero::after { content: ""; position: absolute; top: -14px; right: 9%; width: 5rem; height: 26px; background: color-mix(in oklab, var(--color-np-sun) 80%, transparent); rotate: 5deg; }
+  .stv-hero__tags { display: flex; flex-wrap: wrap; align-items: center; gap: --spacing(3); margin: 0 0 --spacing(3); }
+  .stv-hero__cat { font-size: var(--text-base); padding: 4px --spacing(2.5); }
+  .stv-hero__pick { display: inline-flex; align-items: center; padding: 3px --spacing(2); background: var(--color-np-night); color: var(--color-np-sun); font-family: var(--font-sign); font-weight: 800; font-size: var(--text-sm); letter-spacing: var(--tracking-caps); text-transform: uppercase; rotate: 2deg; }
+  .stv-hero__ch { margin-left: auto; font-family: var(--font-pixel); font-size: var(--text-xl); line-height: 1; color: var(--color-np-muted); }
+  /* A starburst in the hero's free corner (wide screens only): "Editor's pick", or "Straight from" the outlet. */
+  .stv-hero__burst { display: none; }
+  @media (width >= theme(--breakpoint-lg)) {
+    .stv-hero__burst { display: block; position: absolute; right: clamp(1.5rem, 3vw, 3.5rem); top: 50%; width: 9.5rem; height: 9.5rem; translate: 0 -40%; rotate: 12deg; }
+  }
+  .stv-hero__burst-ink { position: absolute; inset: 0; background: var(--color-np-lime); clip-path: var(--burst); filter: drop-shadow(4px 4px 0 var(--color-np-ink)); }
+  .stv-hero__burst-t { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; font-family: var(--font-sign); font-weight: 800; font-size: var(--text-burst-sm); line-height: 0.92; text-transform: uppercase; color: var(--color-np-on-lime); }
+  .stv-hero__burst-t small { display: block; font-size: var(--text-sm); font-weight: 800; color: var(--color-np-on-lime); letter-spacing: var(--tracking-caps); }
+  .stv-h { margin: 0; font-family: var(--font-slab); font-weight: 400; font-size: var(--text-tv-head); line-height: 1.04; letter-spacing: var(--tracking-slab); color: var(--color-np-ink); text-wrap: balance; overflow-wrap: anywhere; max-width: 22ch; }
+  /* The lower third: the outlet on cobalt and the date in pixel type on ink, like a broadcast caption. */
+  .stv-lower { display: inline-flex; flex-wrap: wrap; margin: clamp(0.75rem, 0.5rem + 1vw, 1.5rem) 0 0; box-shadow: 5px 5px 0 var(--color-np-shadow-ink); max-width: 100%; }
+  .stv-lower__out { padding: --spacing(1.5) --spacing(3); background: var(--color-np-cobalt); color: var(--color-np-on-cobalt); font-family: var(--font-sign); font-weight: 800; font-size: var(--text-xl); line-height: 1.1; letter-spacing: var(--tracking-caps); text-transform: uppercase; }
+  .stv-lower__date { display: grid; place-items: center; padding: --spacing(1.5) --spacing(3); background: var(--color-np-night); color: var(--color-np-sun); font-family: var(--font-pixel); font-size: var(--text-xl); line-height: 1; }
+
+  .stv-body { display: grid; gap: clamp(1.25rem, 0.9rem + 1.5vw, 2.5rem); align-items: start; }
+  @media (width >= theme(--breakpoint-lg)) {
+    .stv-body { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }
+    /* The media stays in view while the words beside it scroll. */
+    .stv-media { position: sticky; top: 0; }
+    /* Text-led (no picture, no video): one column; the read-more button and the meter share a row. */
+    .stv-story--text .stv-body { grid-template-columns: minmax(0, 1fr); }
+    .stv-story--text .stv-side { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+    .stv-story--text .stv-side > * { grid-column: 1 / -1; }
+    .stv-story--text .stv-side > .stv-go { grid-column: 1; }
+    .stv-story--text .stv-side > .stv-block:last-child { grid-column: 2; }
+  }
+
+  /* The picture or video in a glass screen: an ink bezel, rounded glass with an inner shadow, scanlines and a glare
+     (lifted while a player runs, so the video is not dimmed). */
+  .stv-media { margin: 0; padding: clamp(0.5rem, 0.3rem + 0.8vw, 1rem); background: linear-gradient(160deg, var(--color-tv-plastic-hi), var(--color-tv-plastic) 55%); border: 2px solid var(--color-np-ink); border-radius: 10px; box-shadow: 10px 10px 0 var(--color-np-sun); rotate: 0.6deg; }
+  .stv-media__glass { position: relative; overflow: hidden; border-radius: 22px / 18px; background: var(--color-tv-glass); box-shadow: inset 0 0 0 2px rgb(0 0 0 / 0.6); }
+  .stv-media__glass::after { content: ""; position: absolute; inset: 0; z-index: 3; pointer-events: none; border-radius: inherit;
+    background:
+      radial-gradient(ellipse 70% 45% at 28% 12%, rgb(255 255 255 / 0.16), transparent 70%),
+      repeating-linear-gradient(0deg, rgb(0 0 0 / 0.16) 0 1px, transparent 1px 3px);
+    box-shadow: inset 0 0 50px rgb(0 0 0 / 0.65); }
+  .stv-media.is-playing .stv-media__glass::after { display: none; }
+  .stv__media { position: relative; aspect-ratio: 16 / 10; }
+  .stv__media.smedia--video, .stv__media.is-playing { aspect-ratio: 16 / 9; }
+  .stv__img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+  .stv__media[data-provider="tiktok"], .stv__media[data-provider="instagram"] { aspect-ratio: 9 / 16; width: min(100%, 22rem); max-height: 72vh; margin-inline: auto; }
+  .stv__media[data-provider="x"].is-playing { aspect-ratio: auto; min-height: 20rem; max-height: 72vh; overflow: auto; }
+  .stv__media .credit { z-index: 4; }
+
+  .stv-side { display: grid; gap: clamp(1.25rem, 1rem + 1vw, 2rem); align-content: start; min-width: 0; }
+
+  /* The hook as a pull quote on a sun block, with a big cobalt quotation mark. */
+  .stv-hook { position: relative; margin: 0; padding: clamp(1.25rem, 1rem + 1vw, 2rem) clamp(1rem, 0.8rem + 1vw, 1.75rem) clamp(1rem, 0.8rem + 0.8vw, 1.5rem) clamp(2.5rem, 2rem + 1.6vw, 3.5rem); background: var(--color-np-sun); color: var(--color-np-on-sun); border: 2px solid var(--color-np-on-sun); box-shadow: 7px 7px 0 var(--color-np-shadow-ink); rotate: -1.2deg; }
+  .stv-hook::before { content: "\201C"; position: absolute; left: --spacing(2); top: -0.12em; font-family: var(--font-slab); font-size: 5.5rem; line-height: 1; color: var(--color-np-cobalt); }
+  .stv-hook p { margin: 0; font-family: var(--font-slab); font-size: var(--text-tv-hook); line-height: 1.18; text-wrap: balance; }
+
+  /* "In our words": the editor's own summary in large reading type on paper. */
+  .stv-words { position: relative; padding: clamp(1rem, 0.8rem + 1vw, 1.75rem); background: var(--color-np-card); border: 2px solid var(--color-np-ink); box-shadow: 7px 7px 0 var(--color-np-lime); rotate: 0.4deg; }
+  .stv-words__h { margin: 0 0 --spacing(3); }
+  .stv-words__h span { display: inline-block; padding: 4px --spacing(2.5); background: var(--color-np-night); color: var(--color-np-lime); font-family: var(--font-sign); font-weight: 800; font-size: var(--text-lg); letter-spacing: var(--tracking-caps); text-transform: uppercase; rotate: -2deg; }
+  .stv-words__p { margin: 0; font-size: var(--text-tv-words); line-height: 1.6; color: var(--color-np-ink); max-width: 62ch; text-wrap: pretty; }
+  .stv-words__by { margin: --spacing(3) 0 0; font-size: var(--text-sm); color: var(--color-np-muted); }
+  .stv-only { margin: 0; padding: --spacing(1) 0 --spacing(1) --spacing(4); border-left: 6px solid var(--color-np-sun); color: var(--color-np-on-night); font-size: var(--text-lg); line-height: 1.5; max-width: 52ch; }
+
+  /* The way out: the big sun button to the original, and the credits. */
+  .stv-go { display: grid; gap: --spacing(3); }
+  .stv-go__btn { justify-content: space-between; min-height: 4rem; padding: --spacing(2) --spacing(5); font-family: var(--font-sign); font-weight: 800; font-size: clamp(1.25rem, 1.15rem + 0.4vw, 1.5rem); line-height: 1.1; letter-spacing: var(--tracking-caps); text-transform: uppercase; text-align: left; }
+  .stv-go__btn .icon { width: 1.4em; height: 1.4em; flex: none; }
+  .stv-credits { display: flex; flex-wrap: wrap; gap: --spacing(1) --spacing(3); margin: 0; font-size: var(--text-sm); color: var(--color-np-on-night-muted); }
+  .stv-credits span + span::before { content: "·"; margin-right: --spacing(3); color: var(--color-np-sun); }
+  .stv-credits__orig { display: inline-flex; align-items: center; min-height: var(--spacing-tap); color: var(--color-np-sun); text-decoration: underline; }
+  .stv-credits__orig:hover { color: var(--color-np-lime); }
+  .meter--tv { margin: 0; box-shadow: 6px 6px 0 var(--color-np-cobalt); }
+
+  /* Next on Gatecast: the strip of other channels, the same category first. */
+  .stv-next { padding-top: --spacing(2); }
+  .stv-next__h { margin: 0 0 --spacing(4); font-family: var(--font-slab); font-weight: 400; font-size: var(--text-tv-next); line-height: 1; color: var(--color-np-on-night); }
+  .stv-next__h::after { content: ""; display: block; width: 5.5rem; height: 6px; margin-top: --spacing(2); background: var(--color-np-sun); }
+  .stv-next__list { display: grid; gap: --spacing(4); grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr)); margin: 0; padding: 0; list-style: none; }
+  .stv-next__item { display: grid; align-content: start; gap: --spacing(2); height: 100%; padding: --spacing(3.5); background: var(--color-np-card); color: var(--color-np-ink); border: 2px solid var(--color-np-ink); box-shadow: 5px 5px 0 var(--color-np-cobalt); text-decoration: none; transition: transform var(--duration-fast, 80ms) ease, box-shadow var(--duration-fast, 80ms) ease; }
+  .stv-next__item:hover { color: var(--color-np-ink); transform: translate(-2px, -2px); box-shadow: 7px 7px 0 var(--color-np-sun); }
+  .stv-next__item:hover .stv-next__t { text-decoration: underline; }
+  .stv-next__ch { font-family: var(--font-pixel); font-size: var(--text-lg); line-height: 1; color: var(--color-np-cobalt); }
+  .stv-next__cat { justify-self: start; font-size: var(--text-xs); padding: 1px --spacing(1.5); }
+  .stv-next__t { font-weight: 700; font-size: var(--text-lg); line-height: 1.3; }
+  .stv-next__src { font-family: var(--font-pixel); font-size: var(--text-sign); line-height: 1; color: var(--color-np-muted); }
+
+  /* The control deck: dark plastic with speaker grilles, two channel buttons and the channel dial between them. */
+  .stv__deck { position: relative; z-index: 2; display: flex; align-items: center; justify-content: center; gap: clamp(0.75rem, 0.5rem + 1.5vw, 2rem); padding: --spacing(2.5) var(--spacing-gutter) calc(--spacing(2.5) + env(safe-area-inset-bottom)); background: linear-gradient(180deg, var(--color-tv-plastic-hi), var(--color-tv-plastic) 30%); border-top: 2px solid var(--color-np-ink); }
+  .stv__deck::before, .stv__deck::after { content: ""; position: absolute; top: --spacing(2.5); bottom: calc(--spacing(2.5) + env(safe-area-inset-bottom)); width: clamp(0px, 18vw - 3rem, 14rem); background: radial-gradient(rgb(0 0 0 / 0.55) 1.6px, transparent 2px) 0 0 / 7px 7px; border-radius: 4px; }
+  .stv__deck::before { left: var(--spacing-gutter); }
+  .stv__deck::after { right: var(--spacing-gutter); }
+  .stv__knob { display: inline-flex; align-items: center; gap: --spacing(2); min-height: 3.25rem; min-width: 3.25rem; padding: 0 --spacing(4); border: 2px solid var(--color-np-ink); border-radius: 2px; background: var(--color-np-card); color: var(--color-np-ink); box-shadow: var(--shadow-bevel), 3px 3px 0 var(--color-np-shadow-ink); font: inherit; font-family: var(--font-sign); font-weight: 800; font-size: var(--text-lg); letter-spacing: var(--tracking-caps); text-transform: uppercase; cursor: pointer; transition: transform var(--duration-fast, 80ms) ease, box-shadow var(--duration-fast, 80ms) ease; }
+  .stv__knob svg { width: 1.3em; height: 1.3em; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+  .stv__knob:hover { transform: translate(-1px, -1px); box-shadow: var(--shadow-bevel), 4px 4px 0 var(--color-np-shadow-ink); }
+  .stv__knob:active { transform: translate(2px, 2px); box-shadow: var(--shadow-bevel-in), 1px 1px 0 var(--color-np-shadow-ink); }
+  .stv__knob:disabled { opacity: 0.5; cursor: default; transform: none; }
+  .stv__dial { --dial: 0deg; display: grid; place-items: center; width: 4.25rem; height: 4.25rem; flex: none; border-radius: 50%; background: conic-gradient(from 0deg, var(--color-tv-plastic-hi), var(--color-np-ink), var(--color-tv-plastic-hi), var(--color-np-ink), var(--color-tv-plastic-hi)); border: 2px solid var(--color-np-ink); box-shadow: 0 3px 0 rgb(0 0 0 / 0.5); }
+  .stv__dial-face { position: relative; display: grid; place-items: center; width: 3.1rem; height: 3.1rem; border-radius: 50%; background: var(--color-np-night); rotate: var(--dial); transition: rotate 300ms cubic-bezier(0.2, 1.4, 0.4, 1); }
+  .stv__dial-face::before { content: ""; position: absolute; top: 3px; left: 50%; width: 3px; height: 9px; translate: -50% 0; background: var(--color-np-sun); border-radius: 2px; }
+  .stv__dial-n { rotate: calc(-1 * var(--dial)); font-family: var(--font-pixel); font-size: var(--text-sub); line-height: 1; color: var(--color-np-sun); transition: rotate 300ms cubic-bezier(0.2, 1.4, 0.4, 1); }
+
+  /* ---------- The station ident: static, then the title card ---------- */
+  /* The static and the ident play on the screen only: the bar and the deck stay put, like the set around a tube. */
+  .stv__bar { grid-row: 1; grid-column: 1; }
+  .stv__screen { grid-row: 2; grid-column: 1; }
+  .stv__deck { grid-row: 3; grid-column: 1; }
+  .stv__fx { grid-row: 2; grid-column: 1; position: relative; z-index: 5; pointer-events: none; opacity: 0; display: grid; place-items: center; overflow: hidden; }
+  .stv__static { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; opacity: 0; }
+  .stv.is-static .stv__fx, .stv.is-ident .stv__fx { opacity: 1; }
+  .stv.is-static .stv__static { opacity: 0.92; }
+  .stv.is-ident .stv__fx { background: rgb(0 0 0 / 0.42); }
+  .stv__card { --card-bg: var(--color-np-sun); --card-fg: var(--color-np-on-sun); position: relative; display: grid; justify-items: start; gap: --spacing(2); max-width: min(92vw, 60rem); padding: clamp(1rem, 0.6rem + 1.6vw, 2.25rem) clamp(1.25rem, 0.8rem + 2vw, 3rem); background: var(--card-bg); color: var(--card-fg); border: 4px solid var(--color-np-ink); box-shadow: 16px 16px 0 var(--color-np-ink), 16px 16px 0 6px var(--color-np-lime); rotate: -7deg; opacity: 0; }
+  .stv__card[data-tone="cobalt"] { --card-bg: var(--color-np-cobalt); --card-fg: var(--color-np-on-cobalt); }
+  .stv__card[data-tone="lime"] { --card-bg: var(--color-np-lime); --card-fg: var(--color-np-on-lime); }
+  .stv__card[data-tone="card"] { --card-bg: var(--color-np-card); --card-fg: var(--color-np-ink); }
+  .stv__card[data-tone="ink"] { --card-bg: var(--color-np-night); --card-fg: var(--color-np-sun); }
+  .stv__card-ch { padding: 2px --spacing(2); background: var(--color-np-night); color: var(--color-np-sun); font-family: var(--font-pixel); font-size: var(--text-sub); line-height: 1; }
+  .stv__card-t { font-family: var(--font-slab); font-size: var(--text-tv-card); line-height: 0.92; text-transform: uppercase; overflow-wrap: anywhere; }
+  .stv__card-sub { font-family: var(--font-sign); font-weight: 800; font-size: var(--text-base); letter-spacing: var(--tracking-label); text-transform: uppercase; }
+  .stv.is-ident .stv__card { animation: stv-card var(--ident, 780ms) var(--ease-out) forwards; }
+  @keyframes stv-card {
+    0% { opacity: 0; transform: scale(1.7) rotate(-10deg); }
+    16% { opacity: 1; transform: scale(0.94) rotate(2deg); }
+    26% { transform: scale(1.03) rotate(-1deg); }
+    34%, 78% { opacity: 1; transform: scale(1) rotate(0deg); }
+    100% { opacity: 0; transform: translate(-6vw, -38vh) scale(0.55) rotate(-8deg); }
+  }
+
+  /* While the ident runs the spread waits; then its blocks drop in one after another, like cut-outs pasted down. */
+  .stv:is(.is-static, .is-ident) .stv__content { opacity: 0; }
+  .stv.is-in .stv-block { animation: stv-drop 460ms var(--ease-out) backwards; animation-delay: calc(var(--i, 0) * 70ms); }
+  .stv.is-in .stv-lower { animation: stv-lower 520ms var(--ease-out) 220ms backwards; }
+  @keyframes stv-drop { from { opacity: 0; transform: translateY(-22px) rotate(-2.5deg) scale(1.02); } }
+  @keyframes stv-lower { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+
+  /* ---------- Phones ---------- */
+  @media (width < theme(--breakpoint-md)) {
+    .stv__bar { gap: --spacing(2); padding-inline: --spacing(3); }
+    .stv__bug-gc, .stv__bug-tv { font-size: var(--text-sm); }
+    .stv__ch { font-size: var(--text-lg); }
+    .stv__ch-of { display: none; }
+    .stv__btn { padding: 0 --spacing(2.5); }
+    .stv__copy span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    .stv__knob-long { display: none; }
+    .stv__deck::before, .stv__deck::after { display: none; }
+    .stv__knob { flex: 1 1 0; justify-content: center; }
+    .stv-hero { box-shadow: 6px 6px 0 var(--color-np-cobalt); rotate: none; }
+    .stv-hero__ch { display: none; }
+    .stv-media { box-shadow: 6px 6px 0 var(--color-np-sun); rotate: none; }
+    .stv-hook { rotate: -0.6deg; }
+    .stv-words { rotate: none; }
+    .stv-lower__out, .stv-lower__date { font-size: var(--text-lg); }
+    .stv-next__list { grid-template-columns: minmax(0, 1fr); gap: --spacing(3); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .stv__fx { display: none; }
+    .stv .stv-block, .stv .stv-lower, .stv__card { animation: none !important; }
+    .stv:is(.is-static, .is-ident) .stv__content { opacity: 1; }
+    .stv-next__item:hover { transform: none; }
+  }
+  @media (forced-colors: active) {
+    .stv__knob, .stv__btn, .stv-next__item { border-color: CanvasText; }
+    .stv__set::after, .stv-media__glass::after { display: none; }
+  }
+}

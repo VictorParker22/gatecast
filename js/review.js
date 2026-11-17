@@ -29,6 +29,8 @@ import {
   cleanPick, pickBlock, picksForView, tipsForView, tipHost, pickFromTip, pickSaveError, pickTimeline,
   HOOK_LABEL, HOOK_GUIDANCE, hookChecks, hookDraftRequest, hookSuggestions, hookDraftNotes, clicksLabel,
   pickMediaView, pickVideoLink, mediaColumnsMissing, MEDIA_OFF,
+  summaryChecks, SUMMARY_LABEL, SUMMARY_GUIDANCE, summaryDraftRequest, summarySuggestions, summaryDraftNotes, summaryColumnsMissing,
+  SUMMARY_OFF, SUMMARY_COLUMNS, classifyMediaLink,
   BOOKS_OFF, STACKS_LIMITS, RELATION_LABEL, SUB_STATUS_LABEL, COPY_RUN, approvalFromSubmission, approveErrors, cleanApproval,
   descriptionChecks, stacksReplyError, pendingCount, booksRows, currentFeatured, featuredErrors, weekLabel, thisMonday,
   openLibraryIsbnUrl, coverImageUrl, coverFromEdition,
@@ -66,6 +68,7 @@ const S = {
   weirdSources: [], weirdSourcesOff: false,
   // hook: the pick form's "Draft with Claude" (suggestions are only ever inserted by a click, never saved by it).
   hook: { busy: false, started: 0, reply: null, error: '', readPage: false },
+  sum: { busy: false, started: 0, reply: null, error: '', readPage: false, notes: '' },
   // clicks: pick id -> clicks in the last 7 days (published picks), clicksOn: false until the migration is applied.
   clicks: {}, clicksOn: true,
   // favRow: the front page's favourites row as visitors see it now (null while loading), favsOpen: the panel.
@@ -76,6 +79,8 @@ const S = {
   stacks: { off: null, error: null, subs: [], books: [], featured: [], site: null, draft: null, featDraft: null, cover: null },
 };
 const freshHook = () => ({ busy: false, started: 0, reply: null, error: '', readPage: false });
+// The summary's "Draft with Claude": like the hook's, plus the editor's notes (facts for Claude, never saved).
+const freshSum = () => ({ busy: false, started: 0, reply: null, error: '', readPage: false, notes: '' });
 
 /* ---------- Session ---------- */
 
@@ -612,7 +617,7 @@ async function select(id, { focus = true } = {}) {
   S.selected = id;
   S.creating = false;
   S.editTopic = false; S.editStatement = null; S.topicDraft = null; S.prefill = null; S.editValues = null; S.noteDraft = ''; S.draftUrl = null;
-  S.editPick = false; S.pickDraft = null; S.hook = freshHook();
+  S.editPick = false; S.pickDraft = null; S.hook = freshHook(); S.sum = freshSum();
   S.stacks.draft = null; S.stacks.cover = null; S.stacks.featDraft = null;
   setPane('detail');
   renderList();
@@ -1052,7 +1057,7 @@ async function setStatus(status, { ok, verb }) {
 }
 
 async function act(name, btn) {
-  if (/^(tip|pick|hook)-|^(edit|cancel)-pick$/.test(name)) return weirdAct(name, btn);
+  if (/^(tip|pick|hook|summary)-|^(edit|cancel)-pick$/.test(name)) return weirdAct(name, btn);
   if (/^(sub|book|feat)-/.test(name)) return booksAct(name, btn);
   const t = topic(S.selected);
   switch (name) {
@@ -1237,12 +1242,24 @@ function tipDetail(t) {
 // more than the front page does) and a link to the video on YouTube. The picture: loaded from the publisher in the
 // reviewer's browser, with its size once it arrives (pickMediaLoaded), so the editor sees it before saving.
 // A link that breaks the rules has no preview: its problem is shown on the field's own error line (mediaErrors).
+// Any provider (js/mediaproviders.js): Gatecast's still when the provider has one (YouTube, Vimeo, TikTok), else
+// Gatecast's own poster with the provider's name (Facebook, X, Instagram), as readers see the facade.
 function videoPreviewHTML(m) {
   if (!m || m.problem) return '';
+  const still = m.thumb
+    ? `<img src="${esc(m.thumb)}" alt="" width="480" height="360" data-media-preview="video">`
+    : `<span class="rv-media__poster" aria-hidden="true"><b>${esc(m.name)}</b><span>VIDEO</span></span>`;
+  const msg = !m.embeddable
+    ? 'Instagram videos cannot be embedded: readers get a card that links to the post. Nothing of Instagram’s loads on Gatecast.'
+    : m.thumb
+      ? `The still comes from Gatecast. Readers see it with a play button; ${m.name} loads only when they press Play. The site checks the video with ${m.name} first and leaves it out if it is private or may not be embedded.`
+      : m.provider === 'facebook'
+        ? 'Readers see Gatecast’s own poster with a play button; Facebook loads only when they press Play. Facebook videos cannot be checked beforehand: open the link and make sure it is public.'
+        : `Readers see Gatecast’s own poster with a play button; ${m.name} loads only when they press Play. The site checks the post with ${m.name} first.`;
   return `<figure class="rv-media__fig rv-media__fig--video">
-      <span class="rv-media__frame"><img src="${esc(m.thumb)}" alt="" width="480" height="360" data-media-preview="video"><span class="rv-media__knob" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z"/></svg></span></span>
-      <figcaption><span>YouTube video <code>${esc(m.id)}</code></span> ${ext(m.watch, 'Watch it on YouTube')}
-        <span class="rv-media__msg" data-media-status="video">The still comes from Gatecast. Readers see it with a play button.</span></figcaption>
+      <span class="rv-media__frame">${still}<span class="rv-media__knob" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z"/></svg></span></span>
+      <figcaption><span>${esc(m.name)} video <code>${esc(m.id.length > 40 ? `${m.id.slice(0, 40)}…` : m.id)}</code></span> ${ext(m.watch, `Watch it on ${m.name}`)}
+        <span class="rv-media__msg" data-media-status="video">${esc(msg)}</span></figcaption>
     </figure>`;
 }
 function imagePreviewHTML(m) {
@@ -1279,7 +1296,7 @@ function pickMediaLoaded(img, ok) {
   if (!msg) return;
   const w = img.naturalWidth, h = img.naturalHeight;
   if (kind === 'video') {
-    if (!ok) { msg.textContent = 'YouTube has no still for this video. Check the link: the video may be private or removed.'; msg.classList.add('is-bad'); }
+    if (!ok) { msg.textContent = 'There is no still for this video. Check the link: the video may be private, removed or not embeddable.'; msg.classList.add('is-bad'); }
     return;
   }
   if (!ok) { msg.textContent = 'This picture did not load here. Check the link; the site may also refuse to show it on other sites.'; msg.classList.add('is-bad'); img.closest('.rv-media__frame')?.classList.add('is-empty'); return; }
@@ -1289,8 +1306,8 @@ function pickMediaLoaded(img, ok) {
 }
 
 function pickForm(p, { create = false } = {}) {
-  const base = p ? { ...p, rating: p.rating ?? '', note: p.note ?? '', published: p.published ?? '', video: pickVideoLink(p.video_id), image_url: p.image_url ?? '' }
-    : { url: '', title: '', outlet: '', published: '', category: 'other', rating: '', note: '', video: '', image_url: '' };
+  const base = p ? { ...p, rating: p.rating ?? '', note: p.note ?? '', published: p.published ?? '', video: pickVideoLink(p), image_url: p.image_url ?? '', summary: p.summary ?? '' }
+    : { url: '', title: '', outlet: '', published: '', category: 'other', rating: '', note: '', video: '', image_url: '', summary: '' };
   for (const k of Object.keys(previewKey)) delete previewKey[k];
   const v = { ...base, ...(S.pickDraft || {}) };
   const mv = pickMediaView(v, mediaOpts());
@@ -1308,11 +1325,16 @@ function pickForm(p, { create = false } = {}) {
     </div>
     <fieldset class="rv-media">
       <legend>Picture or video <span class="rv-hint">optional; without either the front page shows the story text-led</span></legend>
-      ${field('pk-video', 'Video (YouTube link)', `<input id="pk-video" name="video" type="url" inputmode="url" placeholder="https://www.youtube.com/watch?v=…" value="${esc(v.video)}" aria-describedby="pk-video-err pk-video-preview">`, { hint: 'a click-to-play still; YouTube loads only when a reader presses Play', error: mv.video?.problem || '' })}
+      <div class="rv-field rv-media__any">
+        <label for="pk-media">Media: paste any link</label>
+        <input id="pk-media" type="url" inputmode="url" placeholder="A video (YouTube, Vimeo, Facebook, X, TikTok, Instagram) or a picture" aria-describedby="pk-media-say">
+        <p class="rv-muted" id="pk-media-say" aria-live="polite">Paste a video or a picture link: it goes in the right field below. For outlets that block automated reads (UPI), this is how a story gets its picture or video.</p>
+      </div>
+      ${field('pk-video', 'Video (YouTube, Vimeo, Facebook, X, TikTok or Instagram link)', `<input id="pk-video" name="video" type="url" inputmode="url" placeholder="https://…" value="${esc(v.video)}" aria-describedby="pk-video-err pk-video-preview">`, { hint: 'a click-to-play still or poster; the provider loads only when a reader presses Play', error: mv.video?.problem || '' })}
       <div class="rv-media__preview" id="pk-video-preview" aria-live="polite">${videoPreviewHTML(mv.video)}</div>
       ${field('pk-image', 'Picture (link to the image)', `<input id="pk-image" name="image_url" type="url" inputmode="url" placeholder="https://" value="${esc(v.image_url)}" aria-describedby="pk-image-err pk-image-preview">`, { hint: 'on the story’s own site or its image server', error: mv.image?.problem || '' })}
       <div class="rv-media__preview" id="pk-image-preview" aria-live="polite">${imagePreviewHTML(mv.image)}</div>
-      <p class="rv-muted">With both, the front page shows the picture with a small “Has video” button. A video is checked with YouTube before it is shown; one that is gone or may not be embedded is left out.</p>
+      <p class="rv-muted">With both, the front page shows the picture with a small “Has video” button. A YouTube, Vimeo, X or TikTok video is checked with its provider before it is shown; one that is gone, private or may not be embedded is left out.</p>
     </fieldset>
     <div class="rv-hook">
       ${field('pk-note', esc(HOOK_LABEL), `<textarea id="pk-note" name="note" rows="2" aria-describedby="pk-note-err pk-note-n pk-hook-checks">${esc(v.note)}</textarea>`, { hint: 'optional, one line; never the article’s text', counterId: counterHTML('pk-note-n', v.note, PICK_LIMITS.note) })}
@@ -1323,6 +1345,20 @@ function pickForm(p, { create = false } = {}) {
         <label class="rv-check"><input type="checkbox" id="pk-hook-read"${S.hook.readPage ? ' checked' : ''}> Let Claude read the story page</label>
       </div>
       <div class="rv-hook__out" id="pk-hook-out" aria-live="polite">${hookOutHTML()}</div>
+    </div>
+    <div class="rv-hook rv-summary">
+      ${field('pk-summary', esc(SUMMARY_LABEL), `<textarea id="pk-summary" name="summary" rows="5" aria-describedby="pk-summary-err pk-summary-n pk-summary-checks">${esc(v.summary)}</textarea>`, { hint: 'optional; shown in story mode as “In our words”. Never the article’s text', counterId: counterHTML('pk-summary-n', v.summary, PICK_LIMITS.summary) })}
+      <p class="rv-muted">${esc(SUMMARY_GUIDANCE)}</p>
+      ${summaryChecksHTML(v.summary, v.title)}
+      <div class="rv-field">
+        <label for="pk-notes">Notes for Claude <span class="rv-hint">optional, not saved: facts you know, in your own words</span></label>
+        <textarea id="pk-notes" rows="2" maxlength="${PICK_LIMITS.notes}" placeholder="e.g. Anchorage, Monday morning, three stops, nobody hurt">${esc(S.sum.notes)}</textarea>
+      </div>
+      <div class="rv-hook__draft">
+        <button type="button" class="btn btn--ghost rv-btn--sm" data-act="summary-draft"${S.sum.busy ? ' disabled' : ''}>Draft with Claude</button>
+        <label class="rv-check"><input type="checkbox" id="pk-summary-read"${S.sum.readPage ? ' checked' : ''}> Let Claude read the story page</label>
+      </div>
+      <div class="rv-hook__out" id="pk-summary-out" aria-live="polite">${summaryOutHTML()}</div>
     </div>
     <div class="rv-form__actions">
       <button type="submit" class="btn btn--primary">${create ? 'Save draft' : 'Save pick'}</button>
@@ -1356,6 +1392,52 @@ function hookOutHTML() {
         <span class="sr-only">Use this hook</span></button></li>`).join('')}</ul>` : ''}
     ${notes.length ? `<ul class="rv-hook__notes">${notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}`;
 }
+// The summary's live checklist (js/summaryrules.js, the same rules the assistant applies): length, 2-4 sentences and
+// no run of 8+ words from the headline or the page Claude read are hard rules; the full stop and calm tone are warnings.
+function summaryChecksHTML(text, title) {
+  const grams = Array.isArray(S.sum.reply?.page_grams) ? S.sum.reply.page_grams : null;
+  return `<ul class="rv-checks" id="pk-summary-checks" aria-label="Summary checklist">${summaryChecks(text, { title, pageGrams: grams }).map((c) => `<li class="rv-check-item${c.ok ? ' is-ok' : c.hard ? ' is-bad' : ' is-warn'}">
+      ${c.ok ? ICON_YES : c.hard ? ICON_NO : MARK_WARN}<span>${esc(c.label)}${c.detail ? ` <span class="rv-muted">${esc(c.detail)}</span>` : ''}</span>
+      <span class="sr-only">${c.ok ? 'passes' : c.hard ? 'must be fixed before saving' : 'warning'}</span></li>`).join('')}</ul>`;
+}
+function summaryOutHTML() {
+  const h = S.sum;
+  if (h.busy) return waiting(h.started, 'Asking Claude for a summary.');
+  if (h.error) return `<p class="rv-err">${esc(h.error)}</p>`;
+  if (!h.reply) return '';
+  const list = summarySuggestions(h.reply, { title: $('#pk-title')?.value || '' });
+  const notes = summaryDraftNotes(h.reply);
+  return `${list.length ? `<p class="rv-assist__sub">Claude suggests. Click one to put it in the field, edit it, then save the pick.</p>
+    <ul class="rv-hooks">${list.map((x, i) => `<li><button type="button" class="rv-hook__pick" data-act="summary-use" data-i="${i}">
+        <span class="rv-hook__text rv-summary__text">${esc(x.text)}</span>
+        <span class="rv-muted">${x.basis ? `From: ${esc(x.basis)}` : ''}${x.checks.every((c) => c.ok) ? '' : ` · ${esc(x.checks.filter((c) => !c.ok).map((c) => c.label).join('; '))}`}</span>
+        <span class="sr-only">Use this summary</span></button></li>`).join('')}</ul>` : ''}
+    ${notes.length ? `<ul class="rv-hook__notes">${notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}`;
+}
+const renderSummaryOut = () => { const el = $('#pk-summary-out'); if (el) el.innerHTML = summaryOutHTML(); const b = $('[data-act="summary-draft"]'); if (b) b.disabled = S.sum.busy; };
+function syncSummaryField(ta) {
+  const out = document.getElementById('pk-summary-n');
+  if (out) { const c = counter(ta.value, PICK_LIMITS.summary); out.textContent = c.text; out.classList.toggle('is-over', c.over); }
+  const list = document.getElementById('pk-summary-checks');
+  if (list) list.outerHTML = summaryChecksHTML(ta.value, $('#pk-title')?.value || '');
+}
+// The single Media box: a pasted link goes to the Video or the Picture field, whichever it is.
+function routeMediaLink(input) {
+  const say = document.getElementById('pk-media-say');
+  const c = classifyMediaLink(input.value);
+  const form = input.form;
+  if (c.kind === 'empty') { if (say) say.textContent = 'Paste a video or a picture link: it goes in the right field below.'; return; }
+  if (c.kind === 'unknown') { if (say) say.textContent = c.problem; input.setAttribute('aria-invalid', 'true'); return; }
+  input.removeAttribute('aria-invalid');
+  const target = document.getElementById(c.kind === 'video' ? 'pk-video' : 'pk-image');
+  if (!target || !form) return;
+  target.value = c.kind === 'video' ? input.value.trim() : c.url;
+  S.pickDraft = { ...(S.pickDraft || {}), [target.name]: target.value };
+  if (say) say.textContent = c.kind === 'video' ? `That is a ${PROVIDER_NAME[c.provider] || 'video'} video: it is now in the Video field.` : 'That looks like a picture: it is now in the Picture field, checked against the story’s site.';
+  syncMediaPreview(form);
+}
+const PROVIDER_NAME = { youtube: 'YouTube', vimeo: 'Vimeo', facebook: 'Facebook', x: 'X', tiktok: 'TikTok', instagram: 'Instagram' };
+
 const renderHookOut = () => { const el = $('#pk-hook-out'); if (el) el.innerHTML = hookOutHTML(); const b = $('[data-act="hook-draft"]'); if (b) b.disabled = S.hook.busy; };
 
 function newPickDetail() {
@@ -1392,11 +1474,12 @@ function pickDetail(p) {
         <p>${href ? ext(href, `Read it at ${p.outlet}`) : 'No valid link'}</p>
         <dl class="rv-dl">
           <dt>Hook</dt><dd>${p.note ? esc(p.note) : '<span class="rv-quiet">No hook.</span>'}</dd>
+          <dt>Summary</dt><dd>${p.summary ? esc(p.summary) : '<span class="rv-quiet">No summary: story mode shows the headline, the media and the link.</span>'}</dd>
           ${p.status === 'published' && S.clicksOn && clicksLabel(S.clicks[p.id]) ? `<dt>Clicks</dt><dd>${esc(clicksLabel(S.clicks[p.id]))} <span class="rv-muted">(anonymous totals, from the front page)</span></dd>` : ''}
           <dt>Your rating</dt><dd>${p.rating ? `${esc(p.rating)} of 5: ${esc(RATING_WORD[p.rating])}` : 'Unrated'}</dd>
-          <dt>Video</dt><dd>${p.video_id ? ext(pickVideoLink(p.video_id), `YouTube ${p.video_id}`) : '<span class="rv-quiet">None</span>'}</dd>
+          <dt>Video</dt><dd>${pickVideoLink(p) ? ext(pickVideoLink(p), `${PROVIDER_NAME[p.video_provider] || 'YouTube'} video`) : '<span class="rv-quiet">None</span>'}</dd>
           <dt>Picture</dt><dd>${p.image_url && safeUrl(p.image_url) ? ext(safeUrl(p.image_url), hostOf(p.image_url) || 'Picture') : '<span class="rv-quiet">None</span>'}</dd>
-          ${!p.video_id && !p.image_url ? '<dd class="rv-dl__note rv-muted">Without a picture or a video the front page shows this story text-led, unless the outlet’s feed has a picture for it.</dd>' : ''}
+          ${!pickVideoLink(p) && !p.image_url ? '<dd class="rv-dl__note rv-muted">Without a picture or a video the front page shows this story text-led, unless the outlet’s feed has a picture for it.</dd>' : ''}
           <dt>Link</dt><dd class="rv-tip__url">${esc(p.url)}</dd>
         </dl>`}
     </section>
@@ -1411,21 +1494,28 @@ function pickDetail(p) {
 async function submitPick(form) {
   const create = form.dataset.create === '1';
   const f = Object.fromEntries(new FormData(form));
-  if (!showErrors(form, 'pk', pickErrors(f, mediaOpts()), { image_url: 'image' })) return;
+  if (!showErrors(form, 'pk', pickErrors(f, { ...mediaOpts(), pageGrams: S.sum.reply?.page_grams || null }), { image_url: 'image' })) return;
   const btn = $('button[type="submit"]', form);
   btn.disabled = true;
   const body = cleanPick(f);
   const save = (b) => (create ? change('weird_picks', 'POST', b) : change(`weird_picks?id=eq.${S.selected}`, 'PATCH', b));
   let r = await save(body);
+  // Before the pick-summary migration its three columns do not exist: a pick without a summary and without a
+  // non-YouTube video still saves (its YouTube video goes in video_id as before).
+  if (!r.ok && summaryColumnsMissing(r.status, r.data)) {
+    if (body.summary || (body.video_provider && body.video_provider !== 'youtube')) { btn.disabled = false; return toast(SUMMARY_OFF, { error: true }); }
+    for (const k of SUMMARY_COLUMNS) delete body[k];
+    r = await save(body);
+  }
   // Before the pick-media migration the two columns do not exist: a pick without media still saves.
   if (!r.ok && mediaColumnsMissing(r.status, r.data)) {
     if (body.video_id || body.image_url) { btn.disabled = false; return toast(MEDIA_OFF, { error: true }); }
-    const { video_id: _v, image_url: _i, ...rest } = body;
+    const { video_id: _v, image_url: _i, summary: _s, video_provider: _p, video_ref: _r, ...rest } = body;
     r = await save(rest);
   }
   btn.disabled = false;
   if (!r.ok) return toast(`Couldn’t save the pick: ${pickSaveError(r.status, r.data)}`, { error: true });
-  S.pickDraft = null; S.editPick = false; S.hook = freshHook();
+  S.pickDraft = null; S.editPick = false; S.hook = freshHook(); S.sum = freshSum();
   toast(create ? 'Pick saved as a draft. Publish it when it is ready.' : 'Pick saved');
   await loadWeird();
   if (create) {
@@ -1471,7 +1561,7 @@ async function weirdAct(name, btn) {
         await select(existing.id);
         return;
       }
-      S.creating = true; S.selected = null; S.active = -1; S.editPick = false; S.pickDraft = pickFromTip(tip); S.hook = freshHook();
+      S.creating = true; S.selected = null; S.active = -1; S.editPick = false; S.pickDraft = pickFromTip(tip); S.hook = freshHook(); S.sum = freshSum();
       setPane('detail');
       renderAll();
       $('#pk-title')?.focus();
@@ -1491,8 +1581,20 @@ async function weirdAct(name, btn) {
       ($('#detail-title') || $('#rows'))?.focus();
       return;
     }
-    case 'edit-pick': S.editPick = true; S.pickDraft = null; S.hook = freshHook(); renderDetail(); $('#pk-url')?.focus(); return;
+    case 'edit-pick': S.editPick = true; S.pickDraft = null; S.hook = freshHook(); S.sum = freshSum(); renderDetail(); $('#pk-url')?.focus(); return;
     case 'hook-draft': return draftHook();
+    case 'summary-draft': return draftSummary();
+    case 'summary-use': {
+      const x = summarySuggestions(S.sum.reply, { title: $('#pk-title')?.value || '' })[Number(btn?.dataset.i)];
+      const ta = $('#pk-summary');
+      if (!x || !ta) return;
+      ta.value = x.text;
+      S.pickDraft = { ...(S.pickDraft || {}), summary: x.text };
+      syncSummaryField(ta);
+      ta.focus();
+      toast('Summary inserted. Edit it in your own words if you like, then save the pick. Nothing is saved until you do.');
+      return;
+    }
     case 'hook-use': {
       const x = hookSuggestions(S.hook.reply)[Number(btn?.dataset.i)];
       const ta = $('#pk-note');
@@ -1505,7 +1607,7 @@ async function weirdAct(name, btn) {
       return;
     }
     case 'cancel-pick':
-      S.pickDraft = null; S.hook = freshHook();
+      S.pickDraft = null; S.hook = freshHook(); S.sum = freshSum();
       if (S.creating) { S.creating = false; setPane('list'); renderDetail(); $('#new-pick')?.focus(); return; }
       S.editPick = false; renderDetail(); $('#pick-story-title')?.focus(); return;
     case 'pick-publish':
@@ -1562,6 +1664,24 @@ async function draftHook() {
   retick();
   renderHookOut();
   if (out.kind === 'ok') $('.rv-hook__pick')?.focus();
+}
+
+// Ask the assistant for up to two summaries from the headline, the editor's notes and (if ticked) the story page.
+async function draftSummary() {
+  const form = $('#pick-form');
+  if (!form || S.sum.busy) return;
+  const req = summaryDraftRequest(Object.fromEntries(new FormData(form)), { readPage: S.sum.readPage, notes: S.sum.notes });
+  if (!req.ok) { S.sum = { ...S.sum, reply: null, error: req.message }; renderSummaryOut(); (S.sum.readPage ? $('#pk-url') : $('#pk-title'))?.focus(); return; }
+  if (S.assist.off || S.assist.claudeOff) { S.sum = { ...S.sum, reply: null, error: S.assist.off || S.assist.claudeOff }; renderSummaryOut(); return; }
+  S.sum = { ...S.sum, busy: true, started: Date.now(), reply: null, error: '' };
+  renderSummaryOut(); tick(true);
+  const { out, data } = await assist(req.body);
+  S.sum = { ...S.sum, busy: false, reply: out.kind === 'ok' ? data : null, error: out.kind === 'ok' ? '' : out.message };
+  retick();
+  renderSummaryOut();
+  const ta = $('#pk-summary');
+  if (ta) syncSummaryField(ta); // the page Claude read now counts in the checklist
+  if (out.kind === 'ok') $('#pk-summary-out .rv-hook__pick')?.focus();
 }
 
 /* ---------- The Stacks: books put forward and the Book of the Week ---------- */
@@ -1943,7 +2063,7 @@ function wire() {
   const listPane = $('#list-pane');
   listPane.addEventListener('click', (e) => {
     if (e.target.closest('#new-pick')) {
-      S.creating = true; S.selected = null; S.pickDraft = null; S.editPick = false; S.hook = freshHook();
+      S.creating = true; S.selected = null; S.pickDraft = null; S.editPick = false; S.hook = freshHook(); S.sum = freshSum();
       setPane('detail'); renderList(); renderDetail(); $('#pk-url')?.focus();
       return;
     }
@@ -1996,11 +2116,16 @@ function wire() {
   detail.addEventListener('input', (e) => {
     const el = e.target;
     if (el.id === 'pk-hook-read') { S.hook.readPage = el.checked; return; }
+    if (el.id === 'pk-summary-read') { S.sum.readPage = el.checked; return; }
+    if (el.id === 'pk-notes') { S.sum.notes = el.value; return; }
+    if (el.id === 'pk-media') { routeMediaLink(el); return; }
+    if (el.id === 'pk-summary') syncSummaryField(el);
+    if (el.id === 'pk-title') { const ta = document.getElementById('pk-summary'); if (ta) syncSummaryField(ta); }
     if (el.id === 'pk-note') syncHookField(el);
     if (['pk-video', 'pk-image', 'pk-url', 'pk-outlet'].includes(el.id) && el.form) syncMediaPreview(el.form);
     if (el.form?.id === 'approve-form' || el.form?.id === 'feat-form') return booksInput(el);
     const pickForm = el.form?.id === 'pick-form';
-    const max = pickForm ? { title: PICK_LIMITS.title, note: PICK_LIMITS.note }[el.name]
+    const max = pickForm ? { title: PICK_LIMITS.title, note: PICK_LIMITS.note, summary: PICK_LIMITS.summary }[el.name]
       : { title: LIMITS.title, neutral_fact: LIMITS.neutral_fact, quote: LIMITS.quote, body: LIMITS.note }[el.name];
     const out = document.getElementById(`${el.id}-n`);
     if (max && out) { const c = counter(el.value, max); out.textContent = c.text; out.classList.toggle('is-over', c.over); }

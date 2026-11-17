@@ -303,8 +303,14 @@ export async function loadWeird({ limit = 30, category = null } = {}) {
           // A checked YouTube video: only the id and the words for its label; js/frontmodel.js cleanYoutube checks it again.
           youtube: x.youtube && typeof x.youtube === 'object' && /^[A-Za-z0-9_-]{11}$/.test(String(x.youtube.id))
             ? { id: x.youtube.id, title: text(x.youtube.title) || '', channel: text(x.youtube.channel) || '', duration: text(x.youtube.duration) } : null,
+          // The video from any provider (media.video: { provider, id, title, author, duration }); js/mediaproviders.js
+          // cleanVideo checks it again and rebuilds every address from the provider and id.
+          media: { video: x.media?.video && typeof x.media.video === 'object' && typeof x.media.video.provider === 'string' && typeof x.media.video.id === 'string'
+            ? { provider: x.media.video.provider, id: x.media.video.id, title: text(x.media.video.title) || '', author: text(x.media.video.author) || '', duration: text(x.media.video.duration) } : null },
           rating: pick && Number.isInteger(x.rating) && x.rating >= 1 && x.rating <= 5 ? x.rating : null,
           note: pick ? text(x.note) : null,
+          // The editor's own summary ("In our words"), picks only.
+          summary: pick ? text(x.summary) : null,
         };
       });
     const categories = counts();

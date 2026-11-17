@@ -73,8 +73,10 @@ test('/api/weird answer: contract shape, picks first, then newest; held items ne
   assert.deepEqual(Object.keys(out).sort(), ['categories', 'checkedAt', 'items', 'sources']);
   assert.equal(out.checkedAt, new Date(now).toISOString());
   for (const x of out.items) {
-    assert.deepEqual(Object.keys(x).sort(), ['category', 'id', 'image', 'imageCredit', 'note', 'outlet', 'outletUrl', 'pick', 'published', 'rating', 'title', 'url', 'video', 'youtube']);
+    assert.deepEqual(Object.keys(x).sort(), ['category', 'id', 'image', 'imageCredit', 'media', 'note', 'outlet', 'outletUrl', 'pick', 'published', 'rating', 'summary', 'title', 'url', 'video', 'youtube']);
     assert.equal(x.youtube, null, 'no video in these fixtures');
+    assert.deepEqual(x.media, { video: null });
+    if (!x.pick) assert.equal(x.summary, null, 'only picks carry the editor\'s summary');
     assert.match(x.url, /^https:\/\//);
     assert.match(x.id, /^[0-9a-f]{12}$/);
     assert.ok(CATEGORIES.includes(x.category));
@@ -113,18 +115,19 @@ test('/api/weird answer: contract shape, picks first, then newest; held items ne
   assert.equal(out.items.find((x) => x.title.startsWith('Hundreds gather')).image, null);
   assert.ok(!pagesRead.some((u) => u.includes('move-the-bean')));
 
-  // Then the regular outlets, newest day first, then the review outlet, without pictures. Outside UPI a story needs a
-  // weirdness signal: the cicada, the fog festival, the umbrellas and two Oddity Central stories have none.
+  // Then the regular outlets, mixed: within each freshness band (under 2 days, 2-7, 7-14, older) the outlets take
+  // turns, the outlet with the strangest story leading; then the review outlet, without pictures. Outside UPI a story
+  // needs a weirdness signal: the cicada, the fog festival, the umbrellas and two Oddity Central stories have none.
   const rest = out.items.slice(11);
   assert.deepEqual(rest.map((x) => x.title), [
-    'Strange lights over the desert baffle airline pilots',
-    'Bear raids kitchen cabinets in Tennessee cabin',
+    'Giant pumpkin weighing 2,000 pounds sets state record', // under 2 days: UPI's strangest (5) leads
+    'Strange lights over the desert baffle airline pilots', // then Live Science's
+    'Bear raids kitchen cabinets in Tennessee cabin', // then UPI's next, and Live Science's next
     "Octopus seen 'punching' fish that crowd its hunting spot",
-    'Giant pumpkin weighing 2,000 pounds sets state record',
-    'A Mysterious Stone Circle Puzzles Archaeologists in Scotland',
+    'A Mysterious Stone Circle Puzzles Archaeologists in Scotland', // 2-7 days: Smithsonian's (2) before UPI's (1)
     'Lottery player wins $100,000 with fortune cookie numbers', // the newer copy of a repeated address
-    'Town council bans garden gnomes from front lawns',
-    'Collector owns 4,000 rubber ducks', // same day as the loaf, but stranger, so first
+    'Town council bans garden gnomes from front lawns', // UPI's 4th of 12: only UPI is left, so it still runs
+    'Collector owns 4,000 rubber ducks', // the review outlet: stranger than the loaf, so first
     'Restaurant serves soup in a hollowed-out loaf the size of a car tyre',
   ]);
   assert.ok(rest.slice(-2).every((x) => x.outlet === 'Oddity Central' && x.image === null));
@@ -133,8 +136,8 @@ test('/api/weird answer: contract shape, picks first, then newest; held items ne
   assert.ok(out.items.every((x) => !/utm_/.test(x.url)));
   assert.ok(!pagesRead.some((u) => u.includes('odditycentral')));
 
-  // Held or dropped: arrests, a child with a crime, a mummy, a tapeworm, a named private person gone viral. Filtered:
-  // Live Science's space story. Too old: the October story. Repeated: the same address with tracking parameters.
+  // Held or dropped: arrests, a child with a crime, a mummy, a tapeworm, a named private person gone viral. Too
+  // ordinary: Live Science's space story (space passes its filter now, but the story has no weirdness signal). Too old: the October story. Repeated: the same address with tracking parameters.
   for (const gone of ['arrested', 'Teen charged', 'Mummified', 'tapeworm', 'goes viral', 'exoplanet', 'Old story', 'numbers from fortune cookie', 'Cicada', 'Fog', 'Umbrellas', 'radio', 'teapot']) {
     assert.ok(!titles.some((t) => t.includes(gone)), gone);
   }
@@ -173,16 +176,19 @@ test('/api/weird answer: contract shape, picks first, then newest; held items ne
 test('?debug=1 adds counts per rule and per source, and nothing else about what was held', async () => {
   const out = await weirdFor(get({ limit: '60', debug: '1' }), OPTS);
   assert.deepEqual(out.held, { H1: 1, H2: 1, H3: 1, H5: 2, H7: 1, H8: 1 });
+  // One row per feed, by its id (two feeds of one outlet share a name).
   const rows = Object.fromEntries(out.debug.sources.map((s) => [s.name, s]));
+  const byId = Object.fromEntries(out.debug.sources.map((s) => [s.id, s]));
+  assert.equal(out.debug.sources.length, sourceFile.sources.length);
   assert.deepEqual(rows.UPI, {
-    name: 'UPI', enabled: true, stale: null, ok: true, status: 200, error: null, items: 9, kept: 6, shown: 4, old: 1, filtered: 0, listicle: 0, held: 2, dull: 0,
+    id: 'upi-odd', name: 'UPI', enabled: true, stale: null, ok: true, status: 200, error: null, items: 9, kept: 6, shown: 4, old: 1, filtered: 0, listicle: 0, held: 2, dull: 0,
     labels: { 'Odd News': 2 },
   });
-  assert.deepEqual(rows['Live Science'], {
-    name: 'Live Science', enabled: true, stale: null, ok: true, status: 200, error: null, items: 4, kept: 2, shown: 2, old: 0, filtered: 1, listicle: 0, held: 1, dull: 0,
+  assert.deepEqual(byId.livescience, {
+    id: 'livescience', name: 'Live Science', enabled: true, stale: null, ok: true, status: 200, error: null, items: 4, kept: 2, shown: 2, old: 0, filtered: 0, listicle: 0, held: 1, dull: 1, // space now passes the filter, but this one is ordinary
     labels: { 'Strange news': 2, Space: 1, Animals: 1 },
   });
-  assert.equal(rows['Smithsonian Magazine'].dull, 1);
+  assert.equal(byId['smithsonian-smartnews'].dull, 1);
   assert.equal(rows['Atlas Obscura'].dull, 2);
   assert.equal(rows['Oddity Central'].stale, '2026-11-16');
   assert.equal(rows.NDTV.enabled, false);
@@ -313,7 +319,29 @@ test('data/weird-sources.json: https feeds, unique ids, checked notes, no non-co
   assert.deepEqual(sourceFile.sources.filter((s) => s.review).map((s) => s.id), ['odditycentral', 'ndtv-offbeat']);
   const byId = Object.fromEntries(sourceFile.sources.map((s) => [s.id, s]));
   assert.ok(byId.livescience.filter);
-  assert.deepEqual(['mentalfloss', 'smithsonian-smartnews', 'livescience', 'soranews24'].map((id) => byId[id].cap), [3, 3, 3, 2]);
+  assert.deepEqual(['mentalfloss', 'smithsonian-smartnews', 'livescience', 'soranews24', 'sciencedaily-strange'].map((id) => byId[id].cap), [3, 5, 4, 2, 6]);
+  // Feeds of one outlet share one count, so they carry the same cap, pictures switch and home site.
+  const byName = {};
+  for (const s of sourceFile.sources) (byName[s.name] = byName[s.name] || []).push(s);
+  for (const [name, list] of Object.entries(byName)) {
+    assert.equal(new Set(list.map((s) => s.cap)).size, 1, `${name} cap`);
+    assert.equal(new Set(list.map((s) => s.images)).size, 1, `${name} images`);
+    assert.equal(new Set(list.map((s) => new URL(s.home).hostname)).size, 1, `${name} home`);
+  }
+  // Every source records its window and its terms; evergreen outlets get longer windows.
+  for (const s of sourceFile.sources) {
+    assert.ok(Number.isInteger(s.maxAgeDays) && s.maxAgeDays >= 1 && s.maxAgeDays <= weird.LIMITS.maxAgeDaysCap, s.id);
+    assert.ok(typeof s.terms === 'string' && s.terms.length > 20, s.id);
+    assert.ok(typeof s.comment === 'string' && s.comment.length > 20, s.id);
+  }
+  assert.deepEqual(['atlasobscura', 'smithsonian-smartnews', 'mentalfloss', 'upi-odd'].map((id) => byId[id].maxAgeDays), [60, 45, 45, 14]);
+  // Candidates the sandbox could not reach are read for ?debug=1 only until a preview shows them working.
+  for (const id of ['iflscience', 'futurity', 'physorg', 'popsci']) assert.equal(byId[id].enabled, false, id);
+  assert.equal(byId['theconversation-science'].enabled, undefined);
+  assert.equal(byId['theconversation-science'].images, false, 'its images are not under its Creative Commons licence');
+  assert.equal(byId.atlasobscura.images, false, 'its pages answer with a bot challenge');
+  assert.ok(Array.isArray(sourceFile.evaluated) && sourceFile.evaluated.every((e) => e.id && e.why));
+  assert.ok(!sourceFile.evaluated.some((e) => byId[e.id]), 'an evaluated candidate is not also a source');
   assert.equal(byId['ndtv-offbeat'].enabled, false);
   assert.equal(byId['sky-offbeat'].stale, '2026-11-16');
   assert.equal(byId.odditycentral.stale, '2026-11-16');

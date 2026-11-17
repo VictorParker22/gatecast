@@ -22,7 +22,7 @@
     @apply d-input h-auto min-h-tap w-full rounded-sm border-np-ink bg-np-paper px-3 py-2 text-base text-inherit shadow-none;
     @apply focus:outline-3 focus:outline-offset-3 focus:outline-np-cobalt focus-within:outline-np-cobalt;
   }
-  .rv textarea, .rv-dialog textarea { @apply d-textarea block resize-y leading-normal; }
+  .rv textarea, .rv-dialog textarea { @apply d-textarea block resize-y leading-normal whitespace-pre-wrap; }
   .rv [aria-invalid="true"] { @apply border-np-ink shadow-[0_0_0_1px_var(--color-np-ink)]; }
   .rv-err { @apply text-sm font-semibold before:content-['!_']; }
   .rv-counter { @apply justify-self-end text-xs text-np-muted tabular-nums; &.is-over { @apply font-bold text-np-ink; } }
@@ -208,6 +208,10 @@
   .rv-media__fig--video .rv-media__frame img { @apply absolute top-1/2 left-1/2 h-[133.34%] w-auto max-w-none -translate-1/2; }
   .rv-media__knob { @apply absolute top-1/2 left-1/2 grid size-10 -translate-1/2 place-items-center rounded-sm border-2 border-np-ink bg-np-sun text-np-on-sun; & svg { @apply ml-0.5 size-5 fill-current; } }
   .rv-media__fig figcaption { @apply grid content-start gap-1 text-sm wrap-anywhere; & code { @apply font-mono text-xs; } }
+  /* A provider without a public still (Facebook, X, Instagram): Gatecast's own poster, as readers see it. */
+  .rv-media__poster { @apply absolute inset-0 grid content-start justify-items-center gap-0.5 pt-2 bg-np-night text-np-on-night; & b { @apply font-sign text-lg font-extrabold tracking-caps uppercase; } & span { @apply font-pixel text-sign text-np-sun; } }
+  .rv-media__any { @apply rounded-sm border-2 border-dashed border-np-rule p-3; }
+  .rv-summary__text { @apply font-normal leading-normal; }
   .rv-media__msg { @apply text-sm text-np-muted; &.is-bad, &.is-warn { @apply font-semibold text-np-ink before:font-bold before:content-['!_']; } }
   .rv-dl__note { @apply col-span-full; }
 
