@@ -64,8 +64,21 @@ const tier = (() => {
 })();
 // The head script guessed already (so the page reserves room for the cases before first paint); agree with it.
 if (tier === 'dom') root.classList.remove('s3d'); else root.classList.add('s3d');
-// Start fetching the 3D code at once, while the shelves load.
-const stacksModule = tier !== 'dom' ? import('./stacks3d/index.js').catch((e) => { console.warn('3D shelves unavailable:', e); return null; }) : null;
+// The 3D code (three.js and the room: by far the largest download on the page) is fetched once the DOM shelves are
+// rendered (start() -> mount3d), so the hero, its picture and the shelves come first and the page is readable before
+// WebGL starts. On the deploy it is a separate, hashed chunk (scripts/build-js.cjs).
+// The bundle's script tag lists the room's chunks (data-preload-3d): preloaded together, so three.js downloads alongside
+// the room's own code instead of after it. Unbundled (local server), there is no list.
+let stacksModule = null;
+function load3d() {
+  if (stacksModule) return stacksModule;
+  for (const href of (document.querySelector('script[data-preload-3d]')?.getAttribute('data-preload-3d') || '').split(' ').filter(Boolean)) {
+    const l = document.createElement('link');
+    l.rel = 'modulepreload'; l.href = href;
+    document.head.append(l);
+  }
+  return (stacksModule = import('./stacks3d/index.js').catch((e) => { console.warn('3D shelves unavailable:', e); return null; }));
+}
 
 const state = { data: null, featured: null, shelf: 'all', query: '', covers: {}, open: null, card: [] };
 const spines = new Map(); // id -> button on the shelf
@@ -812,7 +825,7 @@ function backdropUrl() {
 
 async function mount3d() {
   const canvas = $('lib-gl');
-  const mod = await stacksModule;
+  const mod = await load3d();
   if (!mod) { toDom(); return; }
   canvas.hidden = false;
   try {

@@ -29,6 +29,13 @@
   <link rel="preload" href="vendor/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="vendor/fonts/alfa-slab-one-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="vendor/fonts/barlow-condensed-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <!-- The room picture behind the hero (the LCP): the same file .lib-room__bg picks in styles/components/library.css,
+       preloaded so it starts with the stylesheets instead of after them. One media query per file, the CSS cascade
+       rewritten as conditions that never overlap; keep them in step with the CSS. -->
+  <link rel="preload" as="image" href="assets/stacks/room-phone-720.webp" type="image/webp" fetchpriority="high" media="(max-width: 480px) and (orientation: portrait) and (max-resolution: 2dppx)">
+  <link rel="preload" as="image" href="assets/stacks/room-phone-1080.webp" type="image/webp" fetchpriority="high" media="(480px < width <= 700px) and (orientation: portrait), (width <= 480px) and (orientation: portrait) and (resolution > 2dppx)">
+  <link rel="preload" as="image" href="assets/stacks/room-desktop-2560.webp" type="image/webp" fetchpriority="high" media="(min-width: 1601px), (min-width: 1000px) and (min-resolution: 1.5dppx)">
+  <link rel="preload" as="image" href="assets/stacks/room-desktop-1600.webp" type="image/webp" fetchpriority="high" media="(700px < width < 1000px), (1000px <= width < 1601px) and (resolution < 1.5dppx), (width <= 700px) and (orientation: landscape)">
   <link rel="stylesheet" href="styles/site.css">
   <link rel="stylesheet" href="styles/site-library.css">
   <link rel="preload" href="/api/books" as="fetch" type="application/json" crossorigin>
