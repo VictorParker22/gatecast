@@ -195,6 +195,22 @@
   .rv-hook__text { @apply text-base font-semibold text-np-ink; }
   .rv-hook__notes { @apply grid gap-1 text-sm text-np-muted; }
 
+  /* A pick's picture or video: two optional fields, each with a live preview (js/review.js videoPreviewHTML,
+     imagePreviewHTML). Monochrome like the rest of the console: a problem is a "!" line in bold, never a colour. */
+  .rv-media {
+    @apply m-0 grid gap-2 rounded-sm border border-line p-3;
+    & legend { @apply px-1 text-sm font-semibold; }
+  }
+  .rv-media__preview { @apply grid empty:hidden; }
+  .rv-media__fig { @apply m-0 grid items-start gap-3 sm:grid-cols-[12rem_minmax(0,1fr)]; }
+  .rv-media__frame { @apply relative block aspect-video w-full max-w-60 overflow-hidden rounded-sm border border-np-ink bg-np-sunken; & img { @apply block h-full w-full object-cover; } }
+  .rv-media__frame.is-empty img { @apply hidden; }
+  .rv-media__fig--video .rv-media__frame img { @apply absolute top-1/2 left-1/2 h-[133.34%] w-auto max-w-none -translate-1/2; }
+  .rv-media__knob { @apply absolute top-1/2 left-1/2 grid size-10 -translate-1/2 place-items-center rounded-sm border-2 border-np-ink bg-np-sun text-np-on-sun; & svg { @apply ml-0.5 size-5 fill-current; } }
+  .rv-media__fig figcaption { @apply grid content-start gap-1 text-sm wrap-anywhere; & code { @apply font-mono text-xs; } }
+  .rv-media__msg { @apply text-sm text-np-muted; &.is-bad, &.is-warn { @apply font-semibold text-np-ink before:font-bold before:content-['!_']; } }
+  .rv-dl__note { @apply col-span-full; }
+
   /* The front page's favourites row, previewed above the picks. */
   .rv-favs {
     @apply mx-3 mt-3 grid gap-2 rounded-md border border-line bg-np-paper p-3 md:mx-4;

@@ -143,9 +143,20 @@ None of them throws. The visitor's own votes are remembered in `localStorage` (`
 
 ## Editor's picks
 
-Picks are curated in the reviewer console (`review.html` → Weird news → Picks): link, the outlet's own headline, outlet, the date the outlet published it, category, an optional weird rating (the editor's opinion, 1–5) and an optional **hook** (≤140 characters), shown under the headline on the front page. A pick is a **draft** until published; **withdrawn** takes it off the page without deleting it. Only reviewers can publish, edit a published pick or withdraw one (a trigger enforces this even for the service key), and a published pick must be withdrawn before it can be deleted. Every publish, withdraw, edit-while-published and delete is logged in `private.weird_picks_log` and shown in the console.
+Picks are curated in the reviewer console (`review.html` → Weird news → Picks): link, the outlet's own headline, outlet, the date the outlet published it, category, an optional weird rating (the editor's opinion, 1–5), an optional **hook** (≤140 characters), shown under the headline on the front page, and optional **media**: "Video (YouTube link)" and "Picture (link to the image)" (see Pick media below). A pick is a **draft** until published; **withdrawn** takes it off the page without deleting it. Only reviewers can publish, edit a published pick or withdraw one (a trigger enforces this even for the service key), and a published pick must be withdrawn before it can be deleted. Every publish, withdraw, edit-while-published and delete is logged in `private.weird_picks_log` and shown in the console.
 
-Visitors (the publishable key) can read only published picks, and only the columns a page needs. `lib/picks-db.js` reads them for the site as `{ url, title, outlet, published, category, rating, note }`, the same shape as `data/weird-picks.json`, and returns `[]` on any failure so the site can fall back to the file.
+Visitors (the publishable key) can read only published picks, and only the columns a page needs. `lib/picks-db.js` reads them for the site as `{ url, title, outlet, published, category, rating, note, videoId, imageUrl }`, the same shape as `data/weird-picks.json`, and returns `[]` on any failure so the site can fall back to the file. Until the pick-media migration is applied the database refuses the two media columns; the picks are then read again without them.
+
+### Pick media
+
+`supabase/migrations/20261117150000_pick_media.sql` (written 17 Nov 2026, not applied yet) adds `weird_picks.video_id` (a YouTube id, `^[A-Za-z0-9_-]{11}$`) and `weird_picks.image_url` (https, at most 2,048 characters), lets visitors read both on published picks, and makes a change to either on a published pick an edit (reviewers only, logged). The console writes them with its ordinary table writes; no new function.
+
+In the pick form (`js/review.js`, rules in `js/storymedia.js` and `js/reviewmodel.js`):
+
+- **Video (YouTube link)** takes any common form (`watch?v=`, `youtu.be/`, `/shorts/`, `/embed/`, `/live/`, `youtube-nocookie.com/embed/`) and stores the 11-character id. The preview shows the still through Gatecast's own `/api/yt-thumb` and a "Watch it on YouTube" link; a still YouTube does not have says the video may be private or removed. The site checks the video with YouTube's oEmbed before serving it and leaves it out if it is gone or may not be embedded (`docs/content-sources.md`, Weird news).
+- **Picture (link to the image)** must be https, on the story's own site (the same registrable domain as the story link) or a host listed for the outlet in `data/weird-sources.json` (`imageHosts`), and never for an outlet shown without pictures. The preview loads it from the publisher in the reviewer's browser (no referrer) and gives its size, with a note when it is small or does not load.
+- Problems show on the field's own line as you type, and again on Save. Before the migration is applied, a pick without media still saves; with media, the console says the migration is needed.
+- The front page shows the picture (with a small "Has video" control when there is a video too), else the video's click-to-play still, else the story text-led.
 
 Tips feed picks: **Accept** on a tip starts a new pick draft with the tip's link. The headline, outlet and date are then copied from the story itself, and the hook is the reviewer's (see Hook lines).
 

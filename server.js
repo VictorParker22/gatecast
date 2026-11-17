@@ -28,6 +28,7 @@ const news = require('./lib/news.js');
 const weird = require('./lib/weird.js');
 const books = require('./lib/books.js');
 const stacks = require('./lib/stacks-db.js');
+const youtube = require('./lib/youtube.js');
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
@@ -65,6 +66,12 @@ const server = http.createServer(async (req, res) => {
       const body = JSON.stringify(await weird.weirdFor(url.searchParams));
       return send(200, body, TYPES['.json'], { 'Cache-Control': url.searchParams.get('debug') ? weird.DEBUG_CACHE_CONTROL : weird.CACHE_CONTROL });
     } catch (err) { return send(502, JSON.stringify({ error: 'upstream unavailable' }), TYPES['.json'], { 'Cache-Control': 'no-store' }); }
+  }
+  // A YouTube video's still image, fetched by the server so the visitor's browser contacts only Gatecast (api/yt-thumb.js).
+  if (url.pathname === '/api/yt-thumb') {
+    const out = await youtube.thumbFor(url.searchParams.get('id'));
+    res.writeHead(out.status, { 'Referrer-Policy': 'strict-origin-when-cross-origin', ...out.headers });
+    return res.end(req.method === 'HEAD' ? undefined : out.body);
   }
   // The sitemap is written by the build step; locally it is made on request, dated today, from the same code.
   if (url.pathname === '/sitemap.xml') return send(200, require('./scripts/build-data.cjs').sitemapXml(), TYPES['.xml'], { 'Cache-Control': 'public, max-age=0, must-revalidate' });

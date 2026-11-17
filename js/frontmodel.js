@@ -2,6 +2,7 @@
 // "also odd" list and the grid; categories and their counts; datelines in pixel type; the edition strip; the
 // starburst polygon; the reader's own streak (this device only); tip checks; the Weird-o-meter needle.
 // No DOM and no network, so it is unit-tested with plain Node (tests/front.test.mjs).
+import { isVideoId, ytThumb, cleanDuration } from './storymedia.js';
 
 export const CATEGORIES = [
   ['people', 'Weird people'], ['animals', 'Strange animals'], ['laws', 'Odd laws'], ['records', 'World records'],
@@ -30,13 +31,51 @@ export function cleanItem(x) {
   if (!title || !outlet || !url || !Number.isFinite(ms)) return null;
   const rating = Number.isInteger(x.rating) && x.rating >= 1 && x.rating <= 5 ? x.rating : null;
   const image = httpsUrl(x.image);
+  const youtube = cleanYoutube(x.youtube);
   return {
     id: text(x.id, 120) || url, title, url, outlet, outletUrl: httpsUrl(x.outletUrl), published: new Date(ms).toISOString(), ms,
     category: isCategory(x.category) ? x.category : 'other',
     image: image && !/\.svgz?(\?|$)/i.test(image) ? image : null,
     imageCredit: image ? (text(x.imageCredit, 80) || `Image: ${outlet}`) : null,
-    video: x.video === true, pick: x.pick === true, rating, note: text(x.note, 280),
+    video: x.video === true || Boolean(youtube), youtube, pick: x.pick === true, rating, note: text(x.note, 280),
   };
+}
+
+// A story's YouTube video as the page shows it, or null. The still is always Gatecast's own address
+// (api/yt-thumb?id=…), built here from the id: whatever else the server sent, the page never asks YouTube for anything
+// before Play.
+export function cleanYoutube(v) {
+  if (!v || typeof v !== 'object' || !isVideoId(v.id)) return null;
+  return { id: v.id, title: text(v.title, 200) || '', channel: text(v.channel, 100) || '', duration: cleanDuration(v.duration), thumb: ytThumb(v.id) };
+}
+
+// What a story shows where a picture would go, and so which layout it gets (lead, favourites, grid cards):
+//   'image': the publisher's picture (with a small "Has video" play control when there is a video too);
+//   'video': a click-to-play facade (the still from Gatecast, a play button, the length when known, the channel);
+//   'text':  neither, so no frame at all: the text-led layout. Never a stand-in picture or an empty box.
+// failed: a set of picture addresses that did not load (or were a pixel) on this page; they count as no picture.
+export function storyMedia(x, failed) {
+  const image = x?.image && !(failed && failed.has(x.image)) ? x.image : null;
+  const video = x?.youtube && isVideoId(x.youtube.id) ? x.youtube : null;
+  if (image) return { kind: 'image', image, credit: x.imageCredit || `Image: ${x.outlet}`, video };
+  if (video) return { kind: 'video', image: null, credit: null, video };
+  return { kind: 'text', image: null, credit: null, video: null };
+}
+
+// The facade's visible label and the play button's name, in plain words.
+export const videoLabel = (v) => (v?.channel ? `Video: ${v.channel} on YouTube` : 'Video on YouTube');
+export function playLabel(v) {
+  if (!v) return '';
+  const len = v.duration ? `, ${durationWords(v.duration)}` : '';
+  return `Play the video${v.title ? `: ${v.title}` : ''} (${v.channel ? `${v.channel} on YouTube` : 'YouTube'}${len})`;
+}
+// "2:31" -> "2 minutes 31 seconds"; "1:04:05" -> "1 hour 4 minutes 5 seconds".
+export function durationWords(d) {
+  const parts = String(d || '').split(':').map(Number);
+  if (!parts.length || parts.some((n) => !Number.isFinite(n))) return '';
+  const [h, m, sec] = parts.length === 3 ? parts : [0, ...parts];
+  const w = (n, unit) => (n ? `${n} ${unit}${n === 1 ? '' : 's'}` : '');
+  return [w(h, 'hour'), w(m, 'minute'), w(sec, 'second')].filter(Boolean).join(' ');
 }
 
 // The response, re-checked. Order is kept as the server sent it (editor's picks first, then newest).
@@ -147,7 +186,7 @@ export const shortMeta = (item, locale, tz) => `${item.outlet.toUpperCase()} · 
 // The editor's own rating, only when there is one. Never a reader score, never invented.
 export const ratingLabel = (rating) => (Number.isInteger(rating) && rating >= 1 && rating <= 5 ? `Editor's weird rating: ${rating} out of 5` : null);
 
-// The outlet's monogram for a card with no picture ("UPI Odd News" -> "UPI", "Guinness World Records" -> "GWR").
+// The outlet's monogram for the lead's starburst, "Straight from UPI" ("UPI Odd News" -> "UPI", "Guinness World Records" -> "GWR").
 export function monogram(name) {
   const words = String(name || '').split(/[^A-Za-z0-9]+/).filter(Boolean);
   if (!words.length) return '?';

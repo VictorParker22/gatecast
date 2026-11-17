@@ -1,7 +1,8 @@
 /* The front page (index.html): a late-90s weird-news front page built to the approved boards (WeirdHome at 1440px,
    WeirdPhone at 390px). Generic layout lives in utilities and the shared components (site.css, weather.css); this file
    holds what is bespoke to the page: the edition strip, masthead and starburst, the weather box chrome and sky, the
-   ticker, the lead and its burst, the Weird-o-meter, cards and fallback tiles, the brief, the weather desk, the Stacks
+   ticker, the lead and its burst, the Weird-o-meter, cards, story media (pictures, the video facade, the text-led
+   layout for a story with neither), the brief, the weather desk, the Stacks
    teaser shelf, the guestbook, the 88x31 badges and the first-load motion. The "Your statehouse" / "Both sides" pieces
    (js/civic.js) are here too. Values are the boards' measured ones on the theme scale; fluid values are named tokens in the "@theme static" block
    of styles/main.css, each interpolating linearly from the phone board (390px) to the desktop board (1440px). Compiled
@@ -286,6 +287,7 @@
   .lead__tag { @apply inline-block py-1.5 px-3; background: var(--color-np-night); @apply text-np-sun not-italic font-normal; font-size: var(--text-lead-tag); @apply leading-none font-pixel normal-nums tracking-code; }
   .lead__sticker { @apply inline-flex items-center gap-1.5; padding: 5px --spacing(2.5); @apply border-2 border-np-ink; background: var(--color-np-lime); @apply text-np-on-lime not-italic font-extrabold; font-size: var(--text-note); line-height: 1.2; @apply font-sign normal-nums tracking-caps uppercase; rotate: -2deg; }
   .lead__sticker .icon { width: 15px; height: 15px; stroke-width: 2.6; }
+  .lead__head { @apply grid items-start gap-x-6 gap-y-3; grid-template-columns: minmax(0, 1fr); }
   .lead__h { @apply m-0 font-slab font-normal; font-size: var(--text-lead); line-height: var(--leading-lead); @apply tracking-slab wrap-anywhere text-balance; }
   .lead__body { @apply flex flex-wrap gap-5.5 items-stretch; }
   .lead__fig { flex: 3 1 --spacing(90); @apply min-w-0 relative m-0; }
@@ -303,15 +305,49 @@
   .lead__go:hover { @apply text-np-on-cobalt; }
   .credit { @apply absolute left-3.5 bottom-3.5; max-width: calc(100% - --spacing(7)); @apply inline-flex gap-1.5 items-center py-1 px-2; background: var(--color-np-card); @apply border border-np-ink; font-size: var(--text-xs); @apply font-semibold text-np-text whitespace-nowrap overflow-hidden text-ellipsis; }
   .credit .icon { @apply w-3.5 h-3.5; stroke-width: 2; }
-  .ftile { @apply absolute inset-0 grid place-items-center; background: var(--tile, var(--color-np-tint-other)) var(--np-halftone); background-size: 7px 7px; }
-  .ftile--people { --tile: var(--color-np-tint-people); }
-  .ftile--animals { --tile: var(--color-np-tint-animals); }
-  .ftile--laws { --tile: var(--color-np-tint-laws); }
-  .ftile--records { --tile: var(--color-np-tint-records); }
-  .ftile--unexplained { --tile: var(--color-np-tint-unexplained); }
-  .ftile--weather { --tile: var(--color-np-tint-weather); }
-  .ftile__mono { @apply not-italic font-normal; font-size: clamp(1.25rem, 24cqi, 6rem); @apply leading-none font-slab normal-nums text-transparent; -webkit-text-stroke: 2px var(--color-np-ink); @apply opacity-55; letter-spacing: 0.02em; }
   .lead__media, .card__media, .fav__media { @apply @container; }
+
+  /* Story media (js/frontmedia.js): the publisher's picture, the click-to-play video facade, the "Has video" control
+     on a picture, and the player once Play is pressed. A story with neither picture nor video has no media slot at all
+     (the text-led layouts: .lead--text, .fav--text, .card--text). */
+  .smedia__link { @apply absolute inset-0 block text-inherit; }
+  .smedia--video { background: var(--color-np-night) var(--np-halftone); background-size: 7px 7px; }
+  .smedia--video, .smedia.is-playing { @apply aspect-video; }
+  .smedia.is-playing { background: #000; }
+  .smedia__player { @apply absolute inset-0 block w-full h-full border-0; }
+  .vplay { @apply absolute inset-0 block w-full h-full m-0 p-0 border-0 overflow-hidden cursor-pointer; background: transparent; color: inherit; font: inherit; }
+  /* The still is YouTube's 4:3 hqdefault with the video letterboxed in it: the picture is scaled so the bars fall
+     outside any frame from 16:9 down to a square. */
+  .vplay__img { @apply absolute block max-w-none; left: 50%; top: 50%; height: 133.34%; width: auto; aspect-ratio: 4 / 3; translate: -50% -50%; }
+  .vplay__knob { @apply absolute grid place-items-center w-16 h-16 rounded-sm border-2 border-np-ink; left: 50%; top: 50%; translate: -50% -50%; background: var(--color-np-sun); @apply text-np-on-sun; box-shadow: 4px 4px 0 var(--color-np-shadow-ink); transition: transform var(--duration-base) ease, box-shadow var(--duration-base) ease; }
+  .vplay__knob svg { @apply w-7 h-7 ml-1; fill: currentColor; }
+  .vplay:hover .vplay__knob { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 var(--color-np-shadow-ink); }
+  .vplay:focus-visible { outline: 3px solid var(--color-np-sun); outline-offset: -3px; }
+  .vplay:focus-visible .vplay__knob { outline: 3px solid var(--color-np-cobalt); outline-offset: 3px; }
+  .vplay__dur { @apply absolute right-2.5 bottom-2.5 py-0.5 px-1.5 not-italic font-normal; background: var(--color-np-night); @apply text-np-on-night leading-none font-pixel normal-nums; font-size: var(--text-lg); }
+  .smedia--video .credit { max-width: calc(100% - --spacing(20)); }
+  .credit--video { background: var(--color-np-night); @apply text-np-on-night border-np-sun; }
+  .credit--video .icon { stroke: var(--color-np-sun); }
+  .vchip { @apply absolute z-2 right-2.5 bottom-2.5 inline-flex items-center gap-1.5 min-h-tap py-0 pl-1.5 pr-3 border-2 border-np-ink rounded-sm cursor-pointer; background: var(--color-np-night); @apply text-np-sun not-italic font-extrabold; font-size: var(--text-note); @apply leading-none font-sign normal-nums tracking-caps uppercase; box-shadow: 3px 3px 0 var(--color-np-shadow-ink); }
+  .vchip__knob { @apply grid place-items-center w-7.5 h-7.5 rounded-sm; background: var(--color-np-sun); @apply text-np-on-sun; }
+  .vchip__knob svg { @apply w-4 h-4 ml-0.5; fill: currentColor; }
+  .vchip:hover { box-shadow: 4px 4px 0 var(--color-np-shadow-ink); transform: translate(-1px, -1px); }
+  .vchip:focus-visible { outline: 3px solid var(--color-np-sun); outline-offset: 2px; }
+  .smedia--image:has(.vchip) .credit { max-width: calc(100% - --spacing(40)); }
+
+  /* The text-led lead: no figure. The burst stands beside the headline in its own cell, and under a double rule the
+     hook (as a pull quote), the dateline, the link and the editor's pips sit beside the Weird-o-meter. */
+  .lead.is-playing .lead__burst { @apply hidden; } /* decoration never sits on the player's own controls */
+  .lead--text .lead__head { grid-template-columns: minmax(0, 1fr) auto; }
+  .lead--text .lead__burst { @apply relative inset-auto w-36 h-36 mt-1 mr-2; rotate: 8deg; }
+  .lead--text .lead__body { @apply pt-5; border-top: 3px double var(--color-np-ink); }
+  .lead--text .lead__text { flex: 1 1 100%; }
+  .lead--text .lead__note { @apply pl-4 font-medium text-np-ink; font-size: var(--text-lead-pull); line-height: 1.4; border-left: 6px solid var(--color-np-cobalt); }
+  @media (width >= theme(--breakpoint-sm)) {
+    .lead--text .lead__text { @apply grid items-start gap-x-8 gap-y-3.5; grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem); }
+    .lead--text .lead__text > * { grid-column: 1; }
+    .lead--text .lead__text > .meter { grid-column: 2; grid-row: 1 / span 6; @apply mt-0; }
+  }
   .sticker { padding: 3px --spacing(2); @apply border-2 border-np-ink not-italic font-extrabold; font-size: var(--text-sm); line-height: 1.2; @apply font-sign normal-nums tracking-caps uppercase; rotate: -3deg; @apply whitespace-nowrap; }
   .sticker--cobalt { background: var(--color-np-cobalt); @apply text-np-on-cobalt; }
   .sticker--sun { background: var(--color-np-sun); @apply text-np-on-sun; }
@@ -376,9 +412,19 @@
   }
   .card:hover { @apply shadow-np-hover; transform: translate(-2px, -2px); }
   .card__media { @apply relative block aspect-16/10 overflow-hidden; border-bottom: 2px solid var(--color-np-ink); @apply text-inherit; background: var(--color-np-tint-other); }
+  .card__media.smedia--video { background: var(--color-np-night) var(--np-halftone); background-size: 7px 7px; @apply aspect-16/10; }
+  .card__media.is-playing { @apply aspect-video; }
+  .card.is-playing:hover { @apply shadow-np-lg; transform: none; }
+  .card__vlabel { @apply hidden; }
+  /* The text-led card: the sticker and a slab headline fill the picture's place (rows 1 and 2 of the card's subgrid),
+     over a double rule, so it lines up with picture cards in the same row. */
+  .card__type { grid-row: 1 / span 2; @apply flex flex-col justify-between gap-4 min-w-0 pt-3.5 pb-4 px-4; border-bottom: 3px double var(--color-np-ink); }
+  .card__type .card__tags { @apply static flex justify-start flex-wrap; inset: auto; }
+  .card--text .card__h { @apply p-0 not-italic font-normal font-slab normal-nums text-balance; font-size: var(--text-card-type); line-height: 1.08; }
   .card__img { @apply block w-full h-full object-cover; }
   .card__tags { @apply absolute z-1; inset: --spacing(2.5) --spacing(2.5) auto; @apply flex justify-between items-start gap-2; }
   .card .credit { @apply left-2.5 bottom-2.5; max-width: calc(100% - --spacing(5)); }
+  .card .smedia--video .credit { max-width: calc(100% - --spacing(20)); }
   .card__h { @apply m-0 pt-3.5 pb-0 px-4; font-size: var(--text-story); @apply font-extrabold; line-height: 1.25; @apply wrap-anywhere text-pretty; }
   .card__h a { @apply no-underline; }
   .card__h a:hover { @apply underline; }
@@ -399,9 +445,26 @@
   .fav:hover .fav__link { @apply underline; }
   .fav__hook { grid-column: 1; @apply italic text-np-muted; line-height: 1.45; }
   .fav__meta { grid-column: 1; @apply not-italic font-normal; font-size: var(--text-lg); @apply leading-none font-pixel normal-nums text-np-text; }
-  .fav__media { grid-column: 2; grid-row: 2 / span 3; @apply relative aspect-1/1 overflow-hidden border-2 border-np-ink self-start; background: var(--color-np-tint-other); }
+  .fav__media { grid-column: 2; grid-row: 2 / span 3; @apply relative z-2 aspect-1/1 overflow-hidden border-2 border-np-ink self-start; background: var(--color-np-tint-other); }
   .fav__img { @apply w-full h-full object-cover block; }
   .fav__media .credit { @apply left-1 bottom-1; max-width: calc(100% - --spacing(2)); font-size: var(--text-tiny); @apply py-0.5 px-1; }
+  /* A favourite's video: the square facade (knob only, the label under it on the card's cta row is the credit), and,
+     once playing, a full-width 16:9 player under the outlet bar. */
+  .fav__media.smedia--video { @apply aspect-1/1; }
+  .fav__media .vplay__knob { @apply w-11 h-11; box-shadow: 3px 3px 0 var(--color-np-shadow-ink); }
+  .fav__media .vplay__knob svg { @apply w-5 h-5; }
+  .fav__media .vplay__dur { @apply right-1 bottom-1 px-1; font-size: var(--text-sign); }
+  .fav__media .credit--video { @apply hidden; }
+  .fav__media .vchip { @apply right-1 bottom-1 pr-2 gap-1; font-size: var(--text-xs); }
+  .fav__media.smedia--image:has(.vchip) .credit { @apply hidden; }
+  .fav__vlabel { @apply hidden; }
+  .fav--video .fav__vlabel { @apply inline; }
+  .fav.is-playing { @apply flex flex-col; }
+  .fav.is-playing > * { order: 2; }
+  .fav.is-playing > .fav__src { order: 0; }
+  .fav.is-playing > .fav__media { order: 1; @apply w-full aspect-video mb-2; }
+  /* The text-led favourite: no picture column, the headline takes the card's width. */
+  .fav--text { grid-template-columns: minmax(0, 1fr); }
   .fav__cta { grid-column: 1 / -1; @apply inline-flex items-center gap-1.5 font-bold; font-size: var(--text-sm); }
   @media (width >= theme(--breakpoint-sm)) {
     .fav { grid-column: span 6; }
@@ -476,12 +539,7 @@
   .head__media img { @apply block w-full h-full object-cover; }
   .head__credit { @apply absolute left-1.5 bottom-1.5; max-width: calc(100% - --spacing(3)); @apply py-0.5 px-1.5; background: var(--color-np-card); @apply text-np-text border border-np-ink; font-size: var(--text-tiny); @apply font-semibold leading-normal whitespace-nowrap overflow-hidden text-ellipsis; }
   .head--row .head__credit { @apply hidden; }
-  .tile { @apply absolute inset-0 flex flex-col justify-center items-center; padding: 7cqi; background: var(--tile-bg) var(--np-halftone); background-size: 7px 7px; color: var(--tile-fg); @apply font-slab uppercase; }
-  .tile--ink { --tile-bg: var(--color-np-night); --tile-fg: var(--color-np-sun); }
-  .tile--concrete { --tile-bg: var(--color-np-tint-laws); --tile-fg: var(--color-np-ink); }
-  .tile__mono { font-size: var(--text-code); font-size: 24cqi; line-height: 0.9; }
-  .tile__name { @apply not-italic font-normal; font-size: max(1.0625rem, 5cqi); line-height: 1.1; @apply font-pixel normal-nums; padding-top: 4cqi; }
-  .head--row .tile__name, .head--card .tile__name { @apply hidden; }
+  .head.head--noimg { grid-template-columns: minmax(0, 1fr); }
   .head__body { @apply grid gap-2 min-w-0 content-start; }
   .head__link { @apply block min-h-tap; font-size: var(--text-sign); @apply font-bold; line-height: 1.3; @apply text-np-ink no-underline text-pretty wrap-anywhere; }
   .head--lead .head__link, .head--solo .head__link { @apply not-italic font-normal; font-size: var(--text-head-lead); line-height: 1.1; @apply font-slab normal-nums; }
@@ -634,8 +692,12 @@
     .lead__body { @apply contents; }
     .lead__tags { order: 1; }
     .lead__fig { @apply mr-1.5; order: 2; }
-    .lead__h { @apply mt-1; order: 3; }
+    .lead__head { @apply mt-1; order: 3; }
     .lead__text { order: 4; }
+    .lead--text .lead__head { @apply gap-x-3; }
+    .lead--text .lead__burst { @apply w-22 h-22 m-0; }
+    .lead--text .lead__text { @apply pt-3; border-top: 3px double var(--color-np-ink); }
+    .lead--text .lead__note { @apply pl-3; border-left-width: 4px; }
     .lead__media { @apply aspect-16/9; box-shadow: 5px 5px 0 var(--color-np-shadow-ink); }
     .lead__burst { @apply w-27 h-27 -right-2 -top-3; }
     .lead__burst-text { font-size: var(--text-burst-sm); }
@@ -660,8 +722,19 @@
     .card__media { grid-area: media; @apply w-23 h-23; aspect-ratio: 1; border: 1.5px solid var(--color-np-ink); }
     .card__tags { inset: 5px 5px auto; }
     .card__tags .sticker { font-size: var(--text-tiny); padding: 1px 5px; border-width: 1.5px; @apply whitespace-normal max-w-full; }
-    .card .ftile { place-items: end center; @apply pb-1.5; }
     .card__tags .vtag, .card .credit { @apply hidden; }
+    .card .vplay__knob { @apply w-10 h-10; box-shadow: 2px 2px 0 var(--color-np-shadow-ink); }
+    .card .vplay__knob svg { @apply w-4.5 h-4.5; }
+    .card .vplay__dur { @apply hidden; }
+    .card .vchip { @apply right-1 bottom-1 min-h-0 h-11 w-11 p-0 justify-center; font-size: 0; }
+    .card .vchip__knob { @apply w-full h-full; }
+    .card--video .card__vlabel { @apply inline mr-auto not-italic font-normal leading-none font-pixel normal-nums text-np-text; font-size: var(--text-sign); order: -1; }
+    .card.card--video .card__foot { @apply flex; }
+    .card--text { grid-template-columns: minmax(0, 1fr); grid-template-areas: "type" "meta" "foot"; }
+    .card__type { grid-area: type; @apply p-0 gap-1.5 border-0; }
+    .card--text .card__h { font-size: var(--text-card-type); }
+    .card.is-playing { grid-template-columns: minmax(0, 1fr); grid-template-areas: "media" "h" "meta" "foot"; @apply gap-y-2.5; }
+    .card.is-playing .card__media { @apply w-full h-auto aspect-video; }
     .card__h { grid-area: h; @apply p-0; font-size: var(--text-base); line-height: 1.25; }
     .card__meta { grid-area: meta; @apply pt-1.5 pb-0 px-0; font-size: var(--text-sign); }
     .card__foot { grid-area: foot; @apply m-0 border-0 p-0; }
@@ -682,10 +755,11 @@
   @media (prefers-reduced-motion: reduce) {
     .masthead__burst-ink, .ticker__track { animation: none !important; }
     .ticker__vp { @apply overflow-x-auto; }
-    .card, .card:hover, .spine, .meter__needle, .meter__fill { transition: none; transform: none; }
+    .card, .card:hover, .spine, .meter__needle, .meter__fill, .vplay__knob, .vplay:hover .vplay__knob, .vchip, .vchip:hover { transition: none; transform: none; }
   }
   @media (forced-colors: active) {
     .burst, .masthead__burst-ink, .lead__burst-ink { forced-color-adjust: none; }
     .card, .wxbox, .also, .meter, .flybox, .guestbook { border-color: CanvasText; }
+    .vplay__knob, .vchip, .vchip__knob { forced-color-adjust: none; background: ButtonFace; color: ButtonText; border-color: ButtonText; }
   }
 }

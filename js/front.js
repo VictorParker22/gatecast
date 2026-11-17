@@ -1,13 +1,16 @@
 // The weird-news half of the front page (index.html): the edition strip, the section tabs, the headline ticker,
 // the lead with its Weird-o-meter, favourites, "Also odd", the reading streak, the "Believe it or not" grid, the
 // weird-weather line in the weather box, and the guestbook. Stories come from /api/weird via data.js loadWeird();
-// votes, favourites, tips and anonymous click counts go through js/community.js. Pure rules live in js/frontmodel.js.
-// The weather half is js/weather.js.
+// votes, favourites, tips and anonymous click counts go through js/community.js. Pure rules live in js/frontmodel.js;
+// a story's picture or video slot is js/frontmedia.js. A story with neither gets the text-led layout: no frame at all.
+// Videos are a click-to-play facade: its still comes from Gatecast (api/yt-thumb), and YouTube's player
+// (youtube-nocookie.com) is inserted only when the reader presses Play. The weather half is js/weather.js.
 import * as data from './data.js';
 import {
-  cleanWeird, splitFront, gridFor, favourites, favCaption, favVotes, storyFor, PAGE, CATEGORIES, catLabel, stickerTone, metaLine, shortMeta, ratingLabel,
+  cleanWeird, splitFront, gridFor, favourites, favCaption, favVotes, storyFor, PAGE, CATEGORIES, catLabel, stickerTone, metaLine, shortMeta, ratingLabel, videoLabel,
   monogram, editionLine, starPolygon, tickerSeconds, nextStreak, streakDigits, meterAngle, meterNote, METER_WORDS, tipUrl,
 } from './frontmodel.js';
+import { mediaSlot, playerHTML } from './frontmedia.js';
 import { esc } from './ui.js';
 import { $, store } from './shell.js';
 
@@ -16,7 +19,6 @@ const reduced = matchMedia('(prefers-reduced-motion: reduce)');
 const ICON = {
   out: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6"/><path d="M20 4l-9 9"/><path d="M18 14v6H4V6h6"/></svg>',
   check: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"/></svg>',
-  camera: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>',
   star: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1l2.9 7.6L23 9.3l-6.2 5.3L18.8 23 12 18.6 5.2 23l2-8.4L1 9.3l8.1-.7z"/></svg>',
 };
 
@@ -85,26 +87,55 @@ function render() {
 }
 
 const stickerHTML = (cat, cls = 'sticker') => `<span class="${cls} ${cls}--${stickerTone(cat)}">${esc(catLabel(cat))}</span>`;
-const videoTag = (x) => (x.video ? '<span class="vtag">VIDEO AT SOURCE</span>' : '');
+// "VIDEO AT SOURCE": the outlet itself calls the story a video, and the page has no player for it.
+const videoTag = (x) => (x.video && !x.youtube ? '<span class="vtag">VIDEO AT SOURCE</span>' : '');
 
-// A publisher's preview image (hotlinked, lazy, credited) or a designed typographic tile: never a stand-in photo.
-const tileHTML = (cat, outlet) => `<span class="ftile ftile--${esc(cat)}" aria-hidden="true"><span class="ftile__mono">${esc(monogram(outlet))}</span></span><span class="credit credit--none">${ICON.camera}Picture at the source</span>`;
-function media(x, { cls, w, h, eager = false }) {
-  if (!x.image) return tileHTML(x.category, x.outlet);
-  return `<img class="${cls}__img" src="${esc(x.image)}" alt="" width="${w}" height="${h}" ${eager ? 'fetchpriority="high"' : 'loading="lazy"'} decoding="async" referrerpolicy="no-referrer" data-cat="${esc(x.category)}" data-outlet="${esc(x.outlet)}"><span class="credit">${ICON.camera}${esc(x.imageCredit)}</span>`;
-}
-// A picture that fails, or turns out to be a pixel, becomes the tile. error/load do not bubble: caught on the way down.
+/* ---------- Pictures and videos ---------- */
+
+// Publisher pictures that did not load here (blocked, gone, hotlinking refused) or were a pixel. A story whose
+// picture fails is drawn again without it: its video facade if it has one, else the text-led layout. Never a
+// broken-image icon and never a stand-in. error and load do not bubble, so they are caught on the way down.
+const failedPics = new Set();
+const redraw = new Set();
 function noPicture(img) {
-  const credit = img.nextElementSibling;
-  if (credit?.classList.contains('credit')) credit.remove();
-  img.insertAdjacentHTML('beforebegin', tileHTML(img.dataset.cat || 'other', img.dataset.outlet || ''));
-  img.remove();
+  const url = img.dataset.pic;
+  if (!url || failedPics.has(url)) return;
+  failedPics.add(url);
+  const area = img.closest('#lead') ? 'lead' : img.closest('#favs') ? 'favs' : img.closest('#grid') ? 'grid' : null;
+  if (!area) return;
+  if (!redraw.size) requestAnimationFrame(() => {
+    if (redraw.has('lead')) renderLead();
+    if (redraw.has('favs')) renderFavs();
+    if (redraw.has('grid')) renderGrid();
+    redraw.clear();
+  });
+  redraw.add(area);
 }
-document.addEventListener('error', (e) => { if (e.target instanceof HTMLImageElement && e.target.closest('.front, #wxbox')) noPicture(e.target); }, true);
+document.addEventListener('error', (e) => {
+  const img = e.target;
+  if (!(img instanceof HTMLImageElement) || !img.closest('.front')) return;
+  if (img.hasAttribute('data-still')) img.remove(); // the facade keeps its play button and label on a plain ground
+  else noPicture(img);
+}, true);
 document.addEventListener('load', (e) => {
   const img = e.target;
-  if (img instanceof HTMLImageElement && img.closest('.front') && img.naturalWidth < 80 && img.naturalHeight < 80) noPicture(img);
+  if (img instanceof HTMLImageElement && img.dataset.pic && img.closest('.front') && img.naturalWidth < 80 && img.naturalHeight < 80) noPicture(img);
 }, true);
+
+// Play: the facade (or a picture's "Has video" control) becomes YouTube's privacy-enhanced player, and focus moves
+// into it. This is the only place the player is built, so nothing contacts YouTube before the reader asks.
+document.addEventListener('click', (e) => {
+  const b = e.target instanceof Element ? e.target.closest('[data-play]') : null;
+  const slot = b?.closest('.smedia');
+  if (!slot || !slot.closest('.front')) return;
+  const x = view.items.find((i) => i.url === slot.dataset.story);
+  const v = x?.youtube;
+  if (!v || v.id !== b.dataset.play) return;
+  slot.innerHTML = playerHTML(v.id, v.title);
+  slot.classList.add('is-playing');
+  slot.closest('.lead, .fav, .card')?.classList.add('is-playing');
+  slot.querySelector('iframe')?.focus();
+});
 
 /* ---------- Section tabs and the ticker ---------- */
 
@@ -147,15 +178,18 @@ function renderLead() {
   el.hidden = !x;
   if (!x) return;
   const rating = ratingLabel(x.rating);
+  const slot = mediaSlot(x, { cls: 'lead', w: 1200, h: 900, eager: true, failed: failedPics });
+  const text = slot.kind === 'text';
+  // Text-led (no picture, no video): no figure at all. The headline leads, the burst stands beside it in its own
+  // space, and the hook, the link and the Weird-o-meter sit side by side under a double rule.
+  el.className = `lead lead--${slot.kind}`;
+  const burst = `<div class="lead__burst" aria-hidden="true"><span class="lead__burst-ink burst" style="--burst:${starPolygon(20, 40)}"></span>
+          <span class="lead__burst-text">${x.pick ? '<small>Editor’s</small>Pick' : `<small>Straight from</small>${esc(monogram(x.outlet))}`}</span></div>`;
   el.innerHTML = `<div class="lead__tags"><span class="lead__tag">TODAY'S LEAD<span class="lead__tag-cat"> · ${esc(catLabel(x.category).toUpperCase())}</span></span>
       <span class="lead__sticker">${ICON.check}${x.video ? 'Video at the source' : 'Links to the original'}</span></div>
-    <h2 class="lead__h" id="lead-h">${esc(x.title)}</h2>
+    <div class="lead__head"><h2 class="lead__h" id="lead-h">${esc(x.title)}</h2>${text ? burst : ''}</div>
     <div class="lead__body">
-      <figure class="lead__fig">
-        <a class="lead__media" href="${esc(x.url)}" rel="noopener" tabindex="-1" aria-hidden="true">${media(x, { cls: 'lead', w: 1200, h: 900, eager: true })}</a>
-        <div class="lead__burst" aria-hidden="true"><span class="lead__burst-ink burst" style="--burst:${starPolygon(20, 40)}"></span>
-          <span class="lead__burst-text">${x.pick ? '<small>Editor’s</small>Pick' : `<small>Straight from</small>${esc(monogram(x.outlet))}`}</span></div>
-      </figure>
+      ${text ? '' : `<figure class="lead__fig">${slot.html}${burst}</figure>`}
       <div class="lead__text">
         ${x.note ? `<p class="lead__note">${esc(x.note)}</p>` : ''}
         <p class="lead__meta"><span class="lead__meta-long">${esc(metaLine(x, locale))}</span><span class="lead__meta-short">${esc(shortMeta(x, locale))}</span></p>
@@ -228,14 +262,18 @@ function renderFavs() {
   const cap = favCaption(f);
   $('#favs-h').innerHTML = `${esc(cap.title)}${cap.how ? `<span class="favs__how"> — ${esc(cap.how)}</span>` : ''}`;
   $('#favs-kicker').textContent = cap.kicker;
-  $('#favs-list').innerHTML = f.list.map((x, i) => `<li class="fav">
+  // A favourite without picture or video is text-led: the headline takes the card's full width.
+  $('#favs-list').innerHTML = f.list.map((x, i) => {
+    const slot = mediaSlot(x, { cls: 'fav', w: 600, h: 600, failed: failedPics });
+    return `<li class="fav fav--${slot.kind}">
       <p class="fav__src"><span class="fav__rank" aria-hidden="true">${i + 1}</span><span class="fav__mark">${esc(x.outlet)}</span>${videoTag(x)}</p>
       <h3 class="fav__h"><a class="fav__link" href="${esc(x.url)}" rel="noopener">${esc(x.title)}<span class="sr-only">. Read it at ${esc(x.outlet)}</span></a></h3>
       ${x.note ? `<p class="fav__hook">${esc(x.note)}</p>` : '<p class="fav__hook fav__hook--none"></p>'}
-      <p class="fav__meta">${esc(metaLine(x, locale))}${x.by === 'readers' ? ` · ${esc(favVotes(x))}` : f.mode === 'readers' ? " · EDITOR'S PICK" : ''}</p>
-      <span class="fav__media">${media(x, { cls: 'fav', w: 600, h: 600 })}</span>
+      <p class="fav__meta">${esc(metaLine(x, locale))}${x.by === 'readers' ? ` · ${esc(favVotes(x))}` : f.mode === 'readers' ? " · EDITOR'S PICK" : ''}${slot.kind === 'video' ? `<span class="fav__vlabel"> · ${esc(videoLabel(x.youtube).toUpperCase())}</span>` : ''}</p>
+      ${slot.html}
       <span class="fav__cta" aria-hidden="true">Read it at ${esc(x.outlet)}${ICON.out}</span>
-    </li>`).join('');
+    </li>`;
+  }).join('');
 }
 
 /* ---------- Also odd ---------- */
@@ -244,7 +282,7 @@ function renderAlso() {
   const { also } = splitFront(view.items, view.skip);
   $('#also').hidden = !also.length;
   $('#also-list').innerHTML = also.map((x, i) => `<li><span class="also__n" aria-hidden="true">${i + 1}</span>
-    <span class="also__body"><a class="stretch" href="${esc(x.url)}" rel="noopener">${esc(x.title)}</a><span class="also__meta">${esc(shortMeta(x, locale))}</span></span></li>`).join('');
+    <span class="also__body"><a class="stretch" href="${esc(x.url)}" rel="noopener">${esc(x.title)}</a><span class="also__meta">${esc(shortMeta(x, locale))}${x.video ? '<span class="also__video"> · VIDEO</span>' : ''}</span></span></li>`).join('');
 }
 
 /* ---------- Believe it or not: filters, the grid, show more ---------- */
@@ -254,15 +292,19 @@ function renderFilters() {
   const cats = [['all', 'Everything'], ...CATEGORIES.filter(([id]) => c[id] > 0)];
   $('#filters').innerHTML = cats.map(([id, label]) => `<button type="button" class="bev chipf${view.cat === id ? ' is-on' : ''}" data-filter="${id}" aria-pressed="${view.cat === id}">${esc(label)}<span class="chipf__n">${String(c[id] ?? 0).padStart(2, '0')}</span></button>`).join('');
 }
+// A card is a picture card, a video card (the facade) or a text-led card: no media row at all, the sticker and a
+// slab headline fill the top of the card, over a double rule, so a row of cards still lines up.
 function card(x) {
   const rating = ratingLabel(x.rating);
-  return `<li class="card" id="story-${esc(x.id).replace(/[^\w-]/g, '').slice(0, 40)}">
-    <a class="card__media card__media--${esc(x.category)}" href="${esc(x.url)}" rel="noopener" tabindex="-1" aria-hidden="true">
-      <span class="card__tags">${stickerHTML(x.category)}${videoTag(x)}</span>${media(x, { cls: 'card', w: 640, h: 400 })}</a>
-    <h3 class="card__h"><a href="${esc(x.url)}" rel="noopener">${esc(x.title)}</a></h3>
+  const tags = `<span class="card__tags" aria-hidden="true">${stickerHTML(x.category)}${videoTag(x)}</span>`;
+  const slot = mediaSlot(x, { cls: 'card', w: 640, h: 400, failed: failedPics, extra: tags });
+  const head = `<h3 class="card__h"><a href="${esc(x.url)}" rel="noopener">${esc(x.title)}</a></h3>`;
+  return `<li class="card card--${slot.kind}" id="story-${esc(x.id).replace(/[^\w-]/g, '').slice(0, 40)}">
+    ${slot.kind === 'text' ? `<div class="card__type">${tags}${head}</div>` : `${slot.html}
+    ${head}`}
     <p class="card__meta">${esc(metaLine(x, locale))}</p>
     <p class="card__foot">${rating ? `<span class="pips" role="img" aria-label="${esc(rating)}"><span class="pips__k">WEIRD</span>${[1, 2, 3, 4, 5].map((n) => `<i class="${n <= x.rating ? 'on' : ''}"></i>`).join('')}</span>` : '<span></span>'}
-      <a class="card__go" href="${esc(x.url)}" rel="noopener" tabindex="-1" aria-hidden="true">Read at ${esc(x.outlet)}${ICON.out}</a></p>
+      ${slot.kind === 'video' ? `<span class="card__vlabel">${esc(videoLabel(x.youtube))}</span>` : ''}<a class="card__go" href="${esc(x.url)}" rel="noopener" tabindex="-1" aria-hidden="true">Read at ${esc(x.outlet)}${ICON.out}</a></p>
   </li>`;
 }
 function renderGrid(focusFrom = -1) {

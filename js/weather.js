@@ -5,7 +5,7 @@
 // Pure wording and rules live in js/today.js and js/boardcontent.js.
 import { planTrip, assessTrip, assessWindow, scoreHour, describeCode, distanceKm, fmtTime, fmtDay, fmtZone, HOUR, LEVEL_LABEL } from './core.js';
 import { headlineParts, dayKey, skyOf } from './boardcontent.js';
-import { upcomingTrip, mightBeSoon, tripQuery, commute, carry, airSun, flightsNear, nextHours, stateOf, isUS, relTime, cleanHeadlines, arrangeHeadlines, monogram, tileTone, alertItems, airportSignal, alertReason, newsReason, civicReason, US_STATES } from './today.js';
+import { upcomingTrip, mightBeSoon, tripQuery, commute, carry, airSun, flightsNear, nextHours, stateOf, isUS, relTime, cleanHeadlines, arrangeHeadlines, alertItems, airportSignal, alertReason, newsReason, civicReason, US_STATES } from './today.js';
 import { placeSnapshot, diffPlaces, noteForecast, dismiss, changeLine, changeLead, dayName, alertKey, startLook, noteKind, briefNews, dismissLook, lookEntry, sinceLabel } from './changes.js';
 import { odds, stopOdds, faaPlanLine } from './riskwords.js';
 import { seenGet, seenSet } from './seen.js';
@@ -665,22 +665,17 @@ function signalItem(s) {
 // Pictures are the publisher's own link-preview image, hotlinked from their site and credited. The headline is
 // the one link a keyboard or screen reader meets; the picture repeats that link for the mouse and touch only
 // (out of the tab order, hidden from assistive tech), so its alt is empty instead of reading the headline twice.
-const tile = (outlet) => {
-  const mono = monogram(outlet);
-  return `<span class="tile tile--${tileTone(outlet)}"><span class="tile__mono">${esc(mono)}</span>${mono === outlet ? '' : `<span class="tile__name">${esc(outlet)}</span>`}</span>`;
-};
+// A headline without a picture has no picture slot at all (head--noimg): the text takes the space, never a stand-in.
 function storyMedia(x, kind) {
   const [rw, rh] = kind === 'row' ? [4, 3] : [16, 9];
   const im = x.image;
-  const inner = im
-    ? `<img src="${esc(im.url)}" alt="" width="${im.width || rw * 100}" height="${im.height || rh * 100}" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-outlet="${esc(x.outlet)}"><span class="head__credit">Image: ${esc(x.outlet)}</span>`
-    : tile(x.outlet);
-  return `<a class="head__media${im ? '' : ' head__media--none'}" href="${esc(x.url)}" rel="noopener" tabindex="-1" aria-hidden="true">${inner}</a>`;
+  if (!im) return '';
+  return `<a class="head__media" href="${esc(x.url)}" rel="noopener" tabindex="-1" aria-hidden="true"><img src="${esc(im.url)}" alt="" width="${im.width || rw * 100}" height="${im.height || rh * 100}" loading="lazy" decoding="async" referrerpolicy="no-referrer"><span class="head__credit">Image: ${esc(x.outlet)}</span></a>`;
 }
 function headlineItem(x, now, kind, extra = '') {
   const ms = Date.parse(x.published);
   const full = new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: state.wx?.tz }).format(ms);
-  return `<li class="head head--${kind}"${extra}>
+  return `<li class="head head--${kind}${x.image ? '' : ' head--noimg'}"${extra}>
     ${storyMedia(x, kind)}
     <div class="head__body">
       <a class="head__link" href="${esc(x.url)}" rel="noopener">${esc(x.title)}</a>
@@ -697,13 +692,14 @@ function headlinesHtml(items, now) {
     + rows.map((x) => headlineItem(x, now, 'row')).join('')
     + cards.map((x) => headlineItem(x, now, 'card', ` style="--span: ${span}"`)).join('');
 }
-// A picture that fails to load (blocked, gone, hotlinking refused) or turns out to be a pixel becomes the
-// outlet's tile, never a broken-image icon. error and load do not bubble, so they are caught on the way down.
+// A picture that fails to load (blocked, gone, hotlinking refused) or turns out to be a pixel is removed, and the
+// headline takes its space: never a broken-image icon, never a stand-in. error and load do not bubble, so they are
+// caught on the way down.
 function noPicture(img) {
   const box = img.closest('.head__media');
-  if (!box || box.classList.contains('head__media--none')) return;
-  box.classList.add('head__media--none');
-  box.innerHTML = tile(img.dataset.outlet || '');
+  if (!box) return;
+  box.closest('.head')?.classList.add('head--noimg');
+  box.remove();
 }
 const newsList = $('#brief-news-list');
 if (newsList) {

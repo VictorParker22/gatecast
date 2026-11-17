@@ -73,7 +73,8 @@ test('/api/weird answer: contract shape, picks first, then newest; held items ne
   assert.deepEqual(Object.keys(out).sort(), ['categories', 'checkedAt', 'items', 'sources']);
   assert.equal(out.checkedAt, new Date(now).toISOString());
   for (const x of out.items) {
-    assert.deepEqual(Object.keys(x).sort(), ['category', 'id', 'image', 'imageCredit', 'note', 'outlet', 'outletUrl', 'pick', 'published', 'rating', 'title', 'url', 'video']);
+    assert.deepEqual(Object.keys(x).sort(), ['category', 'id', 'image', 'imageCredit', 'note', 'outlet', 'outletUrl', 'pick', 'published', 'rating', 'title', 'url', 'video', 'youtube']);
+    assert.equal(x.youtube, null, 'no video in these fixtures');
     assert.match(x.url, /^https:\/\//);
     assert.match(x.id, /^[0-9a-f]{12}$/);
     assert.ok(CATEGORIES.includes(x.category));
