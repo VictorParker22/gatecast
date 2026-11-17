@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en-GB">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,7 +8,9 @@
     try { document.querySelector('meta[name="color-scheme"]').content = localStorage.getItem("color-scheme") ?? "light dark"; } catch (e) {}
     if (new URLSearchParams(location.search).has('r')) location.replace('trip.html' + location.search);
     // Before any script runs: a returning visitor never sees the first-visit prompt flash before the forecast,
-    // and a saved trip in the next few days starts the airport list early.
+    // and a saved trip in the next few days starts the airport list early. Without storage it is a first visit.
+    // The stylesheet also reads data-start to keep room for what the scripts fill in (styles/components/front.css).
+    document.documentElement.dataset.start = 'first';
     try {
       document.documentElement.dataset.start = localStorage.getItem('gatecast:place') ? 'place' : 'first';
       var gcNow = Date.now();
@@ -16,15 +18,17 @@
     } catch (e) {}
   </script>
   <title>Gatecast — weird news from real outlets, and the weather</title>
-  <meta name="description" content="Weird news from real outlets, with a link to every original, plus the weather where you are, told plainly. A late-90s front page with a library for the curious and quick weather checks for your flights.">
+  <meta name="description" content="Weird news from real outlets, each linked to the original, and your local weather told plainly. Plus a library of strange true stories and classic fiction.">
   <!-- Search and share basics. Copy lives here and in how.html; the share image is rendered from docs/og/og-template.html. -->
+  <meta name="robots" content="max-image-preview:large">
   <link rel="canonical" href="https://gatecast.vercel.app/">
   <meta name="theme-color" media="(prefers-color-scheme: light)" content="#F3EEE2">
   <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1B1813">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Gatecast">
+  <meta property="og:locale" content="en_GB">
   <meta property="og:title" content="Gatecast — weird news from real outlets, and the weather">
-  <meta property="og:description" content="Weird news from real outlets, with a link to every original, plus the weather where you are, told plainly. A late-90s front page with a library for the curious and quick weather checks for your flights.">
+  <meta property="og:description" content="Weird news from real outlets, each linked to the original, and your local weather told plainly. Plus a library of strange true stories and classic fiction.">
   <meta property="og:url" content="https://gatecast.vercel.app/">
   <meta property="og:image" content="https://gatecast.vercel.app/vendor/og/gatecast-og.png">
   <meta property="og:image:width" content="1200">
@@ -32,20 +36,21 @@
   <meta property="og:image:alt" content="Gatecast: weird news from real outlets, and the weather.">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Gatecast — weird news from real outlets, and the weather">
-  <meta name="twitter:description" content="Weird news from real outlets, with a link to every original, plus the weather where you are, told plainly. A late-90s front page with a library for the curious and quick weather checks for your flights.">
+  <meta name="twitter:description" content="Weird news from real outlets, each linked to the original, and your local weather told plainly. Plus a library of strange true stories and classic fiction.">
   <meta name="twitter:image" content="https://gatecast.vercel.app/vendor/og/gatecast-og.png">
   <script type="application/ld+json">
   {"@context": "https://schema.org", "@graph": [
-    {"@type": "WebSite", "@id": "https://gatecast.vercel.app/#website", "url": "https://gatecast.vercel.app/", "name": "Gatecast", "description": "Weird news from real outlets, with a link to every original, plus the weather where you are.", "inLanguage": "en", "publisher": {"@id": "https://gatecast.vercel.app/#organization"}},
-    {"@type": "Organization", "@id": "https://gatecast.vercel.app/#organization", "name": "Gatecast", "url": "https://gatecast.vercel.app/", "sameAs": ["https://github.com/VictorParker22/gatecast"]}
+    {"@type": "WebSite", "@id": "https://gatecast.vercel.app/#website", "url": "https://gatecast.vercel.app/", "name": "Gatecast", "description": "Weird news from real outlets, with a link to every original, plus the weather where you are.", "inLanguage": "en-GB", "publisher": {"@id": "https://gatecast.vercel.app/#organization"}},
+    {"@type": "Organization", "@id": "https://gatecast.vercel.app/#organization", "name": "Gatecast", "url": "https://gatecast.vercel.app/", "logo": {"@type": "ImageObject", "url": "https://gatecast.vercel.app/icon-512.png", "width": 512, "height": 512}, "sameAs": ["https://github.com/VictorParker22/gatecast"]}
   ]}
   </script>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23111418'/%3E%3Cpath d='M9 25V14a7 7 0 0 1 14 0v11M16 18v7' stroke='%23fff' stroke-width='2.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-  <!-- The first screen: the slab masthead, pixel datelines, Inter and the 800 signage of the tabs. -->
+  <link rel="icon" href="/favicon.ico" sizes="48x48">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <!-- Only the two critical faces: the slab masthead and Inter for the text. The pixel and signage faces load from
+       the stylesheet; the slab's swap is kept still by a metric-matched fallback (styles/main.css). -->
   <link rel="preload" href="vendor/fonts/alfa-slab-one-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="preload" href="vendor/fonts/vt323-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="vendor/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="preload" href="vendor/fonts/barlow-condensed-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="styles/site.css">
   <link rel="stylesheet" href="styles/site-front.css">
   <!-- The whole module graph, fetched in parallel instead of one import level at a time. -->
@@ -121,7 +126,7 @@
             <h2 class="wxbox__title" id="wx-h">WEATHER BOX<span id="wx-place"></span></h2>
             <button class="bev bev--sun wxbox__change" type="button" id="wx-change" aria-expanded="false" aria-controls="wx-find">Change city</button>
           </div>
-          <div class="wxbox__find" id="wx-find" hidden>
+          <div class="wxbox__find" id="wx-find">
             <div class="finder" id="finder">
               <form id="place-form" class="flex gap-2 items-center" role="search" novalidate>
                 <div class="field combo">
@@ -157,7 +162,7 @@
           </div>
           <div id="alerts" class="wxbox__alerts"></div>
           <div class="wxbox__since" id="wx-since" hidden></div>
-          <a class="wxbox__weird" id="wx-weird" href="#believe" hidden></a>
+          <a class="wxbox__weird" id="wx-weird" href="#believe"></a>
         </section>
       </div>
     </div>
@@ -180,8 +185,10 @@
   <div id="settings" class="settings" popover aria-labelledby="settings-title"></div>
 
   <main id="main">
-    <!-- Real headlines from /api/weird. It stops under reduced motion, on hover or focus, and with its button. -->
-    <section class="ticker" id="ticker" aria-label="Odd headlines" hidden>
+    <!-- Real headlines from /api/weird. It stops under reduced motion, on hover or focus, and with its button.
+         The ticker, the lead and Also odd are not hidden while the stories load: front.css keeps their room (blank
+         and invisible) so nothing below them jumps when they arrive; js/front.js hides them if no stories come back. -->
+    <section class="ticker" id="ticker" aria-label="Odd headlines">
       <span class="ticker__label">Odd news</span>
       <div class="ticker__vp"><div class="ticker__track" id="ticker-track"></div></div>
       <button type="button" class="ticker__btn" id="ticker-btn" aria-pressed="false">
@@ -193,9 +200,9 @@
 
     <div class="front">
       <div class="front__top" id="front-top">
-        <article class="lead" id="lead" aria-labelledby="lead-h" hidden></article>
+        <article class="lead" id="lead" aria-labelledby="lead-h"></article>
         <aside class="front__aside" aria-label="Also odd, and your streak">
-          <section class="also" id="also" aria-labelledby="also-h" hidden>
+          <section class="also" id="also" aria-labelledby="also-h">
             <h2 class="also__h" id="also-h">Also odd</h2>
             <ol class="also__list" id="also-list"></ol>
           </section>
@@ -245,7 +252,7 @@
             <details class="brief__about">
               <summary>Why am I seeing this?</summary>
               <div class="brief__about-body">
-                <p>The brief is picked from four things only: the place you chose (kept on this device), a saved trip on this device, official National Weather Service alerts for that place, and the US state it is in. Each item says which of them put it there.</p>
+                <p>The brief is picked from four things only: the place you chose (kept on this device), the weather there (official National Weather Service alerts and the forecast at the airports near you), the US state that place is in, and a trip saved on this device, which only adds a note when an alert covers your departure. Each item says which of them put it there.</p>
                 <p>Headlines, statehouse votes and Both sides are listed newest first, as published or recorded. They are never ranked by clicks or popularity, and clicks on them are not counted.</p>
                 <p><a href="how.html">How Gatecast works</a></p>
               </div>

@@ -26,11 +26,13 @@ The screenshot above and those in [`docs/screenshots/`](docs/screenshots/) show 
 
 ## What it does
 
-Local weather with flight status. Three pages:
+Three things, in this order: weird news, the weather, and The Stacks. The flight tools stay as a small utility.
 
-- **Today** (`index.html`): the animated sky with one answer on top. If one of your saved trips leaves within 72 hours, its verdict leads; otherwise the weather where you are does, and a first visit gets a short welcome with location and city search. Below: what today's weather means for you (commute, what to take, air and sun, flights near you), the next 10 days and the rain radar.
+- **Front page** (`index.html`): weird news from real outlets, each story the outlet's own headline linked to the original (a ticker, today's lead with the Weird-o-meter, Also odd, the editor's favourites and a "Believe it or not" grid by category). On top, the weather box: the live sky where you are, the next 8 hours, nearby airports and any official alerts, told plainly. Below, The brief (weather news, local headlines and, in the US, statehouse votes for your place), a box for your next trip, a peek at The Stacks and the guestbook for tips.
+- **The Stacks** (`library.html`, and plain pages under `/stacks/`): a virtual library of books on true crime, unsolved mysteries, weird history, strange science, cults and cons, beside shelves of classic fantasy and science fiction. Each book is described in our own words, with a Book of the Week, previews and a way for authors to put a book forward.
 - **Trips** (`trip.html`): enter your airports, departure time and layover and get a plain-language verdict on whether weather threatens the connection.
 - **Flights** (`flights.html`): track a flight live by number, with weather at both ends, or look up any airport's current weather risk and the aircraft around it.
+- **How Gatecast works** (`how.html`): how the stories, the brief and the verdicts are chosen, where every piece of data comes from, and how to report an error.
 
 ## Quick start
 
@@ -63,6 +65,8 @@ npm run ci          # npm test && npm run build
 
 The site is deployed on Vercel (`vercel.json`). Vercel runs `node scripts/build-data.cjs`, which downloads the airport list, writes the map outline, compiles the Tailwind stylesheets into `public/styles/site.css` and `console.css` (`scripts/build-css.cjs`), and assembles the static site in `public/`, including the plain `/stacks/` pages; the functions in `api/` serve the `/api` routes. The build step needs `npm ci` first (for `topojson-client`, `world-atlas` and the Tailwind CLI) and network access. `public/` is generated and not committed.
 
+**Search engines.** The sitemap is at `/sitemap.xml` (listed in `robots.txt`). To verify the site in Google Search Console, put Google's HTML file in `verify/` and deploy (`verify/README.md` has the steps); Bing Webmaster Tools can then import the site from Search Console. After a deploy that changes pages, `node scripts/indexnow.cjs` tells Bing and the other IndexNow search engines (Google does not take part); it first checks that the key file is live. Vercel builds from a shallow clone, so a page last changed before the commits it fetched gets the build day as its `lastmod`; setting `VERCEL_DEEP_CLONE=true` on the project gives exact dates.
+
 ## Project structure
 
 | Path | What it does |
@@ -88,9 +92,13 @@ The site is deployed on Vercel (`vercel.json`). Vercel runs `node scripts/build-
 | `lib/live.js` | Server-side lookups: airport observations, FAA status and today's FAA plans (parser unit-tested), flight route and position, nearby aircraft |
 | `api/*.js` | Vercel functions wrapping `lib/live.js` |
 | `server.js` | Local static server exposing the same `/api` routes |
-| `scripts/build-data.cjs` | Build step: airport list with size ranking, map outline, `sitemap.xml` (each page dated by its last git commit, or the build day without git; the `/stacks/` pages by the dates in `data/books.json`), assembles `public/` |
+| `scripts/build-data.cjs` | Build step: airport list with size ranking, map outline, `sitemap.xml` (each page dated by the newest last commit among its source files, `PAGE_SOURCES`; the build day when git cannot tell, as with no git or a file older than a shallow clone's history; the `/stacks/` pages by the dates in `data/books.json`), assembles `public/` |
 | `scripts/build-stacks-pages.cjs`, `styles/components/stacks-pages.css` | The Stacks as plain, crawlable HTML: `/stacks/`, one page per shelf and per book, written into `public/stacks/` at build time from `data/books.json` (rendered on request by `server.js` locally). No JavaScript, no embeds. Book pages are `noindex, follow` and left out of the sitemap until the book has the owner's own `take` (see `docs/content-sources.md`, "The Stacks as plain pages") |
 | `how.html` | "How Gatecast works": how the brief and the verdicts are chosen, data sources and limits, what Gatecast never does, corrections |
+| `404.html` | The "page not found" page (noindex), with the site header and links back; Vercel serves `public/404.html` with a 404 status, `server.js` does the same locally |
+| `favicon.svg`, `favicon.ico`, `apple-touch-icon.png`, `icon-512.png`, `scripts/build-icons.cjs` | The site icons and the logo in the JSON-LD (the brand mark: the gate arch on cobalt), copied to the site root by the build. `node scripts/build-icons.cjs` redraws them (needs Playwright; the results are committed) |
+| `verify/` | Search engine ownership files (Google's `googleXXXX.html`, Bing's `BingSiteAuth.xml`): drop the file here and the build copies it to the site root. See `verify/README.md` |
+| `<32 hex>.txt`, `scripts/indexnow.cjs` | The IndexNow key (public by design), served at `/<key>.txt`, and the script that tells Bing and the other IndexNow engines about changed pages: `node scripts/indexnow.cjs` after a deploy (`--dry-run` to see what it would send) |
 | `robots.txt` | Crawl rules: everything public allowed (OAI-SearchBot and PerplexityBot named), including `/stacks/` and the three `/api/` endpoints the pages read (`/api/weird`, `/api/news`, `/api/book-covers`) so renderers see the real page; the rest of `/api/` disallowed. `review.html` is not blocked so crawlers see its `noindex, nofollow` header (`vercel.json`) |
 | `vendor/og/gatecast-og.png`, `docs/og/og-template.html` | The 1200×630 share image for Open Graph and Twitter cards, and the HTML it is rendered from |
 | `vendor/leaflet/` | Leaflet 1.9.4 (BSD-2-Clause), used only for the radar map |
