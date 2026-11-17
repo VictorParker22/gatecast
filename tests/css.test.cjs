@@ -10,18 +10,23 @@ const { buildCss } = require('../scripts/build-css.cjs');
 
 const root = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(root, f), 'utf8');
-const MIGRATED = ['how.html', 'trip.html', 'flights.html', 'review.html'];
-const LEGACY = ['index.html', 'library.html']; // phase 2: still on tokens.css + app.css
+const PAGES = ['index.html', 'library.html', 'how.html', 'trip.html', 'flights.html', 'review.html'];
+const OLD = ['tokens.css', 'app.css', 'home.css', 'civic.css', 'sky.css', 'motion.css', 'library.css', 'how.css', 'trip.css', 'flights.css', 'review.css'];
 
 let css;
 test('the build emits a minified site.css with the theme, components and only the newsprint and risk colours', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gatecast-css-'));
-  const [out, consoleOut] = buildCss(path.join(dir, 'styles'));
-  assert.equal(path.basename(out), 'site.css');
-  assert.ok(fs.existsSync(out) && fs.existsSync(consoleOut), 'site.css and console.css are written');
+  const files = buildCss(path.join(dir, 'styles'));
+  assert.deepEqual(files.map((f) => path.basename(f)), ['site.css', 'site-front.css', 'site-library.css', 'console.css']);
+  for (const f of files) assert.ok(fs.existsSync(f), `${path.basename(f)} is written`);
+  const [out, frontOut, libOut, consoleOut] = files;
   css = fs.readFileSync(out, 'utf8');
-  const consoleCss = fs.readFileSync(consoleOut, 'utf8');
-  assert.ok(consoleCss.includes('.rv-row') && !css.includes('.rv-row'), 'the console components ship only in console.css');
+  const only = (file, sel) => assert.ok(fs.readFileSync(file, 'utf8').includes(sel) && !css.includes(sel), `${sel} ships only in ${path.basename(file)}`);
+  only(consoleOut, '.rv-row');
+  only(frontOut, '.masthead__h1');
+  only(libOut, '.lib-spine');
+  // The page bundles read tokens that site.css defines on every page.
+  for (const t of ['--text-masthead:', '--color-lib-night:', '--spacing-lib-gutter:']) assert.ok(css.includes(t), `site.css defines ${t}`);
   assert.ok(css.length > 20000, 'not empty');
   assert.ok(!/\n\s{2,}\S/.test(css.slice(0, 5000)), 'minified');
   for (const sel of ['.site-header', '.site-nav', '.btn', '.chip', '.settings', '.segmented', '.stop', '.hours', '.verdict', '.sr-only'])
@@ -34,21 +39,21 @@ test('the build emits a minified site.css with the theme, components and only th
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
-test('every migrated page links site.css and nothing else; index and library keep the legacy sheets for now', () => {
-  for (const page of MIGRATED) {
+test('every page links site.css and nothing else, and the hand-written sheets are gone', () => {
+  for (const page of PAGES) {
     const sheets = [...read(page).matchAll(/<link rel="stylesheet" href="([^"]+)"/g)].map((m) => m[1]);
-    // The private reviewer console adds its own components (styles/main-console.css) after the shared sheet.
-    assert.deepEqual(sheets, page === 'review.html' ? ['styles/site.css', 'styles/console.css'] : ['styles/site.css'], page);
+    // Three pages add their own components after the shared sheet: the console, the front page and The Stacks.
+    const own = { 'review.html': 'styles/console.css', 'index.html': 'styles/site-front.css', 'library.html': 'styles/site-library.css' }[page];
+    assert.deepEqual(sheets, own ? ['styles/site.css', own] : ['styles/site.css'], page);
   }
-  for (const page of LEGACY) assert.match(read(page), /href="styles\/app\.css"/, page);
-  for (const gone of ['how.css', 'trip.css', 'flights.css', 'review.css'])
-    assert.ok(!fs.existsSync(path.join(root, 'styles', gone)), `styles/${gone} is gone`);
+  for (const page of PAGES) for (const old of OLD) assert.ok(!read(page).includes('styles/' + old), `${page} does not link ${old}`);
+  for (const gone of OLD) assert.ok(!fs.existsSync(path.join(root, 'styles', gone)), `styles/${gone} is gone`);
 });
 
 test('the deploy build compiles site.css into public/ and does not ship the Tailwind sources', () => {
   const src = read('scripts/build-data.cjs');
   assert.match(src, /buildCss\(path\.join\(out, 'styles'\)\)/);
-  assert.ok(src.includes('(main\\.css|main-console\\.css|site\\.css|console\\.css|components)'), 'the Tailwind sources are filtered out of public/styles');
+  assert.ok(src.includes('(main(-\\w+)?\\.css|site(-\\w+)?\\.css|console\\.css|components)'), 'the Tailwind sources are filtered out of public/styles');
   assert.match(read('.gitignore'), /^styles\/site\.css$/m);
-  assert.match(read('.gitignore'), /^styles\/console\.css$/m);
+  for (const f of ['console', 'site-front', 'site-library']) assert.match(read('.gitignore'), new RegExp(`^styles/${f}\\.css$`, 'm'));
 });

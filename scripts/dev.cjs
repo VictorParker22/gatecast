@@ -1,4 +1,4 @@
-// npm run dev: the local server plus the Tailwind CLI in watch mode, so styles/site.css and styles/console.css follow every edit to
+// npm run dev: the local server plus the Tailwind CLI in watch mode, so styles/site.css and the page bundles follow every edit to
 // styles/main.css, styles/components/*.css and the class names in the pages and scripts it scans.
 const { watchCss, buildCss, stale } = require('./build-css.cjs');
 if (stale()) buildCss();

@@ -1,12 +1,12 @@
 # Gatecast design system
 
-The visual language and components of the Gatecast site. Since 16 Nov 2026 the site is moving onto **Tailwind CSS v4**: the tokens are a Tailwind theme in `styles/main.css`, the shared pieces are a small component layer in `styles/components/`, and pages are styled with utilities. `how.html`, `trip.html`, `flights.html` and `review.html` are migrated; the front page (`index.html`, `styles/home.css`) and the library (`library.html`, `styles/library.css`) still use the legacy `styles/tokens.css` and `styles/app.css` until phase 2. The values below are the same in both.
+The visual language and components of the Gatecast site. Every page is styled with **Tailwind CSS v4** (since 16–17 Nov 2026): the tokens are a Tailwind theme in `styles/main.css`, the shared pieces are a small component layer in `styles/components/`, and pages are styled with utilities plus those components. Every page links the compiled `styles/site.css`; the front page, The Stacks and the reviewer console add one bundle of their own components each (`site-front.css`, `site-library.css`, `console.css`), so the other pages do not download them. There is no hand-written stylesheet left.
 
 The direction (approved 16 Nov 2026) is **a late-90s weird-news front page, modern underneath**: newsprint paper, hard 2px ink edges, offset shadows, beveled buttons that press in, a slab masthead, pixel-type datelines, starbursts and stickers, and a ticker. Underneath it stays accessible, fast and responsive: semantic HTML, 44px targets, visible focus, 4.5:1 text, `prefers-reduced-motion` respected, no framework; the only build step for styles is the Tailwind compile. The approved boards are `WeirdHome` (1440px) and `WeirdPhone` (390px); the front page is built to them and checked against them (see "Fidelity" below).
 
 ## How the theme works (Tailwind CSS v4)
 
-**Files.** `styles/main.css` is the entry: `@import "tailwindcss" source(none)` plus the `@source` list of pages and scripts to scan, the `@theme` block (every token), `@custom-variant dark`, the fonts, `@layer base` (element defaults on top of Tailwind's preflight) and the imports of `styles/components/site.css` (header, nav and phone tab bar, footer, buttons, settings window, fields, pills, risk chips, reading-page pieces) and `styles/components/weather.css` (verdict, stop card, facts, hourly strip, live rows, route map, panel, ink panel, and the Trips and Flights pieces that have states). `scripts/build-css.cjs` compiles it with the Tailwind CLI into one minified `styles/site.css` (local, git-ignored) and `public/styles/site.css` (the Vercel build). The reviewer console's own components (`styles/components/review.css`) compile separately, through `styles/main-console.css` (`@reference "./main.css"`), into `styles/console.css`, so public pages do not carry them; daisyUI 5 is loaded there only, with the prefix `d-` and a `gatecast` theme mapped onto the newsprint tokens (`d-input`, `d-textarea`, `d-kbd`, `d-badge`).
+**Files.** `styles/main.css` is the entry: `@import "tailwindcss" source(none)` plus the `@source` list of pages and scripts to scan, the `@theme static` block (every token, defined in `site.css` on every page), `@custom-variant dark`, the fonts, `@layer base` (element defaults on top of Tailwind's preflight) and the imports of `styles/components/site.css` (header, nav and phone tab bar, footer, buttons, settings window, fields, pills, risk chips, reading-page pieces) and `styles/components/weather.css` (verdict, stop card, facts, hourly strip, live rows, route map, panel, ink panel, and the Trips and Flights pieces that have states). `scripts/build-css.cjs` compiles it with the Tailwind CLI into one minified `styles/site.css` (local, git-ignored) and `public/styles/site.css` (the Vercel build). Three page bundles compile separately, each through a small entry that `@reference`s `main.css` (same theme and variants, nothing emitted twice): `main-front.css` → `site-front.css` (`components/front.css`), `main-library.css` → `site-library.css` (`components/library.css`) and `main-console.css` → `console.css` (`components/review.css`), so a page only carries its own bespoke pieces; daisyUI 5 is loaded there only, with the prefix `d-` and a `gatecast` theme mapped onto the newsprint tokens (`d-input`, `d-textarea`, `d-kbd`, `d-badge`).
 
 **Tokens are utilities.** Each `@theme` variable becomes a utility: `--color-np-cobalt` gives `bg-np-cobalt`, `text-np-cobalt`, `border-np-cobalt`; `--shadow-btn` gives `shadow-btn`; `--text-code` gives `text-code`; `--spacing-tap` gives `min-h-tap`, `w-tap`; `--breakpoint-nav` gives `nav:` and `max-nav:`. Tailwind's default colour palette, radii, shadows and fonts are cleared (`--color-*: initial` and so on), so only Gatecast's values exist: there is no `bg-red-500` to reach for, which enforces "risk colours are reserved".
 
@@ -23,7 +23,7 @@ The direction (approved 16 Nov 2026) is **a late-90s weird-news front page, mode
 | Measures | `max-w-headline` 16ch, `lede` 52ch, `measure` 62ch, `read` 68ch, `frame` 80rem | |
 | Radius | `rounded-sm`/`md` 2px, `rounded-lg`/`xl` 3px, `rounded-full` for risk chips only | Tailwind's larger radii do not exist |
 | Shadows | `shadow-np` 4px, `shadow-np-lg` 6px, `shadow-np-hover` 8px offsets (never blurred); `shadow-bevel`, `shadow-bevel-in`; `shadow-btn`, `shadow-btn-hover`, `shadow-btn-active` (bevel + 3/4/1px) | |
-| Breakpoints | `xs` 30rem, `sm` 40rem, `nav` 46rem (the phone tab bar switch), `md` 48rem, `lg` 64rem, `xl` 80rem, `wide` 84rem (the console's assistant column) | Container queries: `@container` with `@xl` (36rem) on the stop card |
+| Breakpoints | `xs` 30rem, `sm` 40rem, `nav` 46rem (the phone tab bar switch), `md` 48rem, `lg` 64rem, `xl` 80rem, `wide` 84rem (the console's assistant column); page-specific: `masthead` 52rem, `desk` 56rem, `wxbox` 62.5rem (front page), `lib-tagline` 82rem (The Stacks; its photo-crop and 3D-frame breakpoints stay in px) | Container queries: `@container` with `@xl` (36rem) on the stop card |
 | Strokes | `stroke-thin` 1.5, `stroke-icon` 1.7, `stroke-2`, `stroke-bold` 2.4 | Line icons on a 24-unit grid |
 
 No raw pixel value appears in the markup or the scripts' templates. In the CSS sources the only pixel literals are the tokens themselves (radii, the print and bevel shadows), hairlines and focus rings (1–3px, the double rules), texture tiles (the 6px halftone, the 3px press lines, the 8px dashes of an untracked flight's line) and the 8px rise of the results' entrance. The hourly strip's 3/8/14px risk bars are scale steps (`h-0.75`, `h-2`, `h-3.5`).
@@ -37,7 +37,9 @@ No raw pixel value appears in the markup or the scripts' templates. In the CSS s
 
 ### Migration status
 
-Phase 1 (done): `how.html`, `trip.html` (+ `js/trip.js`, `js/tripview.js`), `flights.html` (+ `js/flights.js`), `review.html` (+ `js/review.js` through its component layer) and the shared `js/view.js`, `js/ui.js`, `js/shell.js` output. `styles/how.css`, `trip.css`, `flights.css` and `review.css` are deleted. Phase 2: `index.html` with `styles/home.css`, `civic.css`, `sky.css`, `motion.css`, and `library.html` with `styles/library.css`; then `styles/tokens.css` and `app.css` can go. Until then the legacy sheets carry the same values, so both halves of the site look the same.
+Done. Phase 1 (16 Nov): `how.html`, `trip.html`, `flights.html`, `review.html` and the shared `js/view.js`, `js/ui.js`, `js/shell.js` output. Phase 2 (17 Nov): the front page (`index.html` with `js/front.js`, `js/weather.js`, `js/today.js`, `js/changes.js`, `js/civic.js`, `js/sky.js`, `js/motion.js`) on `styles/components/front.css`, and The Stacks (`library.html`, `js/library.js`) on `styles/components/library.css`. The hand-written `styles/tokens.css`, `app.css`, `home.css`, `civic.css`, `sky.css`, `motion.css`, `library.css`, `how.css`, `trip.css`, `flights.css` and `review.css` are all deleted.
+
+**Bespoke component files.** `front.css` and `library.css` hold what is genuinely one of a kind: the masthead and its starburst, the weather box chrome and flat sky, the ticker, the lead and its burst, the Weird-o-meter needle, cards and fallback tiles, the Stacks teaser shelf, the guestbook, the 88x31 badges, the first-load motion; and in the Stacks the torn label, the metal slab title, the paper library card, leather chips with their lamps, brass buttons, the book dialog and back cover, and the DOM fallback shelves. They compile as page bundles (`styles/main-front.css` and `main-library.css`, which `@reference` `main.css`), and their tokens live in the `@theme static` block of `main.css`: the front page's fluid board values (`--text-masthead`, `--text-lead`, `--spacing-section` …, each with its 390px and 1440px values) and the Stacks' physical colours (`--color-lib-*`) and fluid values. `static` makes `site.css` define every token on every page, so a bundle can read them with `var()` without repeating them. The Stacks' frame geometry that the 3D scene reads (`.lib-cases` and its aspect-ratio breakpoints, `.lib-room__bg`, `.lib-gl`, the `is-gl` dialog rules) and its px breakpoints, which mirror `js/stacks3d/` and the photo crops, are kept exactly. `url()`s in component files are written relative to the compiled `styles/site.css`.
 
 ## Principles
 
@@ -183,7 +185,7 @@ Current observation ("Right now: …") with the raw METAR behind a disclosure, a
 
 An old program window in the masthead: a cobalt title bar ("WEATHER BOX · NEW YORK" in VT323) with a sun "Change city" button that opens the place search under it; then the screen, which holds the live WebGL sky (the flat `--sky-*` colour is its fallback) with scan lines, the big slab temperature, the condition and one plain sentence (`headlineParts()`), the next 8 hours, the nearby airports (a quiet tick line when calm, a risk chip when not) and air/UV/sunset. NWS alerts, "Since you last looked" and the newest weird-weather story sit under the screen.
 
-### Animated sky (`js/sky.js`, `js/sky/shaders.js`, `styles/sky.css`)
+### Animated sky (`js/sky.js`, `js/sky/shaders.js`, `.sky__canvas` in `styles/components/front.css`)
 
 A WebGL canvas behind the sky header draws the weather: a sun glow that follows the time between sunrise and sunset with drifting high cloud by day, stars and a moon at night, layered overcast, rain whose density follows the forecast and whose slant follows the wind, drifting snow, and storm cloud with rare, soft brightening.
 
@@ -192,7 +194,7 @@ A WebGL canvas behind the sky header draws the weather: a sun glow that follows 
 - With reduced motion it draws one still frame per change, with no lightning.
 - It renders at no more than 1.5 device pixels per CSS pixel and pauses when the tab is hidden or the sky is scrolled out of view.
 
-### Motion (`styles/motion.css`, `js/motion.js`)
+### Motion (`js/motion.js`, the motion rules in `styles/components/front.css`)
 
 All motion lives in its own layer so it can be tuned or removed without touching layout.
 
@@ -206,7 +208,7 @@ All motion lives in its own layer so it can be tuned or removed without touching
 
 Everything becomes an instant change under `prefers-reduced-motion`, and only transform, opacity and (sparingly) filter are animated.
 
-### Front page pieces (`index.html`, `styles/home.css`, `js/front.js`)
+### Front page pieces (`index.html`, `styles/components/front.css`, `js/front.js`)
 
 - **Edition strip** (`.edition`): a night band in VT323 sun: "NEW YORK EDITION · MONDAY 16 NOVEMBER 2026 · VOL. 1 · NO. 320". The place is the one chosen in the weather box, the date is in the visitor's locale, and "No." is simply the day of the year (`editionLine()`); nothing in it is presented as a fact about an issue. On phones it is the short form above the masthead.
 - **Masthead** (`.masthead`): kicker with a double rule, the GATECAST `h1` (the page's only h1), a one-line lede, and the lime "Real sources only" starburst. The starburst has its own grid cell beside the lede, so it never covers the wordmark at any width (a deliberate change from the board, where it overlaps the last letters); it turns slowly and stands still under reduced motion.
@@ -296,8 +298,8 @@ Gatecast talks like a friend who knows the weather: someone who has read the for
 
 | Check | Result |
 |---|---|
-| Hard-coded colours in `app.css` | 0 |
-| Token references in `app.css` | 155 |
+| Hard-coded colours in components | 0 outside the physical objects of the Stacks and the badge edges |
+| Token references | every colour, font, radius and shadow in `site.css`, `weather.css`, `front.css` |
 | Pixel literals outside tokens | Hairlines (1 to 3px) and risk-bar heights (8px, 14px) only |
 | Interactive targets below 44px | None |
 | Colour-only signals | None found |

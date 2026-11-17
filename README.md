@@ -42,7 +42,7 @@ npm run dev        # server + Tailwind in watch mode: styles/site.css is rebuilt
 
 Then open http://localhost:4173. Node 20 or newer. Set `PORT` to use another port.
 
-**Styles.** The pages on Tailwind (`how.html`, `trip.html`, `flights.html`, `review.html`) link one compiled stylesheet, `styles/site.css`, built from `styles/main.css` (theme tokens, base, `@layer components`) and `styles/components/*.css`; the reviewer console adds `styles/console.css` from `styles/main-console.css`. Both outputs are generated and git-ignored: `npm run css` builds them once, `npm run dev` keeps them fresh. The front page and the library (`index.html`, `library.html`) still use the hand-written `styles/tokens.css`, `app.css`, `home.css` and `library.css` until they are migrated. How the theme works is in [`docs/design-system.md`](docs/design-system.md).
+**Styles.** Every page links one compiled stylesheet, `styles/site.css`, built from `styles/main.css` (theme tokens, base, `@layer components`) and `styles/components/*.css` (`site.css` shared pieces, `weather.css` Trips and Flights); the front page, The Stacks and the reviewer console add their own bundle (`styles/site-front.css`, `site-library.css`, `console.css`, from `styles/main-front.css`, `main-library.css`, `main-console.css` with `styles/components/front.css`, `library.css`, `review.css`). All outputs are generated and git-ignored: `npm run css` builds them once, `npm run dev` keeps them fresh. How the theme works is in [`docs/design-system.md`](docs/design-system.md).
 
 The weather page and connection checker also work as plain static files. Flight tracking, "Right now" airport observations and FAA delay programmes need the `/api` routes (`server.js` locally, the `api/` functions on Vercel), because those sources do not allow direct browser calls.
 
@@ -67,11 +67,11 @@ The site is deployed on Vercel (`vercel.json`). Vercel runs `node scripts/build-
 
 | Path | What it does |
 |---|---|
-| `index.html`, `js/weather.js`, `styles/home.css` | Today: sky hero (trip verdict, weather or first visit), "here now" card, what today means, 10 days, radar |
+| `index.html`, `js/weather.js`, `js/front.js`, `styles/components/front.css` | Today: sky hero (trip verdict, weather or first visit), "here now" card, what today means, 10 days, radar |
 | `js/today.js` | Today's pure logic: upcoming trip, commute, what to take, air and sun, flights near you (unit-tested) |
-| `js/sky.js`, `js/sky/shaders.js`, `styles/sky.css` | WebGL animated sky behind the header, with a flat-colour fallback |
+| `js/sky.js`, `js/sky/shaders.js` | WebGL animated sky behind the header, with a flat-colour fallback |
 | `js/sky/governor.js` | Decides the sky's quality level from measured frame times (pure, unit-tested) |
-| `js/motion.js`, `styles/motion.css` | First-load entrance and small press feedback, off under reduced motion |
+| `js/motion.js` | First-load entrance and small press feedback, off under reduced motion |
 | `js/boardcontent.js` | Headline sentence and sky mapping used by Today; also older content helpers kept for their tests (pure, unit-tested) |
 | `js/journey.js`, `js/tripview.js` | Trips: the journey strip model (pure, unit-tested) and the verdict, strip and stop-card views |
 | `js/flightstatus.js` | Flights: which number leads, position freshness, the one-line weather verdict (pure, unit-tested) |
@@ -82,10 +82,9 @@ The site is deployed on Vercel (`vercel.json`). Vercel runs `node scripts/build-
 | `js/data.js` | Airport and city search, forecasts, alerts, flight and live-data clients |
 | `js/ui.js` | Icons, units and chips shared by every page |
 | `js/view.js` | Route map and hourly strip for the flights and connections pages (re-exports `js/ui.js`) |
-| `styles/main.css`, `styles/components/` | Tailwind CSS v4 entry: the theme (newsprint and risk colours, type, spacing, radii, shadows, breakpoints), base styles and the shared components; compiled to `styles/site.css` |
+| `styles/main.css`, `styles/components/` | Tailwind CSS v4 entry: the theme (newsprint and risk colours, type, spacing, radii, shadows, breakpoints), base styles and the components (shared, Trips and Flights, the front page, The Stacks); compiled to `styles/site.css` |
 | `styles/main-console.css`, `styles/components/review.css` | The reviewer console's components (with daisyUI for its fields and pills); compiled to `styles/console.css` |
 | `scripts/build-css.cjs`, `scripts/dev.cjs` | Tailwind build (`npm run css`) and the dev server with CSS watch (`npm run dev`) |
-| `styles/tokens.css`, `styles/app.css` | Legacy tokens and components, still used by the front page and the library until their migration |
 | `lib/live.js` | Server-side lookups: airport observations, FAA status and today's FAA plans (parser unit-tested), flight route and position, nearby aircraft |
 | `api/*.js` | Vercel functions wrapping `lib/live.js` |
 | `server.js` | Local static server exposing the same `/api` routes |
@@ -97,7 +96,7 @@ The site is deployed on Vercel (`vercel.json`). Vercel runs `node scripts/build-
 | `vendor/fonts/` | Inter and Barlow Condensed (SIL Open Font License), self-hosted |
 | `data/airports.json` | 7,769 airports with IATA codes, time zones and a size rank |
 | `js/config.js` | The Supabase project address and its publishable key (public by design; row rules decide access) |
-| `js/civic.js`, `js/civicmodel.js`, `styles/civic.css` | "Your statehouse" and "Both sides" on Today: mounted with `mountCivic(root, { state })`; the words and numbers are pure and unit-tested |
+| `js/civic.js`, `js/civicmodel.js` | "Your statehouse" and "Both sides" on Today: mounted with `mountCivic(root, { state })`; the words and numbers are pure and unit-tested |
 | `review.html`, `js/review.js`, `js/reviewmodel.js` | Reviewer console for the Both sides queue (sign-in link, queue, publish, assistant); not in the navigation, `noindex`. Rules in `reviewmodel.js` are unit-tested |
 | `supabase/migrations/` | Database: the Both sides review queue, statehouse votes and their switch, the hourly collector job; see `supabase/README.md` |
 | `supabase/functions/` | Edge Functions: `collect` (statehouse votes from Open States, hourly) and `assist` (the reviewer console's assistant) |

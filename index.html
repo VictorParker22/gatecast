@@ -46,12 +46,8 @@
   <link rel="preload" href="vendor/fonts/vt323-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="vendor/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="vendor/fonts/barlow-condensed-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="styles/tokens.css">
-  <link rel="stylesheet" href="styles/app.css">
-  <link rel="stylesheet" href="styles/home.css">
-  <link rel="stylesheet" href="styles/civic.css">
-  <link rel="stylesheet" href="styles/sky.css">
-  <link rel="stylesheet" href="styles/motion.css">
+  <link rel="stylesheet" href="styles/site.css">
+  <link rel="stylesheet" href="styles/site-front.css">
   <!-- The whole module graph, fetched in parallel instead of one import level at a time. -->
   <link rel="modulepreload" href="js/weather.js">
   <link rel="modulepreload" href="js/front.js">
@@ -127,7 +123,7 @@
           </div>
           <div class="wxbox__find" id="wx-find" hidden>
             <div class="finder" id="finder">
-              <form id="place-form" class="finder__form" role="search" novalidate>
+              <form id="place-form" class="flex gap-2 items-center" role="search" novalidate>
                 <div class="field combo">
                   <label for="place" class="sr-only">Search for a city</label>
                   <svg class="icon finder__glass" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
@@ -233,7 +229,7 @@
       </section>
 
       <!-- Near you: the existing brief (state headlines, NWS alerts, statehouse votes) beside the trip box. -->
-      <section class="nearyou" id="near" aria-labelledby="brief-title">
+      <section class="flex flex-col gap-5" id="near" aria-labelledby="brief-title">
         <div class="sechead sechead--row">
           <div>
             <p class="sechead__kicker" id="near-kicker">NEAR YOU · REAL HEADLINES, ALERTS AND VOTES</p>
@@ -273,8 +269,8 @@
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 13.5l19-7-4 13-5-4.5-3 3.5v-5l12-7"/></svg>
               <h3 class="flybox__h" id="fly-h">Flying? Check your trip</h3>
             </div>
-            <div class="flybox__body" id="fly-body"></div>
-            <form class="flybox__form" id="fly-form" action="trip.html" method="get">
+            <div class="flex flex-col gap-2.5" id="fly-body"></div>
+            <form class="flex flex-wrap gap-2" id="fly-form" action="trip.html" method="get">
               <div class="flybox__field"><label for="fly-from">From</label><input id="fly-from" name="from" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="3" placeholder="JFK" pattern="[A-Za-z]{3}" required></div>
               <div class="flybox__field"><label for="fly-to">To</label><input id="fly-to" name="to" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="3" placeholder="LHR" pattern="[A-Za-z]{3}" required></div>
               <div class="flybox__field flybox__field--wide"><label for="fly-when">Leaving (local time at the airport)</label><input id="fly-when" name="t" type="datetime-local" required></div>
@@ -341,7 +337,7 @@
           <div class="guestbook__field"><label for="gb-link">Link to the story</label><input id="gb-link" name="url" type="url" inputmode="url" autocomplete="off" placeholder="https://" required></div>
           <div class="guestbook__field"><label for="gb-why">What makes it weird? (optional)</label><textarea id="gb-why" name="note" rows="2" maxlength="280" placeholder="One line is plenty"></textarea></div>
           <div class="guestbook__hp" aria-hidden="true"><label for="gb-website">Website</label><input id="gb-website" name="website" type="text" tabindex="-1" autocomplete="off"></div>
-          <div class="guestbook__send">
+          <div class="flex flex-wrap items-center gap-3">
             <button type="submit" class="bev guestbook__btn" id="gb-send">Send to the editor</button>
             <p class="guestbook__note" id="gb-note" aria-live="polite">We never publish tips without checking the source.</p>
           </div>

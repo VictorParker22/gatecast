@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Gatecast server: serves the static site and proxies the live sources that do not
 // send CORS headers (NOAA airport observations, FAA airport status). No dependencies.
-//   node server.js            -> http://localhost:4173 (compiles styles/site.css and console.css first if missing or stale)
+//   node server.js            -> http://localhost:4173 (compiles styles/site.css and the page bundles first if missing or stale)
 //   npm run dev               -> the same, with the stylesheet rebuilt on every change (scripts/dev.cjs)
 //   PORT=8080 node server.js
 const http = require('node:http');
@@ -91,7 +91,7 @@ if (require.main === module) {
   // The pages link styles/site.css, compiled from styles/main.css by Tailwind. Build it once if it is missing or older
   // than its sources (npm run dev keeps it fresh instead); a missing Tailwind install is reported, not fatal.
   if (!process.env.GATECAST_NO_CSS) {
-    try { const css = require('./scripts/build-css.cjs'); if (css.stale()) { css.buildCss(); console.log('compiled styles/site.css and styles/console.css'); } }
+    try { const css = require('./scripts/build-css.cjs'); if (css.stale()) { css.buildCss(); console.log('compiled styles/site.css and the page bundles'); } }
     catch (err) { console.warn('styles/site.css not built: ' + err.message.split('\n')[0]); }
   }
   server.listen(PORT, () => console.log(`Gatecast running at http://localhost:${PORT}`));

@@ -1,6 +1,6 @@
 // Build step: generates the two large data files and assembles the static site in public/
 // (pages, robots.txt, a sitemap.xml dated today, styles, scripts and vendor files including the share image),
-// and compiles the Tailwind stylesheets public/styles/site.css and console.css (scripts/build-css.cjs).
+// and compiles the Tailwind stylesheets into public/styles/ (site.css and the page bundles; scripts/build-css.cjs).
 // Airports come from mwgg/Airports (MIT), ranked with OurAirports (public domain); the land outline from Natural Earth via world-atlas.
 const fs = require('node:fs');
 const path = require('node:path');
@@ -47,7 +47,7 @@ async function airportRanks() {
 async function build() {
   fs.rmSync(out, { recursive: true, force: true });
   // styles/: the legacy stylesheets that index.html and library.html still link (phase 2), not the Tailwind sources.
-  const notSource = (src) => !/[/\\]styles[/\\](main\.css|main-console\.css|site\.css|console\.css|components)$/.test(src);
+  const notSource = (src) => !/[/\\]styles[/\\](main(-\w+)?\.css|site(-\w+)?\.css|console\.css|components)$/.test(src);
   for (const dir of ['styles', 'js', 'vendor', 'assets']) fs.cpSync(path.join(root, dir), path.join(out, dir), { recursive: true, filter: notSource });
   buildCss(path.join(out, 'styles'));
   for (const file of STATIC_FILES) fs.copyFileSync(path.join(root, file), path.join(out, file));

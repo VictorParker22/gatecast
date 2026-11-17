@@ -1,6 +1,6 @@
 // Motion for the Today page. No library: CSS keyframes keyed on a class, and the Web Animations API.
 // Everything is skipped when the visitor asks for reduced motion, so the page reads the same without it.
-// Timings come from the tokens in styles/tokens.css and the motion tokens at the top of styles/motion.css.
+// Timings come from the theme (styles/main.css) and the motion rules in styles/components/front.css.
 
 const reducedQuery = matchMedia('(prefers-reduced-motion: reduce)');
 export const reduced = () => reducedQuery.matches;

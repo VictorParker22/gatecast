@@ -3,13 +3,15 @@
    Layers, lowest first: theme (tokens) -> base (element defaults) -> components (the shared pieces, built with @apply)
    -> utilities (in the markup). See docs/design-system.md, "How the theme works". */
 
-/* Only the pages and scripts that are on Tailwind are scanned. index.html and library.html (and their scripts) still use
-   styles/tokens.css + app.css + home.css / library.css until phase 2, and do not load this file. */
+/* Every page and every script that writes markup is scanned for class names. A new script that builds HTML must be
+   added here, or the utilities it uses will not be generated. js/stacks3d/ draws into a canvas and has no classes. */
 @import "tailwindcss" source(none);
 @source "../how.html";
 @source "../trip.html";
 @source "../flights.html";
 @source "../review.html";
+@source "../index.html";
+@source "../library.html";
 @source "../js/trip.js";
 @source "../js/tripview.js";
 @source "../js/flights.js";
@@ -17,6 +19,16 @@
 @source "../js/view.js";
 @source "../js/ui.js";
 @source "../js/shell.js";
+@source "../js/front.js";
+@source "../js/frontmodel.js";
+@source "../js/weather.js";
+@source "../js/today.js";
+@source "../js/changes.js";
+@source "../js/civic.js";
+@source "../js/sky.js";
+@source "../js/motion.js";
+@source "../js/library.js";
+@source "../js/librarymodel.js";
 
 /* daisyUI 5, only for the reviewer console's form controls and badges (used from styles/console.css). Prefixed d- so it never collides with
    Gatecast's own .btn / .card / .chip; no stock themes (the "gatecast" theme below maps it onto the newsprint tokens). */
@@ -78,8 +90,10 @@
    Spacing: Tailwind's default 4px step (p-1 = 4px, p-2 = 8px, p-3 = 12px, p-4 = 16px, p-6 = 24px, p-8 = 32px, p-12 = 48px,
    p-16 = 64px). Type: Tailwind's default scale (xs 12, sm 14, base 16, lg 18, xl 20, 2xl 24, 3xl 30, 4xl 36, 5xl 48)
    plus the named steps below, each with the board or page it comes from. Colours: only the newsprint inks and the three
-   risk colours exist (Tailwind's default palette is cleared, so no stray red, amber or teal can appear). */
-@theme {
+   risk colours exist (Tailwind's default palette is cleared, so no stray red, amber or teal can appear).
+   "static": every token here is defined in site.css on every page, used there or not, because the page bundles
+   (site-front.css, site-library.css, console.css) read them with var(). */
+@theme static {
   --color-*: initial;
   --color-white: #fff;
   --color-black: #000;
@@ -100,6 +114,27 @@
   --color-np-on-lime: #15120E;
   --color-np-night: light-dark(#15120E, #0D0B08);   /* always-dark bands and ink panels */
   --color-np-on-night: #FFFFFF;
+  --color-np-on-night-muted: #E6E9EE;               /* secondary text on night bands */
+  --color-np-on-ink-muted: #D6D0C4;
+  /* Category tints behind a story's typographic fallback tile (decorative; no risk hues). */
+  --color-np-tint-people: light-dark(#DCE1F6, #262B45);
+  --color-np-tint-animals: light-dark(#F2E6B9, #3A3320);
+  --color-np-tint-laws: light-dark(#E4DED0, #34302A);
+  --color-np-tint-records: light-dark(#E3F0BE, #2D3520);
+  --color-np-tint-unexplained: light-dark(#D9D4CA, #2E2B27);
+  --color-np-tint-weather: light-dark(#D6DEF0, #242C3C);
+  --color-np-tint-other: light-dark(#E9DFC4, #353024);
+  /* The weather box's flat sky behind the live WebGL sky; each holds white text at 4.5:1. */
+  --color-sky-day: #1D5FD6;
+  --color-sky-night: #141B3A;
+  --color-sky-cloud: #5A6B82;
+  --color-sky-rain: #33415F;
+  --color-sky-snow: #4D6585;
+  --color-sky-storm: #272C42;
+  --color-on-sky: #FFFFFF;
+  --color-on-sky-muted: #E6EEFF;
+  --color-glass: rgba(9, 11, 16, 0.42);
+  --color-glass-edge: rgba(255, 255, 255, 0.22);
   --color-np-shadow-ink: light-dark(#15120E, #000000);
   --color-np-field: light-dark(#FFFFFF, #1B1813);   /* text fields */
   --color-np-placeholder: light-dark(#6B6458, #A79E8D);
@@ -120,10 +155,24 @@
   --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
 
   /* Named type steps (everything else is Tailwind's scale). Fluid ones interpolate linearly between phone and desktop. */
+  /* Tailwind's own steps, restated so they are always defined (the page bundles read them with var()). */
+  --text-xs: 0.75rem; --text-xs--line-height: calc(1 / 0.75);
+  --text-sm: 0.875rem; --text-sm--line-height: calc(1.25 / 0.875);
+  --text-base: 1rem; --text-base--line-height: calc(1.5 / 1);
+  --text-lg: 1.125rem; --text-lg--line-height: calc(1.75 / 1.125);
+  --text-xl: 1.25rem; --text-xl--line-height: calc(1.75 / 1.25);
+  --text-2xl: 1.5rem; --text-2xl--line-height: calc(2 / 1.5);
+  --text-3xl: 1.875rem; --text-3xl--line-height: calc(2.25 / 1.875);
+  --text-4xl: 2.25rem; --text-4xl--line-height: calc(2.5 / 2.25);
+  --text-5xl: 3rem; --text-5xl--line-height: 1;
+  --text-tiny: 0.6875rem;                /* 11px: credits on small tiles (WeirdHome) */
+  --text-caption: 0.8125rem;             /* 13px: captions, small print, weather-box lines (WeirdHome / WeirdPhone) */
+  --text-note: 0.9375rem;                /* 15px: notes, buttons and secondary lines (WeirdHome / WeirdPhone) */
   --text-sign: 1.0625rem;                /* 17px: VT323's smallest crisp size and the nav tab label (WeirdHome board) */
   --text-sign--line-height: 1.25;
-  --text-brand: 1.75rem;                 /* 28px header wordmark (WeirdHome board, shared with home.css) */
+  --text-brand: 1.75rem;                 /* 28px header wordmark (WeirdHome board) */
   --text-brand--line-height: 1;
+  --text-story: 1.1875rem;               /* 19px: card headlines, the editor's note, datelines (WeirdHome) */
   --text-sub: 1.375rem;                  /* 22px: VT323 window title bars (WeirdHome weather box), times on Trips stop cards, the live status word */
   --text-sub--line-height: 1;
   --text-code: 2.5rem;                   /* 40px airport codes in the journey strip and stop cards (Trips page) */
@@ -184,7 +233,7 @@
 
   /* Breakpoints: Tailwind's sm 40rem, md 48rem, lg 64rem, xl 80rem, plus the site nav's own switch. */
   --breakpoint-xs: 30rem;                /* small phones: compact cards */
-  --breakpoint-nav: 46rem;               /* below this the nav is a bottom tab bar (same as home.css / library.css) */
+  --breakpoint-nav: 46rem;               /* below this the nav is a bottom tab bar (also the front page and the Stacks) */
   --breakpoint-wide: 84rem;              /* the reviewer console gives its assistant its own column from here */
 
   --container-headline: 16ch;            /* big page questions */
@@ -206,6 +255,73 @@
   @keyframes rise { from { opacity: 0; transform: translateY(8px); } }
   @keyframes pulse-soft { to { opacity: 0.45; } }
   @keyframes ping-soft { from { transform: scale(1); opacity: 0.55; } to { transform: scale(2.6); opacity: 0; } }
+
+}
+
+/* Page tokens read by the page bundles (front.css, library.css, compiled through @reference). "static" makes site.css
+   define them on every page, so the bundles can use them without repeating them. */
+@theme static {
+  /* The front page (styles/components/front.css): the boards' fluid values, each from the phone board (390px) to
+     the desktop board (1440px). */
+  --spacing-fav-img: clamp(6.5rem, 5.5rem + 3vw, 8.25rem); /* favourite picture (paused feature): 104px at 390 -> 132px at 1440 */
+  --spacing-front-end: clamp(1.5rem, 0.5rem + 4.1vw, 4.5rem); /* space below the last section: 24px at 390 -> 72px at 1440 */
+  --spacing-front-top: clamp(1rem, 0.4429rem + 2.2857vw, 2.5rem); /* space above the lead: 16px at 390 -> 40px at 1440 */
+  --spacing-section: clamp(1.25rem, 0.2286rem + 4.1905vw, 4rem); /* gap between front-page sections: 20px at 390 -> 64px at 1440 */
+  --spacing-ticker: clamp(2.75rem, 2.6571rem + 0.381vw, 3rem); /* ticker height: 44px at 390 -> 48px at 1440 */
+  --spacing-ticker-btn: clamp(2.875rem, 2.7357rem + 0.5714vw, 3.25rem); /* ticker pause button width: 46px at 390 -> 52px at 1440 */
+  --spacing-ticker-gap: clamp(0.625rem, 0.5786rem + 0.1905vw, 0.75rem); /* gap inside a ticker item: 10px at 390 -> 12px at 1440 */
+  --spacing-ticker-item: clamp(1rem, 0.8607rem + 0.5714vw, 1.375rem); /* ticker item sides: 16px at 390 -> 22px at 1440 */
+  --spacing-ticker-label: clamp(0.625rem, 0.4821rem + 0.5714vw, 1rem); /* ticker label sides: 10px at 390 -> 16px at 1440 */
+  --leading-lead: clamp(1.875rem, 0.8071rem + 4.381vw, 4.75rem); /* the lead headline line height: 30px at 390 -> 76px at 1440 */
+  --text-burst: 2.375rem; /* 38px: EDITOR'S PICK on the lead starburst (WeirdHome / WeirdPhone boards) */
+  --text-burst-sm: 1.625rem; /* 26px: the lead starburst on phones (WeirdHome / WeirdPhone boards) */
+  --text-digit: 2.875rem; /* 46px: the streak counter digits (WeirdHome / WeirdPhone boards) */
+  --text-fav: clamp(1.75rem, 1.6571rem + 0.381vw, 2rem); /* favourite headline (paused feature): 28px at 390 -> 32px at 1440 */
+  --text-guestbook: clamp(1.5rem, 1.2679rem + 0.9524vw, 2.125rem); /* the guestbook title: 24px at 390 -> 34px at 1440 */
+  --text-head-lead: clamp(1.5rem, 1.2rem + 1.2vw, 2.125rem); /* the brief lead headline: 24px at 390 -> 34px at 1440 */
+  --text-lead: clamp(1.875rem, 0.7143rem + 4.7619vw, 5rem); /* the lead headline: 30px at 390 -> 80px at 1440 */
+  --text-lead-tag: clamp(1.125rem, 1.0786rem + 0.1905vw, 1.25rem); /* the TODAY'S LEAD tag: 18px at 390 -> 20px at 1440 */
+  --text-masthead: clamp(2.875rem, 0.6rem + 9.3333vw, 9rem); /* the GATECAST wordmark: 46px at 390 -> 144px at 1440 */
+  --text-pixel-md: clamp(1.25rem, 1.2036rem + 0.1905vw, 1.375rem); /* VT323 window title and ticker: 20px at 390 -> 22px at 1440 */
+  --text-section: clamp(1.75rem, 1.0536rem + 2.8571vw, 3.625rem); /* section heads (Believe it or not): 28px at 390 -> 58px at 1440 */
+  --text-section-m: clamp(1.625rem, 1.1607rem + 1.9048vw, 2.875rem); /* smaller section heads (The brief, Today in): 26px at 390 -> 46px at 1440 */
+  --text-teaser: clamp(1.625rem, 1.0214rem + 2.4762vw, 3.25rem); /* the Stacks teaser title: 26px at 390 -> 52px at 1440 */
+  --text-teaser-p: clamp(0.875rem, 0.8054rem + 0.2857vw, 1.0625rem); /* the Stacks teaser text: 14px at 390 -> 17px at 1440 */
+  --text-ticker-label: clamp(0.9375rem, 0.8679rem + 0.2857vw, 1.125rem); /* the ODD NEWS ticker label: 15px at 390 -> 18px at 1440 */
+  --text-wx-cond: clamp(1.375rem, 1.3rem + 0.38vw, 1.625rem); /* the weather box condition: 22px at 390 -> 26px at 1440 */
+  --text-wx-first: clamp(1.625rem, 1.53rem + 0.38vw, 1.875rem); /* the first-visit title in the weather box: 26px at 390 -> 30px at 1440 */
+  --text-wx-line: clamp(0.8125rem, 0.766rem + 0.19vw, 0.9375rem); /* the weather box sentence: 13px at 390 -> 15px at 1440 */
+  --text-wx-temp: clamp(3.875rem, 3.3179rem + 2.2857vw, 5.375rem); /* the weather box temperature: 62px at 390 -> 86px at 1440 */
+  --breakpoint-masthead: 52rem;   /* below this the starburst leaves the masthead and the weather box takes the full row */
+  --breakpoint-desk: 56rem;       /* the weather desk's two columns */
+  --breakpoint-wxbox: 62.5rem;    /* the weather box sits beside the masthead with its taller screen */
+
+  /* The Stacks (styles/components/library.css). */
+  --spacing-lib-bays: clamp(24px, 1.1786rem + 0.9524vw, 34px); /* space above the DOM shelves: 24px at 390 -> 34px at 1440 */
+  --spacing-lib-cases: clamp(20px, 1.1786rem + 0.3048vw, 24px); /* space above the 3D bookcases (frame geometry): 20px at 390 -> 24px at 1440 */
+  --spacing-lib-gap: clamp(12px, 0.6571rem + 0.381vw, 16px); /* gap between hero, panel and shelves: 12px at 390 -> 16px at 1440 */
+  --spacing-lib-gutter: clamp(16px, 0.6286rem + 1.5238vw, 32px); /* the Stacks page gutters: 16px at 390 -> 32px at 1440 */
+  --spacing-lib-top: clamp(16px, 0.8143rem + 0.7619vw, 24px); /* space above the hero: 16px at 390 -> 24px at 1440 */
+  --text-lib-label: clamp(15px, 0.7982rem + 0.5714vw, 21px); /* the torn THE STACKS label: 15px at 390 -> 21px at 1440 */
+  --text-lib-lede: clamp(16px, 0.9536rem + 0.1905vw, 18px); /* the italic lede: 16px at 390 -> 18px at 1440 */
+  --text-lib-title: clamp(56px, 2.5714rem + 3.8095vw, 96px); /* the metal slab title: 56px at 390 -> 96px at 1440 */
+  --text-lib-status: 21px;   /* VT323 status line under the shelves (Stacks renders) */
+  --breakpoint-lib-tagline: 82rem;  /* the header tagline shows from here */
+  /* Physical colours of the room (both editions). The red is the rubber-stamp ink the owner asked for: never a risk
+     colour, only the stamped date. */
+  --color-lib-night: #0C0A09;
+  --color-lib-ink: #1E1A14;
+  --color-lib-cream: #EDE3C8;
+  --color-lib-paper: #EDE2C6;
+  --color-lib-brass-1: #EED48C;
+  --color-lib-brass-2: #C49A45;
+  --color-lib-brass-3: #8C6A2A;
+  --color-lib-brass-edge: #5E4518;
+  --color-lib-leather: #3A2619;
+  --color-lib-leather-2: #4A2A22;
+  --color-lib-glow: #FFC978;
+  --color-lib-focus: #FFD23F;
+  --color-lib-red-ink: #A3302C;
 }
 
 /* Decorative textures and the page frame: not utilities, but tokens the components read. */
