@@ -7,23 +7,23 @@
   <script>
     try { document.querySelector('meta[name="color-scheme"]').content = localStorage.getItem("color-scheme") ?? "light dark"; } catch (e) {}
   </script>
-  <title>The Stacks: true stories that sound made up — Gatecast</title>
-  <meta name="description" content="The Stacks, Gatecast's virtual library: shelves of real books on true crime, unsolved mysteries, weird history, strange science, cults and cons, picked by our editor and described in our own words.">
+  <title>The Stacks: true stories and the classics they sit beside — Gatecast</title>
+  <meta name="description" content="The Stacks, Gatecast's virtual library: real books on true crime, unsolved mysteries, weird history, strange science, cults and cons, beside classic fantasy and science fiction, picked by our editor and described in our own words.">
   <link rel="canonical" href="https://gatecast.vercel.app/library.html">
   <meta name="theme-color" media="(prefers-color-scheme: light)" content="#15120E">
   <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0D0B08">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Gatecast">
-  <meta property="og:title" content="The Stacks: true stories that sound made up — Gatecast">
-  <meta property="og:description" content="Shelves of real books on true crime, unsolved mysteries, weird history, strange science, cults and cons, picked by our editor and described in our own words.">
+  <meta property="og:title" content="The Stacks: true stories and the classics they sit beside — Gatecast">
+  <meta property="og:description" content="Real books on true crime, unsolved mysteries, weird history, strange science, cults and cons, beside classic fantasy and science fiction, picked by our editor and described in our own words.">
   <meta property="og:url" content="https://gatecast.vercel.app/library.html">
   <meta property="og:image" content="https://gatecast.vercel.app/vendor/og/gatecast-og.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="Gatecast: weird news from real outlets, the weather on top, and a library of strange true stories.">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="The Stacks: true stories that sound made up — Gatecast">
-  <meta name="twitter:description" content="Shelves of real books on true crime, unsolved mysteries, weird history, strange science, cults and cons, picked by our editor and described in our own words.">
+  <meta name="twitter:title" content="The Stacks: true stories and the classics they sit beside — Gatecast">
+  <meta name="twitter:description" content="Real books on true crime, unsolved mysteries, weird history, strange science, cults and cons, beside classic fantasy and science fiction, picked by our editor and described in our own words.">
   <meta name="twitter:image" content="https://gatecast.vercel.app/vendor/og/gatecast-og.png">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23111418'/%3E%3Cpath d='M9 25V14a7 7 0 0 1 14 0v11M16 18v7' stroke='%23fff' stroke-width='2.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
   <link rel="preload" href="vendor/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
@@ -31,7 +31,7 @@
   <link rel="preload" href="vendor/fonts/barlow-condensed-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="styles/site.css">
   <link rel="stylesheet" href="styles/site-library.css">
-  <link rel="preload" href="data/books.json" as="fetch" type="application/json" crossorigin>
+  <link rel="preload" href="/api/books" as="fetch" type="application/json" crossorigin>
   <script>
     // The 3D room or the DOM shelves? A first guess before paint, so the page keeps room for the bookcases and
     // nothing shifts; js/library.js confirms it (stacks3d/model.js decideTier) and falls back to the DOM if 3D fails.
@@ -90,9 +90,9 @@
       <div class="lib-room__ui">
         <div class="lib-hero">
           <div class="lib-hero__text">
-            <p class="lib-label"><span>True stories that sound made up</span></p>
+            <p class="lib-label"><span>True stories &amp; the classics</span></p>
             <h1 class="lib-title" id="lib-title" data-text="The Stacks">The Stacks</h1>
-            <p class="lib-lede">Shelves picked by our editor. Pull a book out to see the cover, then turn it over for what it’s about, in our own words. True-crime shelves focus on the cases and the people who solved them, never on making killers famous.</p>
+            <p class="lib-lede">True stories, and the fantasy and science fiction classics they sit beside, picked by our editor. Pull a book out to see the cover, then turn it over for what it’s about, in our own words. True-crime shelves focus on the cases and the people who solved them, never on making killers famous.</p>
             <p class="lib-listlink"><a href="/stacks/">Browse the shelves as a list</a></p>
           </div>
           <div class="lib-cardwrap">
@@ -230,17 +230,81 @@
               <li><a href="/stacks/catch-me-if-you-can/">Catch Me If You Can</a>, Frank W. Abagnale and Stan Redding (1980)</li>
             </ul>
           </li>
+          <li><a href="/stacks/fantasy/">Fantasy &amp; Magic</a>
+            <ul>
+              <li><a href="/stacks/alices-adventures-in-wonderland/">Alice’s Adventures in Wonderland</a>, Lewis Carroll (1865)</li>
+              <li><a href="/stacks/the-wonderful-wizard-of-oz/">The Wonderful Wizard of Oz</a>, L. Frank Baum (1900)</li>
+              <li><a href="/stacks/peter-and-wendy/">Peter and Wendy</a>, J. M. Barrie (1911)</li>
+              <li><a href="/stacks/the-hobbit/">The Hobbit</a>, J. R. R. Tolkien (1937)</li>
+              <li><a href="/stacks/the-lion-the-witch-and-the-wardrobe/">The Lion, the Witch and the Wardrobe</a>, C. S. Lewis (1950)</li>
+              <li><a href="/stacks/a-wizard-of-earthsea/">A Wizard of Earthsea</a>, Ursula K. Le Guin (1968)</li>
+              <li><a href="/stacks/the-last-unicorn/">The Last Unicorn</a>, Peter S. Beagle (1968)</li>
+              <li><a href="/stacks/the-princess-bride/">The Princess Bride</a>, William Goldman (1973)</li>
+              <li><a href="/stacks/howls-moving-castle/">Howl’s Moving Castle</a>, Diana Wynne Jones (1986)</li>
+              <li><a href="/stacks/harry-potter-and-the-philosophers-stone/">Harry Potter and the Philosopher’s Stone</a>, J. K. Rowling (1997)</li>
+            </ul>
+          </li>
+          <li><a href="/stacks/scifi/">Science Fiction Classics</a>
+            <ul>
+              <li><a href="/stacks/frankenstein/">Frankenstein; or, The Modern Prometheus</a>, Mary Shelley (1818)</li>
+              <li><a href="/stacks/twenty-thousand-leagues-under-the-sea/">Twenty Thousand Leagues Under the Sea</a>, Jules Verne (1870)</li>
+              <li><a href="/stacks/the-time-machine/">The Time Machine</a>, H. G. Wells (1895)</li>
+              <li><a href="/stacks/brave-new-world/">Brave New World</a>, Aldous Huxley (1932)</li>
+              <li><a href="/stacks/nineteen-eighty-four/">Nineteen Eighty-Four</a>, George Orwell (1949)</li>
+              <li><a href="/stacks/foundation/">Foundation</a>, Isaac Asimov (1951)</li>
+              <li><a href="/stacks/dune/">Dune</a>, Frank Herbert (1965)</li>
+              <li><a href="/stacks/the-left-hand-of-darkness/">The Left Hand of Darkness</a>, Ursula K. Le Guin (1969)</li>
+              <li><a href="/stacks/the-hitchhikers-guide-to-the-galaxy/">The Hitch Hiker’s Guide to the Galaxy</a>, Douglas Adams (1979)</li>
+              <li><a href="/stacks/neuromancer/">Neuromancer</a>, William Gibson (1984)</li>
+            </ul>
+          </li>
           </ul>
         </div>
       </noscript>
       </div>
     </section>
     <p class="sr-only" id="lib-announce" aria-live="polite"></p>
+
+    <section class="lib-submit" id="put-forward" aria-labelledby="sub-title">
+      <div class="lib-submit__card">
+        <h2 class="lib-submit__title" id="sub-title">Wrote a true story? Put your book forward</h2>
+        <p class="lib-submit__lede">Authors and publishers can suggest a book for the true-story shelves. Before you do:</p>
+        <ul class="lib-submit__rules">
+          <li>It has to be a true story, published, with an ISBN, and it has to fit one of the shelves.</li>
+          <li>Our editor reads every book put forward. If one goes on a shelf, the editor writes its description and notes; your pitch is only for us. The book then carries a small note: “Suggested by the author” or “Suggested by the publisher”.</li>
+          <li>There is no payment either way, and no promise of a place.</li>
+          <li>If you leave an email address, we write back whether or not we take the book.</li>
+          <li>We delete your email address 90 days after we decide, and a book we turn down 180 days after. To stop floods we keep a scrambled code of your network address, never the address itself, for 7 days.</li>
+        </ul>
+        <button type="button" class="lib-brass lib-submit__toggle" id="sub-toggle" aria-expanded="false" aria-controls="sub-form">Put a book forward</button>
+        <form class="lib-submit__form" id="sub-form" novalidate hidden>
+          <div class="lib-field"><label for="sub-book-title">Title</label><input id="sub-book-title" name="title" type="text" maxlength="200" autocomplete="off" required aria-describedby="sub-book-title-err"><p class="lib-field__err" id="sub-book-title-err" hidden></p></div>
+          <div class="lib-field"><label for="sub-authors">Author or authors</label><input id="sub-authors" name="authors" type="text" maxlength="200" autocomplete="off" required aria-describedby="sub-authors-hint sub-authors-err"><p class="lib-field__hint" id="sub-authors-hint">As on the cover, separated by commas.</p><p class="lib-field__err" id="sub-authors-err" hidden></p></div>
+          <div class="lib-field lib-field--half"><label for="sub-isbn">ISBN</label><input id="sub-isbn" name="isbn" type="text" inputmode="numeric" maxlength="20" autocomplete="off" spellcheck="false" required aria-describedby="sub-isbn-hint sub-isbn-err"><p class="lib-field__hint" id="sub-isbn-hint">10 or 13 digits, from the back cover or the copyright page.</p><p class="lib-field__err" id="sub-isbn-err" hidden></p></div>
+          <div class="lib-field lib-field--half"><label for="sub-year">Year first published</label><input id="sub-year" name="year" type="text" inputmode="numeric" maxlength="4" autocomplete="off" required aria-describedby="sub-year-err"><p class="lib-field__err" id="sub-year-err" hidden></p></div>
+          <div class="lib-field lib-field--half"><label for="sub-publisher">Publisher <span class="lib-field__opt">(optional)</span></label><input id="sub-publisher" name="publisher" type="text" maxlength="120" autocomplete="organization" aria-describedby="sub-publisher-err"><p class="lib-field__err" id="sub-publisher-err" hidden></p></div>
+          <div class="lib-field lib-field--half"><label for="sub-shelf">Shelf</label><select id="sub-shelf" name="shelf" required aria-describedby="sub-shelf-err"><option value="">Choose a shelf</option></select><p class="lib-field__err" id="sub-shelf-err" hidden></p></div>
+          <div class="lib-field"><label for="sub-pitch">Why it belongs on that shelf</label><textarea id="sub-pitch" name="pitch" rows="4" maxlength="600" required aria-describedby="sub-pitch-hint sub-pitch-count sub-pitch-err"></textarea><p class="lib-field__hint" id="sub-pitch-hint">For our editor only. We never publish it or copy it into the shelf text.</p><p class="lib-field__count" id="sub-pitch-count" aria-live="polite">600 characters left</p><p class="lib-field__err" id="sub-pitch-err" hidden></p></div>
+          <fieldset class="lib-field lib-field--radios" aria-describedby="sub-relation-err"><legend>You are</legend>
+            <label class="lib-radio"><input type="radio" name="relation" value="author" required> The author</label>
+            <label class="lib-radio"><input type="radio" name="relation" value="publisher"> The publisher</label>
+            <p class="lib-field__err" id="sub-relation-err" hidden></p>
+          </fieldset>
+          <div class="lib-field"><label for="sub-email">Email <span class="lib-field__opt">(optional, so we can write back)</span></label><input id="sub-email" name="email" type="email" maxlength="254" autocomplete="email" spellcheck="false" aria-describedby="sub-email-err"><p class="lib-field__err" id="sub-email-err" hidden></p></div>
+          <div class="lib-field lib-field--check"><label class="lib-check"><input id="sub-confirm" name="confirm" type="checkbox" required aria-describedby="sub-confirm-err"> It is a true story, it is published, and I am its author or its publisher.</label><p class="lib-field__err" id="sub-confirm-err" hidden></p></div>
+          <div class="lib-submit__hp" aria-hidden="true"><label for="sub-website">Website</label><input id="sub-website" name="website" type="text" tabindex="-1" autocomplete="off"></div>
+          <div class="lib-submit__go">
+            <button type="submit" class="lib-brass" id="sub-send">Send to the editor</button>
+            <p class="lib-submit__note" id="sub-note" aria-live="polite">A person reads every one.</p>
+          </div>
+        </form>
+      </div>
+    </section>
   </main>
 
   <footer class="lib-footer">
     <p>Titles, authors and dates are checked by our editor. Descriptions are written by us. Covers and records: <a href="https://openlibrary.org/" rel="noopener">Open Library</a>.</p>
-    <p id="lib-buy-note">Covers load from Open Library when you open a book, so your browser contacts it. Where a book has a preview, its video still comes from YouTube when you open Preview, and the video or pages load from YouTube, Google Books or the Internet Archive only when you press play or open them; that service then sees your request. The room, wood, leather and paper are images generated for Gatecast, not photographs of a real library. <a href="how.html">How Gatecast works</a>.</p>
+    <p id="lib-buy-note">Covers load from Open Library when you open a book, and the Book of the Week’s cover when the page opens, so your browser contacts it. Where a book has a preview, its video still comes from YouTube when you open Preview, and the video or pages load from YouTube, Google Books or the Internet Archive only when you press play or open them; that service then sees your request. The room, wood, leather and paper are images generated for Gatecast, not photographs of a real library. <a href="how.html">How Gatecast works</a>.</p>
   </footer>
 
   <dialog class="lib-dlg" id="lib-dlg" aria-labelledby="bk-name">
@@ -264,6 +328,7 @@
           <span class="lib-back__shelf" id="bk-shelf"></span>
           <p class="lib-back__title" id="bk-title"></p>
           <p class="lib-back__author" id="bk-author"></p>
+          <p class="lib-back__origin" id="bk-origin" hidden></p>
           <dl class="lib-back__facts"><dt>First published</dt><dd id="bk-year"></dd></dl>
           <p class="lib-back__desc" id="bk-desc"></p>
           <ul class="lib-back__tags" id="bk-tags" aria-label="Topics"></ul>

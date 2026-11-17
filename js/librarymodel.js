@@ -198,6 +198,63 @@ export function buildHash({ shelf = 'all', book = null } = {}) {
   return s ? '#' + s : '';
 }
 
+/* ---------- The data: /api/books or data/books.json, shelves, the Book of the Week ---------- */
+
+// The library's data from a reply of /api/books (books.json plus approved author books and `featured`) or
+// data/books.json itself, or null when it is not that shape (the page then falls back to the static file).
+export function libraryData(body) {
+  if (!body || typeof body !== 'object' || !Array.isArray(body.shelves) || !Array.isArray(body.books)) return null;
+  const shelves = body.shelves.filter((s) => s && typeof s.id === 'string' && typeof s.name === 'string');
+  const ids = new Set(shelves.map((s) => s.id));
+  const books = body.books.filter((b) => b && typeof b.id === 'string' && typeof b.title === 'string' && ids.has(b.shelf) && Array.isArray(b.authors));
+  if (!shelves.length || !books.length) return null;
+  return { ...body, shelves, books, featured: body.featured ?? null };
+}
+
+// Only the shelves that have books: a shelf added to books.json before its books are merged stays out of the room,
+// the DOM shelves, the chips, search and the /stacks/ pages until it has at least one (decided 17 Nov 2026).
+export function stockedShelves(data) {
+  const has = new Set((data.books || []).map((b) => b.shelf));
+  return { ...data, shelves: (data.shelves || []).filter((s) => has.has(s.id)) };
+}
+
+// The DOM shelves' grid: at most this many bays side by side, so the rows come out even (8 shelves: two rows of 4;
+// 6: two rows of 3; 7: 4 + 3). The stylesheet still drops to fewer columns on narrow screens.
+export function bayColumns(count) {
+  const n = Math.max(1, count | 0);
+  if (n <= 4) return n;
+  return n % 4 === 0 || n % 4 === 3 ? 4 : 3;
+}
+
+export const REASON_MAX = 140;
+const oneLine = (s) => (typeof s === 'string' ? s.replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim() : '');
+
+// The Book of the Week, ready to show, or null: no pick, or a pick whose book is not on the shelves. The reason is
+// the editor's one line (plain text, at most REASON_MAX characters; longer is left out rather than cut).
+// `label` is the accessible name of the featured element everywhere: "Book of the week: <title>".
+export function featuredView(data) {
+  const f = data && data.featured;
+  if (!f || typeof f !== 'object' || typeof f.bookId !== 'string') return null;
+  const book = (data.books || []).find((b) => b.id === f.bookId);
+  const shelf = book && (data.shelves || []).find((s) => s.id === book.shelf);
+  if (!book || !shelf) return null;
+  const reason = oneLine(f.reason);
+  const since = typeof f.since === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(f.since) ? f.since : null;
+  return {
+    book, shelf, since,
+    reason: reason && [...reason].length <= REASON_MAX ? reason : '',
+    label: `Book of the week: ${book.title}`,
+    byline: authorLine(book.authors),
+  };
+}
+
+// "Suggested by the author" / "Suggested by the publisher" for books an author or publisher put forward (the
+// editor approved them and wrote their text); null for every book the editor chose.
+export function originNote(book) {
+  const o = book && book.origin;
+  return o === 'author' ? 'Suggested by the author' : o === 'publisher' ? 'Suggested by the publisher' : null;
+}
+
 /* ---------- Library card (kept in this browser only) ---------- */
 
 export function stampCard(card, id, at, max = 5) {
@@ -451,7 +508,11 @@ export function validate(data) {
     seen.add(b.id);
     if (!shelfIds.has(b.shelf)) errors.push(`${where}: unknown shelf`);
     if (!b.title || !Array.isArray(b.authors) || !b.authors.length) errors.push(`${where}: title or authors missing`);
-    if (!Number.isInteger(b.year) || b.year < 1500 || b.year > 2026) errors.push(`${where}: bad year`);
+    // Up to next year: an author may put a book forward a few weeks before its publication year turns.
+    if (!Number.isInteger(b.year) || b.year < 1500 || b.year > new Date().getUTCFullYear() + 1) errors.push(`${where}: bad year`);
+    // Books put forward by their author or publisher (lib/stacks-db.js) carry origin; the static list never does.
+    if (b.origin !== undefined && b.origin !== 'author' && b.origin !== 'publisher') errors.push(`${where}: origin must be author or publisher`);
+    for (const k of ['olWork', 'olEdition']) if (b[k] != null && typeof b[k] !== 'string') errors.push(`${where}: ${k} must be text or null`);
     if (!b.description || b.description.split(/(?<=[a-z0-9)”’][.?!])\s+(?=[A-Z“])/).length > 2) errors.push(`${where}: description must be one or two sentences`);
     if (!Array.isArray(b.tags) || !b.tags.length) errors.push(`${where}: tags missing`);
     if (b.olVerified !== false && b.olVerified !== true) errors.push(`${where}: olVerified missing`);

@@ -15,13 +15,15 @@ Gatecast's database lives in the Supabase project `gatecast` (`hfdwmzuedjcsaxgzh
 | `functions/assist/` | Edge Function behind the reviewer console's assistant (Claude). See `docs/assist.md` |
 | `migrations/20261116160000_weird_community.sql` | **Applied** (16 Nov 2026). Weird news: reader votes (`weird_votes`, the Weird-o-meter), guestbook tips (`weird_tips`), the editor's picks (`weird_picks`), their limits, history and a daily retention job. See `docs/community.md` |
 | `migrations/20261117090000_reader_favourites.sql` | **Applied** (17 Nov 2026). Reader favourites (`weird_favourites()`), the 140-character hook line on `weird_picks.note`, anonymous click totals (`weird_clicks`, `weird_count_click()`, `weird_click_totals()`) and 90-day click retention in `private.weird_retention()`. Replaces the old `paused/weird_favourites.sql`. See `docs/community.md` |
-| `functions/community/` | Edge Function for anonymous visitors: `POST /vote`, `GET /ratings`, `GET /favourites`, `POST /tip`, `POST /click`. Hashes the visitor's address with a secret salt; never stores it. See `docs/community.md` |
+| `migrations/20261117120000_stacks_submissions.sql` | **Applied** (17 Nov 2026). The Stacks: books put forward by their author or publisher (`stacks_submissions`, `stacks_submit_book()`), approved books (`stacks_books`, `stacks_approve_submission()`, `stacks_reject_submission()`, `stacks_set_hidden()`), the Book of the Week (`stacks_featured`, `stacks_set_featured()`), and their retention in `private.weird_retention()`. See `docs/community.md` |
+| `functions/community/` | Edge Function for anonymous visitors: `POST /vote`, `GET /ratings`, `GET /favourites`, `POST /tip`, `POST /click`, `POST /book`. Hashes the visitor's address with a secret salt; never stores it. See `docs/community.md` |
 
 Which pages read it:
 
 - **Today page** (`js/civic.js`): "Your statehouse" (the visitor's state's latest votes) and "Both sides" (published topics), with the publishable key in `js/config.js`.
 - **Reviewer console** (`review.html`, `js/review.js`): reviewers sign in with an emailed link and work the queue, the guestbook tips and the editor's picks (with hook lines, Claude's hook drafts, each published pick's clicks over 7 days and a preview of the favourites row).
 - **Weird news front page** (`js/community.js`): the Weird-o-meter, reader favourites, the guestbook and click counting, through the `community` function. The editor's picks are read server-side by `lib/picks-db.js` with the publishable key.
+- **The Stacks** (`library.html`, `/stacks/`): approved author books and the Book of the Week, read server-side by `lib/stacks-db.js` (`GET /api/books`, and the build) with the publishable key; the book form posts to the `community` function's `/book`. The reviewer console's Books view approves, rejects and hides books and sets the Book of the Week.
 
 ## Who can read and write what
 
@@ -47,6 +49,17 @@ Weird news (once `20261116160000_weird_community.sql` is applied):
 | `weird_clicks` | nothing | nothing directly: only through `weird_click_totals` | nothing directly: only through `weird_count_click` |
 | `weird_count_click(...)` | no | no | call it (120 per visitor per hour; stores no hash with the click) |
 | `weird_click_totals(ids, days)` | no | call it: clicks per story over the last 1–90 days | no |
+
+The Stacks (once `20261117120000_stacks_submissions.sql` is applied):
+
+| Table or function | Visitors (publishable key) | Reviewers | `community` function (service role) |
+|---|---|---|---|
+| `stacks_submissions` | nothing | read (not the address hash) | nothing directly: only through `stacks_submit_book` |
+| `stacks_submit_book(p, p_ip_hash)` | no | no | call it (3 per sender per UTC day, 50 per day in all; duplicates refused) |
+| `stacks_books` | read visible books (shelf columns only) | read all, hidden ones too | nothing |
+| `stacks_approve_submission(p_submission, p_book)`, `stacks_reject_submission(p_submission, p_note)`, `stacks_set_hidden(p_book, p_hidden)` | no | call them | no |
+| `stacks_featured` | read (not who picked) | read | nothing |
+| `stacks_set_featured(p_book_id, p_reason, p_starts_on)` | no | call it | no |
 
 Votes, tips and clicks are only ever written by the definer functions, which check every value again and enforce the limits in the database; no API role has a direct grant on `weird_votes` or `weird_clicks`, and the service role has none on any of the four tables. Every definer function sets `search_path = ''` and names every object with its schema. Rate counters, vote totals kept after 90 days and the picks' history live in `private`, which the API cannot reach.
 
@@ -95,6 +108,7 @@ Secrets live in Supabase (Project → Edge Functions → Secrets), never in this
 - `ANTHROPIC_API_KEY`: the Anthropic key, read by `assist`.
 - `COMMUNITY_SALT`: a long random secret, read by `community`, which hashes visitors' addresses with it. **The function refuses to run without it** (at least 16 characters; use 32+ random characters, e.g. `openssl rand -hex 32`). Set it once and leave it: changing it makes every visitor a new voter, so they could vote again on stories they already rated, and the per-day tip hashes stop matching for the rest of that day.
 - `COMMUNITY_ALLOWED_ORIGINS` (optional): extra browser origins for `community`, comma-separated, for a custom domain.
+- `COMMUNITY_SITE_ORIGIN` (optional): where `community` reads `data/books.json` to check a book's shelf and the ISBNs already on the shelves. Default `https://gatecast.vercel.app`.
 - `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_URL`: provided by Supabase to every function.
 
 The cron job authenticates with the project's anon key, which is public; the repository copy still leaves it out.
@@ -122,6 +136,15 @@ Until step 1, the console's Tips and Picks views say they arrive with the migrat
 4. Check: `curl "https://hfdwmzuedjcsaxgzhzmu.supabase.co/functions/v1/community/favourites" -H "apikey: <publishable key>"` should answer `{"favourites":[]}` until a story has 10 votes in a week. In the SQL editor, `select * from public.weird_clicks order by day desc limit 5;` shows the first clicks.
 
 Before step 1, the console shows no click badges, the favourites preview shows the editor's row, and the hook field still saves (the 200-character database limit allows the console's 140).
+
+## Books put forward and the Book of the Week: going live
+
+1. Apply `migrations/20261117120000_stacks_submissions.sql` (after the two weird-news migrations). It is safe to run twice. It replaces `private.weird_retention()` with the same clean-up plus the submissions' (the existing cron job keeps calling it).
+2. Redeploy `community` with JWT checks off: `supabase functions deploy community --no-verify-jwt --project-ref hfdwmzuedjcsaxgzhzmu`. Until then `/book` does not exist (404), and before step 1 it answers 502.
+3. Deploy the site (Vercel) for `GET /api/books`. Nothing to configure: it reads with the publishable key; `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` override the defaults if set.
+4. Check: `curl -s https://gatecast.vercel.app/api/books | head -c 300` answers the books with `"featured":null` until a pick is set. In the console, The Stacks → Books shows the queue and Book of the week.
+
+Before step 1, the console's Books view says it arrives with the migration, and `/api/books` serves the static books with `featured: null`.
 
 To remove a vote or tip by hand (for example after abuse), use the SQL editor: `delete from public.weird_tips where id = '<id>';`. To see today's tip volume: `select hits from private.weird_rate where key = 'tip:all' order by window_start desc limit 1;`.
 

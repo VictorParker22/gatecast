@@ -7,7 +7,9 @@
     { "id": "unsolved", "name": "Unsolved Mysteries", "chip": "Unsolved mysteries", "object": "candle", "note": "Cases and questions that still have no settled answer, or took decades to get one." },
     { "id": "history", "name": "Weird History", "chip": "Weird history", "object": "glass", "note": "Manias, disasters and odd chapters of the past that really happened." },
     { "id": "science", "name": "Strange Science", "chip": "Strange science", "object": "flask", "note": "Bodies, brains, poisons and elements, from writers who make lab work readable." },
-    { "id": "cults", "name": "Cults & Cons", "chip": "Cults & cons", "object": "hat", "note": "Swindles, scams and groups that took people in, and how they came apart." }
+    { "id": "cults", "name": "Cults & Cons", "chip": "Cults & cons", "object": "hat", "note": "Swindles, scams and groups that took people in, and how they came apart." },
+    { "id": "fantasy", "name": "Fantasy & Magic", "chip": "Fantasy", "object": "dragon", "fiction": true, "note": "Wizards, wardrobes, dragons and rabbit holes: the books that made other worlds feel like real places." },
+    { "id": "scifi", "name": "Science Fiction Classics", "chip": "Sci-fi", "object": "rocket", "fiction": true, "note": "Machines, futures and other planets, from a student’s laboratory in 1818 to the first cyberpunk." }
   ],
   "books": [
     {
@@ -571,6 +573,162 @@
       "caveat": "Largely fabricated: Alan C. Logan’s The Greatest Hoax on Earth (2020) used public records to show that most of the exploits it describes did not happen.",
       "olWork": null, "olEdition": null, "olVerified": false,
       "cover": { "id": 4650043, "olKey": "/works/OL8261586W", "year": 1989, "checked": "2026-11-16" }
+    },
+
+    {
+      "id": "alices-adventures-in-wonderland", "shelf": "fantasy", "title": "Alice’s Adventures in Wonderland", "authors": ["Lewis Carroll"], "year": 1865,
+      "description": "Alice follows a white rabbit down a hole into a country where her size keeps changing, the rules make no sense and everyone from the Mad Hatter to the Queen of Hearts argues with her. Carroll first made up the story for three young sisters on a boat trip near Oxford.",
+      "tags": ["Victorian", "Nonsense", "Dream world"],
+      "caveat": "The first printing of 1865 was withdrawn because the illustrator, John Tenniel, was unhappy with how his pictures had printed; the reissued London edition is dated 1866.",
+      "olWork": "OL138052W", "olEdition": null, "olVerified": false,
+      "cover": { "id": 6460011, "olKey": "/works/OL138052W", "year": 1865, "checked": "2026-11-17" }
+    },
+    {
+      "id": "the-wonderful-wizard-of-oz", "shelf": "fantasy", "title": "The Wonderful Wizard of Oz", "authors": ["L. Frank Baum"], "year": 1900,
+      "description": "A cyclone lifts Dorothy and her dog Toto out of Kansas and sets them down in the Land of Oz, where she follows the road of yellow brick to ask the great Wizard to send her home. A Scarecrow, a Tin Woodman and a Cowardly Lion join her, each hoping the Wizard can give them what they lack.",
+      "tags": ["Kansas", "Quest", "American fairy tale"],
+      "olWork": "OL18417W", "olEdition": "OL7170815M", "olVerified": false,
+      "cover": { "id": 102117, "olKey": "/works/OL18417W", "year": 1900, "checked": "2026-11-17" }
+    },
+    {
+      "id": "peter-and-wendy", "shelf": "fantasy", "title": "Peter and Wendy", "authors": ["J. M. Barrie"], "year": 1911,
+      "description": "Peter Pan, a boy who will not grow up, flies in through the nursery window of the Darling children in London and takes Wendy and her brothers away to the Neverland. There they meet the Lost Boys, the fairy Tinker Bell and Captain Hook, a pirate with an iron hook for a hand.",
+      "tags": ["London", "Pirates", "Never growing up"],
+      "contentNote": "Uses racist language and stereotypes for its Native American characters.",
+      "caveat": "Barrie’s novel of his 1904 stage play Peter Pan; later editions are usually titled Peter Pan or Peter Pan and Wendy.",
+      "olWork": "OL462007W", "olEdition": null, "olVerified": false,
+      "cover": { "id": 6992771, "olKey": "/works/OL462007W", "year": 1911, "checked": "2026-11-17" }
+    },
+    {
+      "id": "the-hobbit", "shelf": "fantasy", "title": "The Hobbit", "authors": ["J. R. R. Tolkien"], "year": 1937,
+      "description": "Bilbo Baggins, a hobbit who likes his comfortable home and regular meals, is talked by the wizard Gandalf into joining thirteen dwarves on a journey to win back their treasure from the dragon Smaug. Tolkien first told it to his own children, and its world grew into The Lord of the Rings.",
+      "tags": ["Dragons", "Quest", "Middle-earth"],
+      "caveat": "Tolkien revised the book in 1951 so that the chapter with Gollum fits The Lord of the Rings; editions since then use the revised text.",
+      "olWork": "OL27482W", "olEdition": null, "olVerified": false,
+      "cover": { "id": 14627509, "olKey": "/works/OL27482W", "year": 1937, "checked": "2026-11-17" }
+    },
+    {
+      "id": "the-lion-the-witch-and-the-wardrobe", "shelf": "fantasy", "title": "The Lion, the Witch and the Wardrobe", "authors": ["C. S. Lewis"], "year": 1950,
+      "description": "Four children sent out of London to escape the air raids find that a wardrobe in the old house leads to Narnia, a land the White Witch keeps in endless winter. Their arrival is bound up with an old prophecy and the return of the great lion Aslan.",
+      "tags": ["Narnia", "Wartime", "Siblings"],
+      "olWork": "OL71037W", "olEdition": null, "olVerified": false,
+      "cover": { "id": 7235685, "olKey": "/works/OL71037W", "year": 1950, "checked": "2026-11-17" }
+    },
+    {
+      "id": "a-wizard-of-earthsea", "shelf": "fantasy", "title": "A Wizard of Earthsea", "authors": ["Ursula K. Le Guin"], "year": 1968,
+      "description": "Ged, a gifted and proud boy from a goatherding village, trains at a school for wizards and, showing off to a rival, lets loose a shadow that hunts him across the islands of Earthsea. In Le Guin’s world magic works by knowing the true names of things, and every spell has a cost.",
+      "tags": ["Wizards", "Islands", "True names"],
+      "olWork": "OL59798W", "olEdition": null, "olVerified": false,
+      "cover": { "id": 101298, "olKey": "/works/OL59798W", "year": 1968, "checked": "2026-11-17" }
+    },
+    {
+      "id": "the-last-unicorn", "shelf": "fantasy", "title": "The Last Unicorn", "authors": ["Peter S. Beagle"], "year": 1968,
+      "description": "A unicorn living alone in her lilac wood overhears that she may be the last of her kind and sets out to learn what became of the others. On the road she picks up a magician whose spells rarely work and a tired, sharp-tongued cook, and the trail leads to a bleak kingdom and its Red Bull.",
+      "tags": ["Unicorns", "Quest", "Bittersweet"],
+      "olWork": "OL26459W", "olEdition": null, "olVerified": false,
+      "cover": { "id": 294651, "olKey": "/works/OL26459W", "year": 1968, "checked": "2026-11-17" }
+    },
+    {
+      "id": "the-princess-bride", "shelf": "fantasy", "title": "The Princess Bride", "authors": ["William Goldman"], "year": 1973,
+      "description": "Buttercup, the most beautiful woman in the world, is to marry a prince she does not love, until kidnappers, a giant, a Spanish swordsman and a man in black get in the way. Goldman tells it with his own running commentary, as though he were cutting the dull parts out of an old book.",
+      "tags": ["Romance", "Swordplay", "Story within a story"],
+      "caveat": "Goldman presents it as his abridgment of a classic by “S. Morgenstern”; both Morgenstern and the original book are inventions.",
+      "olWork": "OL486967W", "olEdition": null, "olVerified": false,
+      "cover": { "id": 487249, "olKey": "/works/OL486967W", "year": 1973, "checked": "2026-11-17" }
+    },
+    {
+      "id": "howls-moving-castle", "shelf": "fantasy", "title": "Howl’s Moving Castle", "authors": ["Diana Wynne Jones"], "year": 1986,
+      "description": "Sophie Hatter, the eldest of three sisters and sure that nothing interesting will ever happen to her, is turned into an old woman by the Witch of the Waste. She talks her way into the walking castle of the wizard Howl, said to eat young girls’ hearts, and strikes a bargain with his fire demon.",
+      "tags": ["Curses", "Wizards", "Moving castle"],
+      "olWork": "OL60149W", "olEdition": null, "olVerified": false,
+      "cover": { "id": 430281, "olKey": "/works/OL60149W", "year": 1986, "checked": "2026-11-17" }
+    },
+    {
+      "id": "harry-potter-and-the-philosophers-stone", "shelf": "fantasy", "title": "Harry Potter and the Philosopher’s Stone", "authors": ["J. K. Rowling"], "year": 1997,
+      "description": "Harry Potter, an orphan who sleeps in a cupboard under his aunt and uncle’s stairs, learns on his eleventh birthday that he is a wizard. At Hogwarts School he finds friends, a sport played on broomsticks and the truth about how his parents died.",
+      "tags": ["Boarding school", "Wizards", "Friendship"],
+      "caveat": "Published in the United States in 1998 as Harry Potter and the Sorcerer’s Stone.",
+      "olWork": "OL82563W", "olEdition": null, "olVerified": false,
+      "cover": { "id": 15155833, "olKey": "/works/OL82563W", "year": 1997, "checked": "2026-11-17" }
+    },
+
+    {
+      "id": "frankenstein", "shelf": "scifi", "title": "Frankenstein; or, The Modern Prometheus", "authors": ["Mary Shelley"], "year": 1818,
+      "description": "Victor Frankenstein, a young student of science, finds a way to bring a body built from dead parts to life, then runs from what he has made. The creature, abandoned and turned away by everyone it meets, wants to know why it was made at all.",
+      "tags": ["Gothic", "Creation", "Ambition"],
+      "caveat": "Published anonymously in 1818. Many editions print Shelley’s revised 1831 text, which changes some details, including making Elizabeth an adopted orphan rather than Victor’s cousin.",
+      "olWork": "OL450063W", "olEdition": null, "olVerified": false,
+      "cover": { "id": 5613131, "olKey": "/works/OL450063W", "year": 1818, "checked": "2026-11-17" }
+    },
+    {
+      "id": "twenty-thousand-leagues-under-the-sea", "shelf": "scifi", "title": "Twenty Thousand Leagues Under the Sea", "authors": ["Jules Verne"], "year": 1870,
+      "description": "In 1866 ships keep reporting a huge creature at sea, and the French naturalist Pierre Aronnax joins the hunt for it, only to end up a captive aboard Captain Nemo’s submarine, the Nautilus. Verne fills the voyage with what was known about the oceans in the 1860s.",
+      "tags": ["Submarine", "Ocean", "Captain Nemo"],
+      "caveat": "First published in French as Vingt mille lieues sous les mers, serialised in 1869–70; the first English translation (1872) cut about a fifth of the text and has many errors, so a modern translation reads better.",
+      "olWork": "OL1099280W", "olEdition": null, "olVerified": false,
+      "cover": { "id": 6573517, "olKey": "/works/OL1099280W", "year": 1870, "checked": "2026-11-17" }
+    },
+    {
+      "id": "the-time-machine", "shelf": "scifi", "title": "The Time Machine", "authors": ["H. G. Wells"], "year": 1895,
+      "description": "A Victorian inventor, known only as the Time Traveller, tells his dinner guests how his machine carried him to the year 802,701. There he finds the gentle Eloi living in what looks like an endless garden, and begins to wonder what lives beneath it.",
+      "tags": ["Time travel", "Far future", "Class"],
+      "caveat": "Wells published earlier versions in magazines before the 1895 book, and the American and British first editions of that year differ in places.",
+      "olWork": "OL52267W", "olEdition": "OL19833545M", "olVerified": false,
+      "cover": { "id": 4704860, "olKey": "/works/OL52267W", "year": 1895, "checked": "2026-11-17" }
+    },
+    {
+      "id": "brave-new-world", "shelf": "scifi", "title": "Brave New World", "authors": ["Aldous Huxley"], "year": 1932,
+      "description": "Six centuries from now, people are grown in hatcheries for their place in society and kept content with easy sex, entertainment and a drug called soma. Bernard Marx, who does not quite fit in, brings back a young man raised outside it all on a reservation.",
+      "tags": ["Dystopia", "Genetic engineering", "Pleasure"],
+      "contentNote": "Describes drug use and self-harm, and its reservation scenes rely on stereotypes of Native American people.",
+      "olWork": "OL64365W", "olEdition": null, "olVerified": false,
+      "cover": { "id": 7877366, "olKey": "/works/OL64365W", "year": 1932, "checked": "2026-11-17" }
+    },
+    {
+      "id": "nineteen-eighty-four", "shelf": "scifi", "title": "Nineteen Eighty-Four", "authors": ["George Orwell"], "year": 1949,
+      "description": "Winston Smith rewrites old newspaper reports for the Ministry of Truth in a Britain ruled by the Party, where Big Brother watches through a screen in every room. He starts to keep a secret diary, which is itself a crime.",
+      "tags": ["Dystopia", "Surveillance", "Language"],
+      "contentNote": "Describes torture.",
+      "olWork": "OL1168083W", "olEdition": null, "olVerified": false,
+      "cover": { "id": 15256033, "olKey": "/works/OL1168083W", "year": 1949, "checked": "2026-11-17" }
+    },
+    {
+      "id": "foundation", "shelf": "scifi", "title": "Foundation", "authors": ["Isaac Asimov"], "year": 1951,
+      "description": "Hari Seldon, a mathematician who can forecast the behaviour of whole populations, predicts that the Galactic Empire will fall and 30,000 years of barbarism will follow. To cut that to a thousand, he sets up a colony of scholars at the edge of the galaxy, and the book follows it through the crises he foresaw.",
+      "tags": ["Galactic empire", "Prediction", "Saga"],
+      "caveat": "Collects four stories first printed in Astounding Science Fiction from 1942 to 1944, with an opening section written for the book.",
+      "olWork": "OL46125W", "olEdition": "OL6095440M", "olVerified": false,
+      "cover": { "id": 15214451, "olKey": "/works/OL46125W", "year": 1951, "checked": "2026-11-17" }
+    },
+    {
+      "id": "dune", "shelf": "scifi", "title": "Dune", "authors": ["Frank Herbert"], "year": 1965,
+      "description": "Young Paul Atreides moves with his family to Arrakis, a desert planet that is the only source of the spice that makes travel between the stars possible. Herbert builds a whole world of ecology, religion and politics around the fight to control it.",
+      "tags": ["Desert planet", "Ecology", "Politics"],
+      "caveat": "First serialised in Analog magazine in two parts between 1963 and 1965.",
+      "olWork": "OL893414W", "olEdition": null, "olVerified": false,
+      "cover": { "id": 284314, "olKey": "/works/OL893414W", "year": 1965, "checked": "2026-11-17" }
+    },
+    {
+      "id": "the-left-hand-of-darkness", "shelf": "scifi", "title": "The Left Hand of Darkness", "authors": ["Ursula K. Le Guin"], "year": 1969,
+      "description": "Genly Ai, an envoy from a league of worlds, comes alone to the icebound planet Gethen to invite it to join. Its people are neither men nor women for most of each month, and Le Guin uses his struggle to understand them to look at gender, loyalty and trust.",
+      "tags": ["Gender", "Diplomacy", "Ice"],
+      "olWork": "OL59800W", "olEdition": null, "olVerified": false,
+      "cover": { "id": 463132, "olKey": "/works/OL59800W", "year": 1969, "checked": "2026-11-17" }
+    },
+    {
+      "id": "the-hitchhikers-guide-to-the-galaxy", "shelf": "scifi", "title": "The Hitch Hiker’s Guide to the Galaxy", "authors": ["Douglas Adams"], "year": 1979,
+      "description": "Minutes before Earth is demolished to make way for a hyperspace bypass, Arthur Dent is rescued by his friend Ford Prefect, who turns out to be from another planet. What follows is a comic tour of a universe that is huge, bureaucratic and mostly indifferent.",
+      "tags": ["Comedy", "Space travel", "Radio"],
+      "caveat": "Adapted by Adams from his 1978 BBC radio series. The first edition spelled it Hitch Hiker’s; later editions usually print Hitchhiker’s.",
+      "olWork": "OL2163649W", "olEdition": null, "olVerified": false,
+      "cover": { "id": 14848870, "olKey": "/works/OL2163649W", "year": 1979, "checked": "2026-11-17" }
+    },
+    {
+      "id": "neuromancer", "shelf": "scifi", "title": "Neuromancer", "authors": ["William Gibson"], "year": 1984,
+      "description": "Case, a hacker in the Japanese sprawl of Chiba City whose nervous system was damaged so he can no longer enter cyberspace, is offered a cure in return for one more job. The novel helped make “cyberspace” an everyday word and set the look of cyberpunk.",
+      "tags": ["Cyberpunk", "Hackers", "Artificial intelligence"],
+      "olWork": "OL27258W", "olEdition": null, "olVerified": false,
+      "cover": { "id": 283860, "olKey": "/works/OL27258W", "year": 1984, "checked": "2026-11-17" }
     }
   ]
 }

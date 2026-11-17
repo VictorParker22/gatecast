@@ -55,17 +55,19 @@ test('bookLook is derived from the id: stable, varied, sizes in range', () => {
 
 /* ---------- Bookcases ---------- */
 
-test('bays: six in a row, centred, three fit a 2.16 m window', () => {
+test('bays: in a row, centred, three fit a 2.16 m window; the frame keeps headroom over the cases', () => {
   assert.equal(bayX(0) + bayX(5), 0);
+  assert.equal(bayX(0, 8) + bayX(7, 8), 0);
   assert.equal(Math.round((bayX(1) - bayX(0)) * 1000) / 1000, BAY.pitch);
   assert.ok(Math.abs(spanOf(3) - 2.16) < 1e-9);
-  assert.deepEqual(frameWorld(3), { w: 2.24, h: BAY.height + 0.03 });
+  assert.deepEqual(frameWorld(3), { w: 2.24, h: 1.33 });
   assert.ok(Math.abs(BAY.floors[0] - BAY.floors[1] - (BAY.clear + BAY.board)) < 1e-9);
 });
 
 test('layoutBay: rows packed edge to edge: every book once, blank fillers after them, room kept for props', () => {
   for (const [i, shelf] of data.shelves.entries()) {
     const looks = data.books.filter((b) => b.shelf === shelf.id).map(bookLook);
+    if (!looks.length) continue; // a shelf whose books are not merged yet stays out of the room (tests/stacks-v2-front.test.mjs)
     const props = [0.16, 0.2];
     const { placed, fillers, free } = layoutBay(looks, i, props);
     assert.equal(placed.length, looks.length);

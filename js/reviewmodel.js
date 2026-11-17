@@ -18,6 +18,7 @@ export const VIEWS = {
   collector: { title: 'Collector', empty: 'No collector runs recorded.' },
   tips: { title: 'Tips', empty: 'No new tips. Links visitors send from the guestbook appear here.' },
   picks: { title: 'Picks', empty: 'No picks yet. Start one with New pick, or accept a tip.' },
+  books: { title: 'Books', empty: 'Nothing waiting. Books that authors and publishers put forward appear here.' },
 };
 
 export function counts(topics) {
@@ -529,4 +530,250 @@ export function pickTimeline(pick, activity) {
     for (const a of activity) if (a?.at && PICK_ACTION[a.action]) out.push({ at: a.at, text: PICK_ACTION[a.action] + (a.actor_email ? ` by ${a.actor_email}` : '') });
   } else if (pick.published_at) out.push({ at: pick.published_at, text: 'Published' });
   return out.sort((a, b) => ms(a.at) - ms(b.at));
+}
+
+/* ---------- The Stacks: books put forward, approvals and the Book of the Week ---------- */
+
+// supabase/migrations/20261117120000_stacks_submissions.sql. The sender's pitch is their words to the editor and is
+// never published: the editor writes the description, content note, caveat and tags. These checks mirror the
+// database's (stacks_approve_submission) and data/books.json's (js/librarymodel.js validate).
+
+export const BOOKS_OFF = 'Books put forward by authors arrive when the stacks-submissions migration is applied.';
+
+export const STACKS_LIMITS = { id: 80, title: 200, author: 120, authors: 6, description: 400, content_note: 300, caveat: 400, tags: 6, tag: 30, reason: 140, note: 300 };
+// A run of this many words in a row, or more, shared with the pitch counts as copied.
+export const COPY_RUN = 8;
+// Shelves where a cover is off by default: the stand-in suits real crimes better than a lurid jacket.
+export const COVER_OFF_SHELVES = ['crime', 'serial'];
+export const RELATION_LABEL = { author: 'The author', publisher: 'The publisher' };
+export const SUB_STATUS_LABEL = { pending: 'Waiting', approved: 'Approved', rejected: 'Rejected' };
+// Words that sell rather than describe. A warning only.
+const PROMO = ['must-read', 'must read', 'bestselling', 'best-selling', 'award-winning', 'gripping', 'masterpiece', 'page-turner', 'unputdownable', 'stunning', 'breathtaking', 'brilliant', 'unforgettable'];
+
+// "The Executioner’s Song!" -> "the-executioners-song", at most `max` characters, cut at a hyphen.
+export function slugify(title, max = STACKS_LIMITS.id) {
+  let s = String(title ?? '').normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase()
+    .replace(/[’'`]/g, '').replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  if (s.length > max) s = s.slice(0, max).replace(/-[^-]*$/, '') || s.slice(0, max);
+  return s.replace(/-+$/, '');
+}
+
+// The slug, or slug-2, slug-3 ... when it is already on the shelves.
+export function uniqueSlug(base, taken = new Set()) {
+  const ids = taken instanceof Set ? taken : new Set(taken);
+  const b = base || 'book';
+  if (!ids.has(b)) return b;
+  for (let n = 2; ; n++) {
+    const tail = `-${n}`;
+    const id = b.slice(0, STACKS_LIMITS.id - tail.length).replace(/-+$/, '') + tail;
+    if (!ids.has(id)) return id;
+  }
+}
+
+// Sentences as data/books.json counts them (js/librarymodel.js validate uses the same split).
+export const sentences = (s) => {
+  const t = String(s ?? '').trim();
+  return t ? t.split(/(?<=[a-z0-9)”’][.?!])\s+(?=[A-Z“])/) : [];
+};
+
+const wordsOf = (s) => fold(s).replace(/[’'`]/g, '').split(/[^a-z0-9]+/).filter(Boolean);
+
+// The longest run of words in a row that `text` shares with `source` (case, accents and punctuation ignored):
+// { words, phrase }.
+export function copiedRun(text, source) {
+  const a = wordsOf(text), b = wordsOf(source);
+  let best = 0, end = 0;
+  let prev = new Array(b.length + 1).fill(0);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = new Array(b.length + 1).fill(0);
+    for (let j = 1; j <= b.length; j++) {
+      if (a[i - 1] === b[j - 1]) {
+        cur[j] = prev[j - 1] + 1;
+        if (cur[j] > best) { best = cur[j]; end = i; }
+      }
+    }
+    prev = cur;
+  }
+  return { words: best, phrase: a.slice(end - best, end).join(' ') };
+}
+
+const one = (v) => String(v ?? '').replace(/\s+/g, ' ').trim();
+const nChars = (v) => [...one(v)].length;
+
+// The description's live checklist, like the hook's: { id, ok, hard, label, detail }. Length, one or two sentences
+// and nothing copied from the pitch are hard rules; the full stop and selling words are warnings.
+export function descriptionChecks(f, pitch = '') {
+  const d = one(f?.description);
+  const n = [...d].length;
+  const parts = sentences(d);
+  const copies = ['description', 'content_note', 'caveat']
+    .map((k) => ({ k, run: copiedRun(f?.[k], pitch) }))
+    .filter((x) => x.run.words >= COPY_RUN);
+  const low = d.toLowerCase();
+  const promo = PROMO.filter((w) => low.includes(w));
+  const FIELD = { description: 'description', content_note: 'content note', caveat: 'caveat' };
+  return [
+    { id: 'length', hard: true, ok: n >= 1 && n <= STACKS_LIMITS.description, label: `Description: 1 to ${STACKS_LIMITS.description} characters`, detail: `${n} / ${STACKS_LIMITS.description}` },
+    { id: 'sentences', hard: true, ok: parts.length >= 1 && parts.length <= 2, label: 'One or two sentences', detail: parts.length > 2 ? `${parts.length} found` : '' },
+    { id: 'copied', hard: true, ok: !copies.length, label: `Your own words: no run of ${COPY_RUN} words or more from the pitch`,
+      detail: copies.map((x) => `${FIELD[x.k]}: “${x.run.phrase}”`).join('; ') },
+    { id: 'stop', hard: false, ok: !d || /[.?!”’)]$/.test(d), label: 'Ends with a full stop', detail: '' },
+    { id: 'promo', hard: false, ok: !promo.length, label: 'Describes, does not sell', detail: promo.length ? `Found: ${promo.join(', ')}` : '' },
+  ];
+}
+
+const lines = (v) => String(v ?? '').split(/\n/).map(one).filter(Boolean);
+const tagList = (v) => String(v ?? '').split(/[,\n]/).map(one).filter(Boolean);
+
+// The approve form's first values from a submission: the editor's fields start empty, never from the pitch.
+export function approvalFromSubmission(sub, { taken = new Set() } = {}) {
+  const shelf = String(sub?.shelf ?? '');
+  return {
+    id: uniqueSlug(slugify(sub?.title), taken),
+    shelf,
+    title: one(sub?.title),
+    authors: String(sub?.authors ?? '').split(',').map(one).filter(Boolean).join('\n'),
+    year: sub?.year != null ? String(sub.year) : '',
+    description: '', content_note: '', caveat: '', tags: '',
+    isbn13: String(sub?.isbn13 ?? ''),
+    cover_id: '',
+    show_cover: !COVER_OFF_SHELVES.includes(shelf),
+  };
+}
+
+// Field -> message for the approve form. shelves: the shelf ids on the site; taken: book ids already on the shelves
+// (static and approved, hidden ones too); pitch: the sender's words, which must not be copied.
+export function approveErrors(f, { shelves = [], taken = new Set(), pitch = '', now = new Date() } = {}) {
+  const e = {};
+  const ids = taken instanceof Set ? taken : new Set(taken);
+  const id = String(f?.id ?? '').trim();
+  if (!id) e.id = 'Give the book an id (used in its address).';
+  else if (id.length > STACKS_LIMITS.id || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id)) e.id = 'Use lower-case letters, digits and single hyphens, at most 80 characters.';
+  else if (ids.has(id)) e.id = 'That id is already on the shelves. Change it.';
+  if (!shelves.includes(f?.shelf)) e.shelf = 'Choose a shelf.';
+  const title = nChars(f?.title);
+  if (!title) e.title = 'Add the title.';
+  else if (title > STACKS_LIMITS.title) e.title = `Keep the title to ${STACKS_LIMITS.title} characters.`;
+  const authors = lines(f?.authors);
+  if (!authors.length) e.authors = 'Add the author, one per line.';
+  else if (authors.length > STACKS_LIMITS.authors) e.authors = `At most ${STACKS_LIMITS.authors} authors.`;
+  else if (authors.some((a) => [...a].length > STACKS_LIMITS.author)) e.authors = `Keep each name to ${STACKS_LIMITS.author} characters.`;
+  const maxYear = new Date(now).getUTCFullYear() + 1;
+  if (!/^\d{4}$/.test(String(f?.year ?? '').trim()) || +f.year < 1800 || +f.year > maxYear) e.year = `Give the year it was published (1800 to ${maxYear}).`;
+  const bad = descriptionChecks(f, pitch).filter((c) => c.hard && !c.ok);
+  if (bad.length) e.description = bad.map((c) => (c.id === 'copied' ? `Write it in your own words: ${c.detail}` : c.label)).join('. ');
+  if (nChars(f?.content_note) > STACKS_LIMITS.content_note) e.content_note = `Keep the content note to ${STACKS_LIMITS.content_note} characters.`;
+  if (nChars(f?.caveat) > STACKS_LIMITS.caveat) e.caveat = `Keep the caveat to ${STACKS_LIMITS.caveat} characters.`;
+  const tags = tagList(f?.tags);
+  if (!tags.length) e.tags = 'Add at least one tag, separated by commas.';
+  else if (tags.length > STACKS_LIMITS.tags) e.tags = `At most ${STACKS_LIMITS.tags} tags.`;
+  else if (tags.some((t) => [...t].length > STACKS_LIMITS.tag)) e.tags = `Keep each tag to ${STACKS_LIMITS.tag} characters.`;
+  const cover = String(f?.cover_id ?? '').trim();
+  if (isOn(f?.show_cover) && cover && !/^[1-9]\d{0,9}$/.test(cover)) e.cover_id = 'The cover id is a number from Open Library.';
+  return e;
+}
+const isOn = (v) => v === true || v === 'on' || v === 'true';
+
+// The p_book argument for public.stacks_approve_submission.
+export function cleanApproval(f) {
+  const cover = String(f?.cover_id ?? '').trim();
+  return {
+    id: String(f?.id ?? '').trim(),
+    shelf: String(f?.shelf ?? ''),
+    title: one(f?.title),
+    authors: lines(f?.authors),
+    year: Number(String(f?.year ?? '').trim()),
+    description: one(f?.description),
+    content_note: one(f?.content_note) || null,
+    caveat: one(f?.caveat) || null,
+    tags: tagList(f?.tags),
+    cover_id: isOn(f?.show_cover) && /^[1-9]\d{0,9}$/.test(cover) ? Number(cover) : null,
+  };
+}
+
+const STACKS_FIELD = { id: 'Id', shelf: 'Shelf', title: 'Title', authors: 'Authors', year: 'Year', description: 'Description', content_note: 'Content note', caveat: 'Caveat', tags: 'Tags', cover_id: 'Cover', note: 'Note', reason: 'Reason', book_id: 'Book', book: 'Book' };
+// A { ok: false, error } reply from the four reviewer functions as one sentence.
+export function stacksReplyError(r) {
+  switch (r?.error) {
+    case 'not_found': return 'It is no longer there. Reload the console.';
+    case 'not_pending': return 'Another reviewer has already decided this one.';
+    case 'id_taken': return 'That id is already taken. Change the id.';
+    case 'duplicate': return 'A book with this ISBN is already on the shelves.';
+    case 'bad_field': return `The database refused the ${(STACKS_FIELD[r.field] || 'value').toLowerCase()}. Check it and try again.`;
+    default: return 'The database refused the change.';
+  }
+}
+
+export function matchesSubmission(s, q) {
+  const words = fold(q).split(/\s+/).filter(Boolean);
+  if (!words.length) return true;
+  const hay = fold([s?.title, s?.authors, s?.isbn13, s?.publisher, s?.shelf, s?.contact_email].join(' \u0001 '));
+  return words.every((w) => hay.includes(w));
+}
+export function matchesStacksBook(b, q) {
+  const words = fold(q).split(/\s+/).filter(Boolean);
+  if (!words.length) return true;
+  const hay = fold([b?.id, b?.title, ...(b?.authors || []), b?.isbn13, b?.shelf].join(' \u0001 '));
+  return words.every((w) => hay.includes(w));
+}
+
+export const pendingCount = (subs) => (Array.isArray(subs) ? subs : []).filter((s) => s?.status === 'pending').length;
+
+// The Books view's list: the Book of the Week first, then submissions waiting (newest first), then the approved author
+// books (newest first, hidden ones included). Each row: { id, kind: 'featured' | 'sub' | 'book', item }.
+export function booksRows(subs, books, q = '') {
+  const rows = [];
+  const words = fold(q).split(/\s+/).filter(Boolean);
+  if (!words.length || words.every((w) => 'book of the week featured'.includes(w))) rows.push({ id: 'featured', kind: 'featured', item: null });
+  const waiting = (Array.isArray(subs) ? subs : []).filter((s) => s?.status === 'pending' && matchesSubmission(s, q))
+    .sort((a, b) => ms(b.created_at) - ms(a.created_at));
+  for (const s of waiting) rows.push({ id: `sub:${s.id}`, kind: 'sub', item: s });
+  const shelved = (Array.isArray(books) ? books : []).filter((b) => b && matchesStacksBook(b, q))
+    .sort((a, b) => ms(b.approved_at) - ms(a.approved_at));
+  for (const b of shelved) rows.push({ id: `book:${b.id}`, kind: 'book', item: b });
+  return rows;
+}
+
+/* Book of the Week */
+
+const isoDay = (d) => d.toISOString().slice(0, 10);
+// The Monday (UTC) of the week holding a YYYY-MM-DD day, or null.
+export function mondayOf(day) {
+  if (!/^\d{4}-\d\d-\d\d$/.test(String(day ?? ''))) return null;
+  const d = new Date(`${day}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return null;
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+  return isoDay(d);
+}
+export const thisMonday = (now = Date.now()) => mondayOf(isoDay(new Date(now)));
+
+// The pick showing now: the row with the latest starts_on on or before today (UTC). Rows from stacks_featured.
+export function currentFeatured(rows, now = Date.now()) {
+  const today = isoDay(new Date(now));
+  return (Array.isArray(rows) ? rows : []).filter((r) => r && typeof r.starts_on === 'string' && r.starts_on <= today)
+    .sort((a, b) => b.starts_on.localeCompare(a.starts_on))[0] || null;
+}
+
+// Field -> message for the Book of the Week form. bookIds: every book on the shelves (from /api/books).
+export function featuredErrors(f, { bookIds = [] } = {}) {
+  const e = {};
+  const ids = bookIds instanceof Set ? bookIds : new Set(bookIds);
+  if (!ids.has(f?.book_id)) e.book_id = 'Choose a book on the shelves.';
+  const n = nChars(f?.reason);
+  if (!n) e.reason = 'Add one line on why this book, this week.';
+  else if (n > STACKS_LIMITS.reason) e.reason = `Keep the reason to ${STACKS_LIMITS.reason} characters.`;
+  if (!mondayOf(f?.starts_on)) e.starts_on = 'Choose the week.';
+  return e;
+}
+
+// "Week of 16 Nov 2026".
+export const weekLabel = (day) => (mondayOf(day) ? `Week of ${fmtDate(mondayOf(day))}` : '');
+
+// The Open Library request the console makes when the editor clicks "Look up cover", and the cover it offers: the
+// first cover id on the edition, or null.
+export const openLibraryIsbnUrl = (isbn13) => `https://openlibrary.org/isbn/${encodeURIComponent(String(isbn13 ?? ''))}.json`;
+export const coverImageUrl = (id, size = 'M') => `https://covers.openlibrary.org/b/id/${encodeURIComponent(String(id))}-${size}.jpg`;
+export function coverFromEdition(json) {
+  const c = Array.isArray(json?.covers) ? json.covers.find((x) => Number.isInteger(x) && x > 0) : null;
+  return c ?? null;
 }

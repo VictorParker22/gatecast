@@ -10,7 +10,7 @@ import { initSettings, store } from './shell.js';
 import {
   BOOKSHOP_AFFILIATE, BOOKSHOP_DISCLOSURE, authorLine, surname, filterView, statusText, pickRandom, spineStyle, balancedRows,
   bookBox, flightStart, parseHash, buildHash, stampCard, stampDate, worldcatUrl, bookshopUrl, openLibraryUrl, coverUrl, coverFor, needsCoverApi,
-  previewPlace, previewShift,
+  previewPlace, previewShift, libraryData, stockedShelves, featuredView, originNote, bayColumns,
 } from './librarymodel.js';
 import { createPreview } from './librarypreview.js';
 import { bookLook, decideTier, stampText } from './stacks3d/model.js';
@@ -31,6 +31,8 @@ const OBJECTS = { // decorative objects at the end of each bay (line drawings, D
   glass: ['M16 6h32', 'M16 70h32', 'M20 6c0 18 24 18 24 32s-24 14-24 32', 'M44 6c0 18-24 18-24 32s24 14 24 32'],
   flask: ['M26 6h12', 'M28 6v20L12 64a4 4 0 0 0 4 6h32a4 4 0 0 0 4-6L36 26V6', 'M18 52h28'],
   hat: ['M20 20h24v36H20z', 'M8 56h48', 'M20 46h24', 'M44 62l10 10'],
+  dragon: ['M8 70h48', 'M12 62h40v8H12z', 'M20 62c-3-10 1-18 9-22', 'M29 40c3-7 1-13-4-17l8 1 3-6', 'M29 40c9 2 15 9 16 22', 'M45 62c7 0 11-3 11-9', 'M33 44l10-20 2 10 9-6-5 17'],
+  rocket: ['M32 6c8 8 10 20 10 36H22c0-16 2-28 10-36z', 'C 32 25 4', 'M22 40l-8 12v7l8-6', 'M42 40l8 12v7l-8-6', 'M27 48h10', 'M29 54l3 12 3-12'],
 };
 // Photographic textures and backdrops (assets/stacks/, generated imagery). {size} is 1024 or 512.
 const ASSETS = {
@@ -65,7 +67,7 @@ if (tier === 'dom') root.classList.remove('s3d'); else root.classList.add('s3d')
 // Start fetching the 3D code at once, while the shelves load.
 const stacksModule = tier !== 'dom' ? import('./stacks3d/index.js').catch((e) => { console.warn('3D shelves unavailable:', e); return null; }) : null;
 
-const state = { data: null, shelf: 'all', query: '', covers: {}, open: null, card: [] };
+const state = { data: null, featured: null, shelf: 'all', query: '', covers: {}, open: null, card: [] };
 const spines = new Map(); // id -> button on the shelf
 const shelfOf = (id) => state.data.shelves.find((s) => s.id === id);
 const bookOf = (id) => state.data.books.find((b) => b.id === id);
@@ -129,11 +131,91 @@ function objectSvg(kind) {
   return s;
 }
 
+/* ---------- The Book of the Week (the editor's pick, from /api/books) ---------- */
+
+// The card above the bays (DOM shelves, and the flat card). On the 3D tiers it stays in the visually hidden layer
+// with the spines: its button is the keyboard and screen-reader way to the book on the stand above the cases.
+const domShelves = () => !root.classList.contains('s3d');
+function featuredCard(fv) {
+  const sec = el('section', 'lib-feat');
+  sec.id = 'lib-feat';
+  sec.setAttribute('aria-label', fv.label);
+  const book = fv.book;
+  const look = bookLook(book), st = spineStyle(book);
+  const cov = el('div', 'lib-feat__cover');
+  // A cover from Open Library only where the DOM shelves show it (the 3D room paints its own on the stand).
+  const src = domShelves() ? coverUrl(coverOf(book), 'M') : null;
+  const len = book.title.length;
+  const standin = el('div', 'lib-standin');
+  standin.setAttribute('aria-hidden', 'true');
+  for (const [k, v] of Object.entries({ '--cloth': look.binding.base, '--foil': look.binding.foil, '--font': st.font, '--fw': st.weight, '--case': st.upper ? 'uppercase' : 'none',
+    '--cfs': (Math.round((((len > 30 ? 34 : len > 16 ? 42 : 54) - (st.kind === 'slab' ? 6 : 0)) / 380) * 1000) / 10) + 'cqi' })) standin.style.setProperty(k, String(v));
+  standin.append(el('span', 'lib-standin__title', book.title), el('span', 'lib-standin__rule'), el('span', 'lib-standin__author', surname(book.authors[0])));
+  cov.append(standin);
+  if (src) {
+    const img = el('img');
+    img.alt = ''; img.width = 180; img.height = 265; img.decoding = 'async'; img.referrerPolicy = 'no-referrer';
+    img.style.visibility = 'hidden';
+    img.addEventListener('load', () => { if (img.naturalWidth < 20) { img.remove(); return; } img.style.visibility = ''; standin.hidden = true; });
+    img.addEventListener('error', () => img.remove());
+    img.src = src;
+    cov.append(img);
+  }
+  cov._style = st; // the book flies out of this cover, as from a spine (openBook, flightStart)
+  const body = el('div', 'lib-feat__body');
+  const kicker = el('p', 'lib-feat__kicker', 'Book of the week');
+  kicker.setAttribute('aria-hidden', 'true'); // the section's name says it
+  body.append(kicker, el('p', 'lib-feat__title', book.title), el('p', 'lib-feat__by', `${fv.byline} · ${fv.shelf.name}`));
+  if (fv.reason) body.append(el('p', 'lib-feat__reason', fv.reason));
+  const origin = originNote(book);
+  if (origin) body.append(el('p', 'lib-feat__origin', origin));
+  const btn = el('button', 'lib-brass lib-feat__open', 'Open it');
+  btn.type = 'button';
+  btn.id = 'lib-feat-open';
+  btn.addEventListener('click', () => openFeatured());
+  btn.addEventListener('focus', () => {
+    if (!s3d) return;
+    s3d.focusFeatured?.(btn.matches(':focus-visible'));
+    requestAnimationFrame(() => {
+      const r = s3d?.featuredRect?.();
+      if (r && (r.top < 8 || r.top + r.height > window.innerHeight - 8)) window.scrollBy({ top: r.top + r.height / 2 - window.innerHeight / 2, behavior: 'smooth' });
+    });
+  });
+  btn.addEventListener('blur', () => { if (s3d) s3d.focusBook(null); });
+  body.append(btn);
+  sec.append(cov, body);
+  sec._cover = cov; sec._button = btn;
+  return sec;
+}
+
+function renderFeatured() {
+  $('lib-feat')?.remove();
+  const fv = state.featured;
+  if (!fv) return;
+  const card = featuredCard(fv);
+  $('lib-bays').prepend(card);
+  card.hidden = state.shelf !== 'all' && state.shelf !== fv.book.shelf && !s3d;
+}
+
+function openFeatured() {
+  const fv = state.featured;
+  if (!fv) return;
+  sound.unlock();
+  const card = $('lib-feat');
+  if (s3d) { open3d(fv.book.id, { featured: true }); return; }
+  if (!card) return;
+  const r = card._cover.getBoundingClientRect();
+  if (r.top < 0 || r.bottom > window.innerHeight) card.scrollIntoView({ block: 'center', behavior: 'instant' });
+  openBook(fv.book.id, card._cover, { returnTo: card._button });
+}
+
 let lastInner = 0;
 function renderBays() {
   const rootEl = $('lib-bays');
   rootEl.textContent = '';
   spines.clear();
+  rootEl.style.setProperty('--cols', String(bayColumns(state.data.shelves.length)));
+  renderFeatured();
   for (const shelf of state.data.shelves) {
     const bay = el('section', 'lib-bay');
     bay.dataset.shelf = shelf.id;
@@ -206,6 +288,8 @@ function setShelf(id) {
   for (const b of document.querySelectorAll('.lib-chip')) b.setAttribute('aria-pressed', String(b.dataset.shelf === id));
   // The 3D room keeps every case standing (the others dim); the DOM shelves hide the other bays.
   for (const bay of document.querySelectorAll('.lib-bay')) bay.hidden = !s3d && id !== 'all' && bay.dataset.shelf !== id;
+  const feat = $('lib-feat');
+  if (feat) feat.hidden = !s3d && id !== 'all' && id !== state.featured?.book.shelf;
   applyFilter();
 }
 
@@ -339,6 +423,8 @@ function fillBook(book) {
   $('bk-shelf').textContent = `${shelf.name.toUpperCase()} · SHELF ${idx}`;
   $('bk-title').textContent = book.title;
   $('bk-author').textContent = authorLine(book.authors);
+  const origin = originNote(book);
+  $('bk-origin').hidden = !origin; $('bk-origin').textContent = origin || '';
   $('bk-year').textContent = String(book.year);
   $('bk-desc').textContent = book.description;
   const tags = $('bk-tags'); tags.textContent = '';
@@ -424,13 +510,13 @@ const rest = (o, r) => ({ x: 0, y: 0, s: 1, z: -o.depth / 2, r });
 const away = (o, r) => ({ x: o.start.dx, y: o.start.dy, s: o.start.s, z: -o.box.W / 2, r });
 
 // DOM shelves: the CSS 3D book (or the flat card when motion is reduced).
-function openBook(id, spineEl) {
+function openBook(id, spineEl, { returnTo = null } = {}) {
   if (state.open || !spineEl) return;
   const book = bookOf(id);
   if (!book) return;
   clearTimers();
   const flat = !motionOn();
-  state.open = { id, spine: spineEl, flat, face: flat ? 'back' : 'cover' };
+  state.open = { id, spine: spineEl, returnTo, flat, face: flat ? 'back' : 'cover' };
   fillBook(book);
   slipRows();
   dlg.classList.toggle('is-flat', flat);
@@ -484,7 +570,8 @@ function finish() {
   bookEl.style.transition = 'none';
   front.inert = false; back.inert = false;
   writeHash();
-  if (o.spine && o.spine.isConnected) o.spine.focus({ preventScroll: true });
+  const ret = o.returnTo || o.spine;
+  if (ret && ret.isConnected) ret.focus({ preventScroll: true });
 }
 
 function closeBook(now = false) {
@@ -560,14 +647,15 @@ window.addEventListener('resize', () => {
 
 /* ---------- The book in 3D ---------- */
 
-async function open3d(id, { flick = false } = {}) {
+async function open3d(id, { flick = false, featured = false } = {}) {
   if (state.open || !s3d || s3d.isBusy()) return;
   const book = bookOf(id);
   if (!book) return;
+  featured = featured && state.featured?.book.id === id;
   // The room must be on screen for the book to fly to you.
   const cases = $('lib-cases').getBoundingClientRect();
   if (cases.top > window.innerHeight * 0.75 || cases.bottom < window.innerHeight * 0.4) $('lib-cases').scrollIntoView({ block: 'end', behavior: 'instant' });
-  state.open = { id, spine: spines.get(id), gl: true, face: 'cover' };
+  state.open = { id, spine: spines.get(id), returnTo: featured ? $('lib-feat-open') : null, gl: true, face: 'cover', featured };
   fillBook(book);
   dlg.classList.add('is-gl');
   dlg.classList.remove('is-flat', 'is-settled', 'is-turned', 'is-slip');
@@ -576,7 +664,7 @@ async function open3d(id, { flick = false } = {}) {
   dlg.showModal();
   borrowBtn.focus({ preventScroll: true });
   writeHash();
-  const res = await s3d.pullOut(id, { flick });
+  const res = await s3d.pullOut(id, { flick, featured });
   if (!res) { state.open = null; root.classList.remove('is-reading'); if (dlg.open) dlg.close(); return; }
   $('bk-credit').hidden = !res.photo;
   if (state.open && state.open.id === id) dlg.classList.add('is-settled');
@@ -623,7 +711,8 @@ async function putBack3d() {
   if (dlg.open) dlg.close();
   state.open = null;
   writeHash();
-  if (o.spine && o.spine.isConnected) o.spine.focus({ preventScroll: true });
+  const ret = o.returnTo || o.spine;
+  if (ret && ret.isConnected) ret.focus({ preventScroll: true });
   await s3d.putBack();
 }
 
@@ -730,6 +819,9 @@ async function mount3d() {
     const mounting = mod.mount({
       canvas, stage: $('lib-room'), region: $('lib-cases'), data: state.data, tier, mobile: tapMq.matches, assets: ASSETS,
       backdropUrl: backdropUrl(), ringEl: $('lib-ring'),
+      featured: state.featured ? { id: state.featured.book.id } : null,
+      figurines: { tryAll: new URLSearchParams(location.search).get('figurines') === 'try' },
+      reducedMotion: reduceMq.matches,
       coverUrl: (book) => coverUrl(coverOf(book), 'L'),
       shelfName: (id) => shelfOf(id)?.name || '',
       safeTop: () => {
@@ -768,6 +860,7 @@ function toDom() {
   s3d = null;
   root.classList.remove('s3d', 's3d-ready');
   $('lib-gl').hidden = true;
+  renderFeatured();
   setShelf(state.shelf);
   layoutRows();
 }
@@ -778,6 +871,92 @@ function updatePager(first, visible) {
   $('lib-pager').textContent = visible === 1 ? `Shelf ${first + 1} of ${n}: ${names}` : `Shelves ${first + 1}–${first + visible} of ${n}`;
   $('lib-prev').disabled = first <= 0;
   $('lib-next').disabled = first + visible >= n;
+}
+
+/* ---------- Put a book forward (the form at the end of the page; js/community.js submitBook) ---------- */
+
+const SUB_IDS = { title: 'sub-book-title', authors: 'sub-authors', isbn: 'sub-isbn', year: 'sub-year', publisher: 'sub-publisher', shelf: 'sub-shelf', pitch: 'sub-pitch', email: 'sub-email', confirm: 'sub-confirm' };
+const subErr = (field) => $(`${(SUB_IDS[field] || 'sub-' + field)}-err`);
+const subInputs = (field) => (field === 'relation' ? [...document.querySelectorAll('#sub-form input[name="relation"]')] : [$(SUB_IDS[field])].filter(Boolean));
+let communityMod = null;
+const loadCommunity = () => (communityMod ||= import('./community.js').catch(() => null));
+
+function setupSubmit(shelves) {
+  const toggle = $('sub-toggle'), form = $('sub-form');
+  if (!toggle || !form) return;
+  // The true-story shelves (the fiction shelves hold classics, not books put forward).
+  const offered = shelves.filter((sh) => !sh.fiction);
+  const sel = $('sub-shelf');
+  for (const sh of offered) { const o = el('option', null, sh.name); o.value = sh.id; sel.append(o); }
+  toggle.addEventListener('click', () => {
+    const open = toggle.getAttribute('aria-expanded') !== 'true';
+    toggle.setAttribute('aria-expanded', String(open));
+    form.hidden = !open;
+    if (open) { loadCommunity(); $('sub-book-title').focus(); }
+  });
+  const pitch = $('sub-pitch'), count = $('sub-pitch-count');
+  const paintCount = () => {
+    const left = 600 - [...pitch.value.trim()].length;
+    count.textContent = left >= 0 ? `${left} ${left === 1 ? 'character' : 'characters'} left` : `${-left} too many`;
+    count.classList.toggle('is-over', left < 0);
+  };
+  pitch.addEventListener('input', paintCount);
+  const fields = () => ({
+    title: $('sub-book-title').value, authors: $('sub-authors').value, isbn: $('sub-isbn').value, year: $('sub-year').value,
+    publisher: $('sub-publisher').value, shelf: sel.value, pitch: pitch.value,
+    relation: form.querySelector('input[name="relation"]:checked')?.value || null,
+    email: $('sub-email').value, confirm: $('sub-confirm').checked, website: $('sub-website').value,
+  });
+  const clear = () => {
+    for (const f of [...Object.keys(SUB_IDS), 'relation']) { const e = subErr(f); if (e) { e.hidden = true; e.textContent = ''; } for (const i of subInputs(f)) i.removeAttribute('aria-invalid'); }
+  };
+  const mark = (problems) => {
+    for (const { field, message } of problems) {
+      const e = subErr(field);
+      if (e && e.hidden) { e.textContent = message; e.hidden = false; }
+      for (const i of subInputs(field)) i.setAttribute('aria-invalid', 'true');
+    }
+    subInputs(problems[0].field)[0]?.focus();
+  };
+  // A field's message goes once it is fixed.
+  form.addEventListener('change', (e) => {
+    const name = e.target?.name;
+    if (!name || !communityMod) return;
+    communityMod.then((m) => {
+      if (!m || m.bookProblems(fields(), { shelves: offered.map((x) => x.id) }).some((p) => p.field === name)) return;
+      const er = subErr(name); if (er) { er.hidden = true; er.textContent = ''; }
+      for (const i of subInputs(name)) i.removeAttribute('aria-invalid');
+    });
+  });
+  const note = $('sub-note'), btn = $('sub-send');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const m = await loadCommunity();
+    clear();
+    note.classList.remove('is-error', 'is-done');
+    if (!m) { note.textContent = 'That didn’t send. Books can’t be sent right now. Try again in a minute.'; note.classList.add('is-error'); return; }
+    const f = fields();
+    const opts = { shelves: offered.map((x) => x.id) };
+    const problems = m.bookProblems(f, opts);
+    if (problems.length) {
+      note.textContent = problems.length === 1 ? 'One thing to fix: it’s marked above.' : `${problems.length} things to fix: they’re marked above.`;
+      note.classList.add('is-error');
+      mark(problems);
+      return;
+    }
+    btn.disabled = true; btn.textContent = 'Sending…';
+    const res = await m.submitBook(f, opts);
+    btn.disabled = false; btn.textContent = 'Send to the editor';
+    if (res.ok) {
+      form.reset(); paintCount();
+      note.textContent = 'Thanks. Our editor reads every book put forward. If you left an email address, we’ll write back either way.';
+      note.classList.add('is-done');
+    } else {
+      note.textContent = `That didn’t send. ${res.error || ''}`.trim();
+      note.classList.add('is-error');
+      if (res.field) mark([{ field: res.field, message: res.error }]);
+    }
+  });
 }
 
 /* ---------- Start ---------- */
@@ -829,16 +1008,33 @@ function setupToggles() {
   window.addEventListener('keydown', first, { once: true, capture: true });
 }
 
+// The shelves: /api/books (books.json plus approved author books and the Book of the Week), or data/books.json when
+// that fails for any reason (then there is simply no Book of the Week). Shelves with no books yet stay out.
+async function loadData() {
+  for (const url of ['/api/books', 'data/books.json']) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      const d = libraryData(await res.json());
+      if (d) return d;
+    } catch {}
+  }
+  return null;
+}
+
 async function start() {
   setupToggles();
   try {
-    const res = await fetch('data/books.json');
-    if (!res.ok) throw new Error(String(res.status));
-    state.data = await res.json();
+    const d = await loadData();
+    if (!d) throw new Error('no data');
+    setupSubmit(d.shelves);
+    state.data = stockedShelves(d);
+    state.featured = featuredView(state.data);
   } catch {
     const msg = el('p', 'lib-msg', 'The shelves could not be loaded. Please try again in a moment.');
     $('lib-bays').replaceChildren(msg);
     $('lib-status').textContent = 'The shelves could not be loaded.';
+    setupSubmit([]);
     toDom();
     return;
   }

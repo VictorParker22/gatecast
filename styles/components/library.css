@@ -126,12 +126,18 @@
   .lib-toggle[aria-pressed="true"] .off, .lib-toggle[aria-pressed="false"] .on { @apply hidden; }
   #lib-3d[aria-pressed="true"] { @apply border-lib-brass-2; }
   .lib-cases { @apply hidden; }
-  .s3d .lib-cases { @apply relative block z-1; width: min(100% - 2 * var(--spacing-lib-gutter), var(--container-frame)); margin: var(--spacing-lib-cases) auto 0; aspect-ratio: 2.24 / 0.97; @apply pointer-events-none; }
+  /* The frame holds n bays and the headroom over them (the Book of the Week, the figurines): model.js frameWorld(n)
+     is (n x 0.68 + (n - 1) x 0.06 + 0.08) by 1.33 m. 4 bays from 1100px, 3 from 940px, 2 from 600px, 1 below
+     (tests/stacks3d.test.mjs checks these against frameWorld). */
+  .s3d .lib-cases { @apply relative block z-1; width: min(100% - 2 * var(--spacing-lib-gutter), var(--container-frame)); margin: var(--spacing-lib-cases) auto 0; aspect-ratio: 2.98 / 1.33; @apply pointer-events-none; }
+  @media (max-width: 1099px) {
+    .s3d .lib-cases { aspect-ratio: 2.24 / 1.33; }
+  }
   @media (max-width: 939px) {
-    .s3d .lib-cases { aspect-ratio: 1.5 / 0.97; }
+    .s3d .lib-cases { aspect-ratio: 1.5 / 1.33; }
   }
   @media (max-width: 599px) {
-    .s3d .lib-cases { aspect-ratio: 0.76 / 0.97; }
+    .s3d .lib-cases { aspect-ratio: 0.76 / 1.33; }
   }
   .lib-pan { @apply absolute z-2 grid place-items-center w-tap h-tap p-0 cursor-pointer border-2 border-lib-brass-edge; top: 40%; pointer-events: auto; border-radius: 50%; color: #2A1D0A; background: radial-gradient(circle at 35% 30%, var(--color-lib-brass-1), var(--color-lib-brass-2) 60%, var(--color-lib-brass-3)); box-shadow: 0 4px 10px rgb(0 0 0 / 0.6); }
   .lib-pan svg { @apply w-5 h-5 stroke-current; fill: none; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
@@ -148,7 +154,7 @@
   .lib-ring { @apply absolute z-2 pointer-events-none border-3 border-lib-focus; border-radius: 3px; box-shadow: 0 0 0 2px #000, 0 0 18px rgb(255 210 63 / 0.6); }
   .lib-ring[hidden] { @apply hidden; }
   .s3d .lib-bays { @apply absolute overflow-hidden whitespace-nowrap; left: 50%; bottom: 35%; width: 1px; height: 1px; clip-path: inset(50%); }
-  .lib-bays { @apply relative z-1; width: min(100% - 2 * var(--spacing-lib-gutter), var(--container-frame)); margin: var(--spacing-lib-bays) auto 0; @apply grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, --spacing(95)), 1fr)); @apply gap-y-7.5 gap-x-6.5 items-start; }
+  .lib-bays { @apply relative z-1; width: min(100% - 2 * var(--spacing-lib-gutter), var(--container-frame)); margin: var(--spacing-lib-bays) auto 0; @apply grid; --gap: --spacing(6.5); grid-template-columns: repeat(auto-fit, minmax(max(min(100%, --spacing(72)), calc((100% - (var(--cols, 3) - 1) * var(--gap)) / var(--cols, 3))), 1fr)); @apply gap-y-7.5 items-start; column-gap: var(--gap); }
   .lib-msg { @apply p-4; background: #2A1A0F; color: #E8DCC4; border: 2px solid #000000; }
   .lib-msg a { color: #FFFFFF; }
   .lib-bay { @apply flex flex-col py-0 px-4 min-w-0 @container; border-radius: 4px 4px 0 0; background: #3B2516 var(--tex-wood) center / 520px; box-shadow: 0 22px 36px rgb(0 0 0 / 0.6), inset 0 0 0 1px rgb(255 220 160 / 0.08); }
@@ -215,6 +221,7 @@
   .lib-back__shelf { @apply not-italic font-normal; font-size: var(--text-lg); @apply leading-none font-pixel normal-nums; color: #4A443A; }
   .lib-back__title { @apply not-italic font-normal; font-size: var(--text-2xl); line-height: 1.05; @apply font-slab normal-nums wrap-anywhere; }
   .lib-back__author { font-size: var(--text-note); @apply font-semibold; }
+  .lib-back__origin { @apply -mt-1.5 self-start py-0.5 px-2; font-size: var(--text-xs); @apply font-semibold leading-normal; color: #3B342A; border: 1px solid rgb(30 26 20 / 0.45); border-radius: 2px; }
   .lib-back__facts { @apply grid; grid-template-columns: auto 1fr; @apply gap-y-0.5 gap-x-3; font-size: var(--text-caption); @apply py-2 px-0; border-block: 1px dashed #8C8475; }
   .lib-back__facts dt { color: #4A443A; }
   .lib-back__facts dd { @apply font-bold; }
@@ -373,6 +380,60 @@
   @media (width < theme(--breakpoint-nav)) {
     .lib-footer { @apply pb-6; }
   }
+  /* The Book of the Week card above the DOM shelves (on the 3D tiers it is part of the hidden layer: its button is
+     the keyboard way to the book on the stand). A brass-framed plaque on dark wood, the cover or the stand-in. */
+  .lib-feat { grid-column: 1 / -1; @apply grid items-center gap-x-6 gap-y-4 p-4 sm:p-5; grid-template-columns: --spacing(28) minmax(0, 1fr); background: #2A190D var(--tex-wood) center / 520px; border: 2px solid var(--color-lib-brass-edge); border-radius: 4px; box-shadow: inset 0 0 0 3px rgb(238 212 140 / 0.35), 0 0 40px rgb(255 190 110 / 0.18), 0 18px 30px rgb(0 0 0 / 0.6); }
+  .lib-feat[hidden] { @apply hidden; }
+  @media (min-width: 600px) { .lib-feat { grid-template-columns: --spacing(36) minmax(0, 1fr); } }
+  .lib-feat__cover { @apply relative overflow-hidden; aspect-ratio: 1 / 1.47; container-type: inline-size; border-radius: 2px 4px 4px 2px; background: #15120E; box-shadow: 0 0 0 1px rgb(0 0 0 / 0.6), 0 0 24px rgb(255 200 120 / 0.35), 6px 8px 14px rgb(0 0 0 / 0.6); }
+  .lib-feat__cover img { @apply absolute inset-0 block size-full object-cover; }
+  .lib-feat__cover.is-out { @apply invisible; }
+  .lib-feat__cover .lib-standin { @apply py-[8cqi] px-[7cqi] gap-[5cqi] justify-center; box-shadow: inset 4px 0 8px rgb(0 0 0 / 0.35), inset 0 0 0 5px rgb(0 0 0 / 0.08), inset 0 0 0 7px var(--foil); }
+  .lib-feat__cover .lib-standin__title { overflow-wrap: break-word; }
+  .lib-feat__cover .lib-standin__rule { @apply w-[30cqi]; height: 2px; }
+  .lib-feat__cover .lib-standin__author { font-size: clamp(var(--text-xs), 9cqi, var(--text-sm)); }
+  .lib-feat__body { @apply grid gap-1.5 min-w-0 justify-items-start; color: #E8DCC4; }
+  .lib-feat__kicker { @apply inline-flex items-center gap-2 py-1 px-3 not-italic font-extrabold; font-size: var(--text-sm); @apply leading-none font-sign normal-nums uppercase; letter-spacing: 0.12em; color: #2A1D0A; background: linear-gradient(180deg, var(--color-lib-brass-1), var(--color-lib-brass-2) 55%, var(--color-lib-brass-3)); border: 1px solid var(--color-lib-brass-edge); border-radius: 2px; box-shadow: 0 0 14px rgb(255 200 110 / 0.35); }
+  .lib-feat__title { @apply m-0 not-italic font-normal wrap-anywhere; font-size: clamp(var(--text-xl), 1rem + 1.2vw, var(--text-3xl)); line-height: 1.05; @apply font-slab normal-nums text-lib-cream; text-shadow: 0 2px 0 rgb(0 0 0 / 0.6); }
+  .lib-feat__by { font-size: var(--text-sm); @apply font-semibold; color: #D9CFB8; }
+  .lib-feat__reason { @apply max-w-lede; font-size: var(--text-lib-lede); line-height: 1.4; @apply italic text-lib-cream text-pretty; }
+  .lib-feat__origin { font-size: var(--text-xs); @apply font-semibold; color: #D9CFB8; }
+  .lib-feat__open { @apply mt-1.5; }
+
+  /* "Wrote a true story? Put your book forward": a paper request slip at the end of the page. */
+  .lib-submit { width: min(100% - 2 * var(--spacing-lib-gutter), var(--container-frame)); @apply mx-auto mt-12 mb-4; }
+  .lib-submit__card { @apply relative grid gap-3 max-w-read py-6 px-5 sm:px-7 text-lib-ink; background: var(--color-lib-paper) var(--tex-paper) center / 420px; box-shadow: 0 10px 22px rgb(0 0 0 / 0.55), inset 0 0 30px rgb(120 80 30 / 0.3); border-radius: 2px; }
+  .lib-submit__title { @apply m-0 not-italic font-normal; font-size: clamp(var(--text-2xl), 1.1rem + 1vw, var(--text-3xl)); line-height: 1.1; @apply font-slab normal-nums text-lib-ink; }
+  .lib-submit__lede { font-size: var(--text-note); @apply leading-normal font-semibold; }
+  .lib-submit__rules { @apply grid gap-1.5 pl-5 list-disc; font-size: var(--text-sm); line-height: 1.5; color: #3B342A; }
+  .lib-submit__toggle { @apply justify-self-start mt-1; }
+  .lib-submit__toggle[aria-expanded="true"] { filter: brightness(0.93); }
+  .lib-submit__form { @apply grid gap-4 mt-2 pt-4 grid-cols-2 gap-x-4; border-top: 2px dashed rgb(30 26 20 / 0.45); }
+  .lib-submit__form[hidden] { @apply hidden; }
+  .lib-field { @apply grid gap-1 col-span-2 min-w-0 m-0 p-0 border-0 content-start; }
+  .lib-field--half { @apply col-span-2 sm:col-span-1; }
+  .lib-field > label, .lib-field legend { font-size: var(--text-sm); @apply font-bold p-0; }
+  .lib-field__opt { @apply font-normal; color: #4A443A; }
+  .lib-field input[type="text"], .lib-field input[type="email"], .lib-field select, .lib-field textarea { @apply w-full min-h-tap py-2 px-3 not-italic font-medium; font-size: var(--text-base); line-height: 1.4; @apply font-body normal-nums; color: #15120E; background: #FFFDF7; border: 2px solid #15120E; @apply rounded-sm; }
+  .lib-field textarea { @apply resize-y; min-height: --spacing(28); }
+  .lib-field [aria-invalid="true"] { border-color: var(--color-lib-red-ink); box-shadow: 0 0 0 1px var(--color-lib-red-ink); }
+  .lib-field__hint, .lib-field__count { font-size: var(--text-xs); line-height: 1.4; color: #4A443A; }
+  .lib-field__count.is-over { @apply font-bold; color: var(--color-lib-red-ink); }
+  .lib-field__err { @apply flex items-start gap-1.5 font-semibold; font-size: var(--text-xs); line-height: 1.4; color: var(--color-lib-red-ink); }
+  .lib-field__err::before { content: "!"; @apply grid place-items-center flex-none size-4 rounded-full font-extrabold leading-none; font-size: var(--text-xs); color: #FFFDF7; background: var(--color-lib-red-ink); }
+  .lib-field__err[hidden] { @apply hidden; }
+  .lib-field--radios { @apply flex flex-wrap gap-x-5 gap-y-1; & legend { @apply mb-1 w-full; } & .lib-field__err { @apply w-full; } }
+  .lib-radio, .lib-check { @apply inline-flex items-center gap-2.5 min-h-tap cursor-pointer; font-size: var(--text-note); line-height: 1.35; }
+  .lib-check { @apply items-start py-2; }
+  .lib-radio input, .lib-check input { @apply size-5 flex-none m-0; accent-color: #15120E; }
+  .lib-check input { @apply mt-0.5; }
+  .lib-submit__hp { @apply absolute overflow-hidden whitespace-nowrap; width: 1px; height: 1px; clip-path: inset(50%); }
+  .lib-submit__go { @apply col-span-2 flex flex-wrap items-center gap-x-4 gap-y-2; }
+  .lib-submit__note { font-size: var(--text-sm); @apply font-semibold leading-normal; color: #3B342A; }
+  .lib-submit__note.is-error { color: var(--color-lib-red-ink); }
+  .lib-submit__note.is-done { color: #15120E; }
+  .lib-submit :focus-visible { outline-color: #1C36C7; }
+
   @media (prefers-reduced-motion: reduce) {
     .lib-spine, .lib-brass, .lib-chip, .lib-dlg__scrim, .lib-gl, .lib-slip, .lib-watch__knob { transition: none !important; }
     .lib-spine.is-fly, .lib-card__list li.is-fresh .lib-stamp, .is-bump, .lib-slip.is-stamping .lib-slip__stamp, .lib-dlg.is-preview .lib-preview { animation: none !important; }

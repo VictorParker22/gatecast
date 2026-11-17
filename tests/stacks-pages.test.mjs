@@ -13,7 +13,10 @@ const root = path.join(path.dirname(new URL(import.meta.url).pathname), '..');
 const read = (f) => fs.readFileSync(path.join(root, f), 'utf8');
 const S = require('../scripts/build-stacks-pages.cjs');
 const B = require('../scripts/build-data.cjs');
-const data = JSON.parse(read('data/books.json'));
+// The shelves as the pages show them: those with books (a shelf added before its books are merged has no page yet).
+const raw = JSON.parse(read('data/books.json'));
+const data = S.stocked(raw);
+const NB = data.books.length, NS = data.shelves.length;
 const m = await S.loadModel();
 const pages = S.renderStacks(data, m);
 const byId = new Map(pages.map((p) => [p.id, p]));
@@ -28,14 +31,14 @@ const canonical = (html) => attr(html, /<link rel="canonical" href="([^"]+)">/);
 const metaDesc = (html) => attr(html, /<meta name="description" content="([^"]*)">/);
 const ld = (html) => [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((x) => JSON.parse(x[1]));
 
-test('one page per book, per shelf and an index: 58 + 6 + 1, written to public/stacks/<id>/index.html', async () => {
-  assert.equal(data.books.length, 58);
-  assert.equal(data.shelves.length, 6);
-  assert.equal(pages.length, 65);
-  assert.equal(new Set(pages.map((p) => p.path)).size, 65, 'paths are unique');
+test('one page per book, per stocked shelf and an index, written to public/stacks/<id>/index.html', async () => {
+  assert.ok(NB >= 58, 'at least the 58 books of the first six shelves');
+  assert.ok(NS >= 6 && NS <= raw.shelves.length);
+  assert.equal(pages.length, NB + NS + 1);
+  assert.equal(new Set(pages.map((p) => p.path)).size, pages.length, 'paths are unique');
   for (const s of data.shelves) assert.ok(!data.books.some((b) => b.id === s.id), `shelf id ${s.id} is not also a book id`);
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gatecast-stacks-'));
-  assert.equal(await S.writeStacksPages(dir, data), 65);
+  assert.equal(await S.writeStacksPages(dir, data), NB + NS + 1);
   assert.ok(fs.existsSync(path.join(dir, 'stacks', 'index.html')));
   for (const b of data.books) assert.ok(fs.existsSync(path.join(dir, 'stacks', b.id, 'index.html')), b.id);
   for (const s of data.shelves) assert.ok(fs.existsSync(path.join(dir, 'stacks', s.id, 'index.html')), s.id);
@@ -118,7 +121,7 @@ test('JSON-LD: Book and BreadcrumbList on book pages, CollectionPage with an Ite
   }
   const [cp, bc] = ld(byId.get(null).html);
   assert.equal(cp['@type'], 'CollectionPage');
-  assert.equal(cp.mainEntity.numberOfItems, 6);
+  assert.equal(cp.mainEntity.numberOfItems, NS);
   crumbsOk(bc, ['Gatecast', 'The Stacks']);
   // A string that tries to close the script element stays inside it.
   const evil = { ...data, books: data.books.map((b, i) => (i ? b : { ...b, title: 'A </script><b>x' })) };
@@ -252,11 +255,11 @@ test('an approved preview is a link out: YouTube or C-SPAN watch page, Internet 
   assert.ok(!bad.includes('id="preview-title"'));
 });
 
-test('sitemap: the pages, /stacks/, 6 shelves and 58 books, dated from git and the data, not the build day', () => {
+test('sitemap: the pages, /stacks/, the stocked shelves and the books with a take, dated from git and the data, not the build day', () => {
   const xml = B.sitemapXml({ day: '2099-01-01', dateOf: (f) => (f === 'how.html' ? '2026-11-10' : null) });
   const urls = [...xml.matchAll(/<url><loc>([^<]+)<\/loc><lastmod>([^<]+)<\/lastmod><\/url>/g)].map((x) => ({ loc: x[1], lastmod: x[2] }));
   const listed = data.books.filter(S.indexable).length;
-  assert.equal(urls.length, 5 + 1 + 6 + listed, 'pages, /stacks/, shelves and only the books with a take');
+  assert.equal(urls.length, 5 + 1 + NS + listed, 'pages, /stacks/, shelves and only the books with a take');
   assert.equal(new Set(urls.map((u) => u.loc)).size, urls.length, 'no duplicates');
   const at = (loc) => urls.find((u) => u.loc === 'https://gatecast.vercel.app/' + loc);
   assert.equal(at('how.html').lastmod, '2026-11-10', 'a page: its last commit');
@@ -368,8 +371,8 @@ test('indexing: book pages are noindex, follow and left out of the sitemap until
   assert.equal((h.match(/<h1[\s>]/g) || []).length, 1);
   const entries = S.stacksSitemapEntries(withTake);
   assert.ok(entries.some((e) => e.loc === S.pageUrl(b0.id)), 'listed in the sitemap');
-  assert.equal(entries.length, 1 + 6 + 1);
-  assert.equal((B.sitemapXml({ data: withTake, dateOf: () => null }).match(/<url>/g) || []).length, 5 + 1 + 6 + 1);
+  assert.equal(entries.length, 1 + NS + 1);
+  assert.equal((B.sitemapXml({ data: withTake, dateOf: () => null }).match(/<url>/g) || []).length, 5 + 1 + NS + 1);
 
   // One word short: shown, but still noindex and unlisted.
   const short = TAKE.replace(/ more$/, '');
@@ -386,4 +389,64 @@ test('the <noscript> list for library.html links every shelf and book page', () 
   assert.ok(h.includes('href="/stacks/"'));
   for (const id of [...data.shelves.map((s) => s.id), ...data.books.map((b) => b.id)]) assert.ok(h.includes(`href="/stacks/${id}/"`), id);
   assert.ok(!/<script|<img/.test(h));
+});
+
+
+/* ---------- Stacks v2: N shelves, empty shelves, approved author books ---------- */
+
+// Two fiction shelves filled with made-up test books (fixtures only, not real records), as the lead will merge them.
+function withFiction(base = raw) {
+  const books = [...base.books];
+  for (const shelf of ['fantasy', 'scifi']) {
+    for (let k = 0; k < 9; k++) {
+      books.push({ id: `${shelf}-test-${k}`, shelf, title: `Test ${shelf} book ${k}`, authors: ['Test Author'], year: 1900 + k, description: 'A test book. It checks the layout.', tags: ['Test'], olWork: null, olEdition: null, olVerified: false });
+    }
+  }
+  return { ...base, books };
+}
+
+test('a shelf with no books yet has no page, is not listed and is not in the sitemap; with books it is', () => {
+  const empty = raw.shelves.filter((sh) => !raw.books.some((b) => b.shelf === sh.id)).map((sh) => sh.id);
+  const all = S.renderStacks(raw, m);
+  for (const id of empty) {
+    assert.ok(!all.some((p) => p.id === id), `${id}: no page`);
+    assert.ok(!all.find((p) => p.id === null).html.includes(`/stacks/${id}/`), `${id}: not on the index`);
+    assert.ok(!S.stacksSitemapEntries(raw).some((e) => e.loc === S.pageUrl(id)));
+    assert.ok(!S.noscriptHtml(raw, m).includes(`/stacks/${id}/`));
+  }
+  const full = withFiction();
+  const fp = S.renderStacks(full, m);
+  assert.equal(fp.length, full.books.length + raw.shelves.length + 1);
+  assert.ok(fp.some((p) => p.id === 'fantasy') && fp.some((p) => p.id === 'scifi'));
+  assert.equal(S.stacksSitemapEntries(full).length, 1 + raw.shelves.length);
+  assert.equal(S.shelfIntro([]), '');
+});
+
+test('approved author books: the "Suggested by the author/publisher" note, and nothing else extra', () => {
+  const b = { id: 'test-author-book', shelf: 'history', title: 'A Test Book', authors: ['Test Author'], year: 2025, description: 'A test book. It is not real.', tags: ['Test'], isbn13: '9780306406157', olWork: null, olEdition: null, olVerified: false, origin: 'author' };
+  const d = { ...data, books: [...data.books, b] };
+  const h = S.bookPage(b, d, m);
+  assert.ok(h.includes('<p class="stk-origin">Suggested by the author</p>'));
+  assert.ok(S.bookPage({ ...b, origin: 'publisher' }, d, m).includes('<p class="stk-origin">Suggested by the publisher</p>'));
+  assert.ok(!S.bookPage(data.books[0], data, m).includes('stk-origin'), 'the editor’s own books carry no note');
+  assert.ok(S.UI_TEXT.includes('Suggested by the author') && S.UI_TEXT.includes('Suggested by the publisher'));
+});
+
+test('buildData: approved books from lib/stacks-db.js join the static ones; bad or clashing ones and failures are left out', async () => {
+  const quiet = console.warn; console.warn = () => {};
+  try {
+    const good = { id: 'test-approved', shelf: 'science', title: 'A Test Approved Book', authors: ['Test Author'], year: 2024, description: 'A test book. It is approved.', tags: ['Test'], olWork: null, olEdition: null, olVerified: false };
+    const clash = { ...good, id: raw.books[0].id };
+    const bad = { ...good, id: 'Bad Id' };
+    const load = { loadStacksExtras: async () => ({ books: [good, clash, bad], featured: { bookId: 'test-approved', reason: 'x', since: '2026-11-16' } }) };
+    const out = await S.buildData({ data: raw, m, env: {}, load });
+    assert.equal(out.books.length, raw.books.length + 1);
+    assert.ok(out.books.some((b) => b.id === 'test-approved'));
+    assert.equal(out.featured, undefined, 'no Book of the Week on static pages');
+    const merged = await S.buildData({ data: raw, m, env: {}, load: { ...load, mergeBooks: (st, ex) => ({ ...st, books: [...st.books, ...ex.books], merged: true }) } });
+    assert.equal(merged.merged, true, 'uses mergeBooks when the module has it');
+    assert.equal(await S.buildData({ data: raw, m, env: {}, load: { loadStacksExtras: async () => { throw new Error('offline'); } } }), raw);
+    assert.equal(await S.buildData({ data: raw, m, env: {}, load: { loadStacksExtras: async () => ({ books: [], featured: null }) } }), raw);
+    assert.equal(await S.buildData({ data: raw, m, env: { GATECAST_STACKS_DB: 'off' }, load }), raw);
+  } finally { console.warn = quiet; }
 });

@@ -2,8 +2,9 @@
 // index.ts (the Supabase Edge Function) imports this; tests/community.test.mjs tests it from Node.
 //
 // What lives here: the story-URL normaliser and story id (the browser has the same code in js/community.js,
-// and the tests check they agree), hashing a visitor's address, request validation for votes, ratings, tips and
-// clicks, the public-host check for tipped links, the 50-vote rule, routing, CORS origins and error replies.
+// and the tests check they agree), hashing a visitor's address, request validation for votes, ratings, tips,
+// clicks and books put forward for The Stacks (ISBN checks), the public-host check for tipped links, the 50-vote
+// rule, routing, CORS origins and error replies.
 
 export const VOTE_THRESHOLD = 50; // the readers' average shows once this many people have voted
 export const MAX_IDS = 60;
@@ -114,6 +115,9 @@ export const tipHash = (salt, key, day) => sha256Hex(`${salt}${SEP}tip${SEP}${ke
 // Clicks: only for the 120-an-hour limit (a key in private.weird_rate, purged after 2 days), never stored with the
 // click. It changes every UTC day, like the tip hash, so the counter cannot link a visitor across days.
 export const clickHash = (salt, key, day) => sha256Hex(`${salt}${SEP}click${SEP}${key}${SEP}${day}`);
+// Books put forward for The Stacks: the 3-a-day limit, and stored with the submission for 7 days. Changes every UTC
+// day, like the tip hash.
+export const bookHash = (salt, key, day) => sha256Hex(`${salt}${SEP}book${SEP}${key}${SEP}${day}`);
 
 export const saltReady = (salt) => typeof salt === 'string' && salt.trim().length >= SALT_MIN;
 
@@ -208,6 +212,103 @@ export function validateTip(body) {
   return { ok: true, url: link.url, note: note || null, spam };
 }
 
+// ───────────────────────────── books for The Stacks ─────────────────────────────
+
+// POST /book (supabase/migrations/20261117120000_stacks_submissions.sql). The sender's words go to the editor only;
+// the editor writes everything that goes on the shelf.
+export const BOOK_LIMITS = { title: 200, authors: 200, publisher: 120, pitch: 600, email: 254, shelf: 40 };
+export const BOOK_DUPLICATE = 'That book is already with our editor or on the shelves.';
+const SHELF_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+// ISBN-10 or ISBN-13 as typed (hyphens and spaces allowed) -> the ISBN-13 digits, or null when the shape or the
+// check digit is wrong. An ISBN-10 becomes 978 + its first nine digits + a new check digit.
+export function isbn13Check(first12) {
+  let sum = 0;
+  for (let i = 0; i < 12; i++) sum += Number(first12[i]) * (i % 2 ? 3 : 1);
+  return String((10 - (sum % 10)) % 10);
+}
+export function isbn10Ok(d) {
+  if (!/^[0-9]{9}[0-9X]$/.test(d)) return false;
+  let sum = 0;
+  for (let i = 0; i < 10; i++) sum += (d[i] === 'X' ? 10 : Number(d[i])) * (10 - i);
+  return sum % 11 === 0;
+}
+export function toIsbn13(raw) {
+  if (typeof raw !== 'string' && typeof raw !== 'number') return null;
+  const d = String(raw).toUpperCase().replace(/^ISBN(?:-1[03])?:?/, '').replace(/[\s-]+/g, '');
+  if (/^97[89][0-9]{10}$/.test(d)) return isbn13Check(d) === d[12] ? d : null;
+  if (/^[0-9]{9}[0-9X]$/.test(d)) {
+    if (!isbn10Ok(d)) return null;
+    const twelve = `978${d.slice(0, 9)}`;
+    return twelve + isbn13Check(twelve);
+  }
+  return null;
+}
+
+// The shelves and the ISBNs already on them, from the site's data/books.json. null when the file could not be read:
+// then any shelf id of the right shape is taken (the editor checks it), and only the database's duplicates are caught.
+export function shelfInfo(data) {
+  if (!data || typeof data !== 'object' || !Array.isArray(data.shelves)) return null;
+  const shelves = new Set(data.shelves.map((s) => s?.id).filter((id) => typeof id === 'string' && SHELF_ID.test(id)));
+  if (!shelves.size) return null;
+  const isbns = new Set((Array.isArray(data.books) ? data.books : []).map((b) => toIsbn13(b?.isbn13)).filter(Boolean));
+  return { shelves, isbns };
+}
+
+const oneLine = (v) => String(v ?? '').replace(INVISIBLE, ' ').replace(/\s+/g, ' ').trim();
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// { title, authors, isbn, year, publisher?, shelf, pitch, relation, email?, confirm, website } -> { ok, book, spam }
+// or { ok: false, message }. book is what public.stacks_submit_book takes: { title, authors, isbn13, year, publisher,
+// shelf, pitch, relation, contact_email }. website is the honeypot, as for tips. info: shelfInfo(...) or null;
+// now: for the latest year allowed (next year).
+export function validateBook(body, { info = null, now = new Date() } = {}) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return { ok: false, message: 'Send a JSON object.' };
+  const spam = typeof body.website === 'string' ? body.website.trim() !== '' : body.website != null;
+  const text = (k) => (body[k] == null || typeof body[k] === 'string' ? oneLine(body[k]) : null);
+
+  const title = text('title');
+  if (title === null || !title) return { ok: false, message: 'Give the book’s title.' };
+  if (chars(title) > BOOK_LIMITS.title) return { ok: false, message: `Keep the title to ${BOOK_LIMITS.title} characters.` };
+  const authors = text('authors');
+  if (authors === null || !authors) return { ok: false, message: 'Name the author, or the authors separated by commas.' };
+  if (chars(authors) > BOOK_LIMITS.authors) return { ok: false, message: `Keep the authors to ${BOOK_LIMITS.authors} characters.` };
+
+  if (body.isbn == null || String(body.isbn).trim() === '') return { ok: false, message: 'Give the book’s ISBN (10 or 13 digits).' };
+  const isbn13 = toIsbn13(body.isbn);
+  if (!isbn13) return { ok: false, message: 'That ISBN doesn’t check out. Copy it from the back cover or the copyright page.' };
+
+  const maxYear = new Date(now).getUTCFullYear() + 1;
+  const year = typeof body.year === 'string' && /^\s*\d{4}\s*$/.test(body.year) ? Number(body.year) : body.year;
+  if (!Number.isInteger(year) || year < 1800 || year > maxYear) return { ok: false, message: `Give the year it was published (1800 to ${maxYear}).` };
+
+  const publisher = text('publisher');
+  if (publisher === null) return { ok: false, message: 'publisher must be text.' };
+  if (chars(publisher) > BOOK_LIMITS.publisher) return { ok: false, message: `Keep the publisher to ${BOOK_LIMITS.publisher} characters.` };
+
+  const shelf = typeof body.shelf === 'string' ? body.shelf.trim() : '';
+  if (!shelf || !SHELF_ID.test(shelf) || shelf.length > BOOK_LIMITS.shelf) return { ok: false, message: 'Choose the shelf it fits.' };
+  if (info && !info.shelves.has(shelf)) return { ok: false, message: 'Choose one of the shelves in The Stacks.' };
+
+  const pitch = text('pitch');
+  if (pitch === null || !pitch) return { ok: false, message: 'Tell our editor about the book in a few sentences.' };
+  if (chars(pitch) > BOOK_LIMITS.pitch) return { ok: false, message: `Keep it to ${BOOK_LIMITS.pitch} characters.` };
+
+  if (body.relation !== 'author' && body.relation !== 'publisher') return { ok: false, message: 'Say whether you are the author or the publisher.' };
+
+  const email = text('email');
+  if (email === null) return { ok: false, message: 'email must be text.' };
+  if (email && (chars(email) > BOOK_LIMITS.email || !EMAIL.test(email))) return { ok: false, message: 'That email address doesn’t look right. Leave it empty if you prefer.' };
+
+  if (body.confirm !== true) return { ok: false, message: 'Tick the box to confirm the book is published and the details are right.' };
+
+  return {
+    ok: true,
+    spam,
+    book: { title, authors, isbn13, year, publisher: publisher || null, shelf, pitch, relation: body.relation, contact_email: email || null },
+  };
+}
+
 // ───────────────────────────── ratings ─────────────────────────────
 
 // What the public sees for one story: the count always, the average only from the 50th vote.
@@ -243,19 +344,23 @@ export function route(pathname) {
   const last = String(pathname ?? '').replace(/\/+$/, '').split('/').pop();
   return Object.hasOwn(ROUTE_METHOD, last) ? last : null;
 }
-export const ROUTE_METHOD = { vote: 'POST', ratings: 'GET', favourites: 'GET', tip: 'POST', click: 'POST' };
+export const ROUTE_METHOD = { vote: 'POST', ratings: 'GET', favourites: 'GET', tip: 'POST', click: 'POST', book: 'POST' };
 
-// A database reply from weird_cast_vote / weird_submit_tip / weird_count_click that was not { ok: true } -> the HTTP reply:
-// 429 with retryAfter (seconds) for a limit, 502 for anything else.
+// A database reply from weird_cast_vote / weird_submit_tip / weird_count_click / stacks_submit_book that was not
+// { ok: true } -> the HTTP reply: 429 with retryAfter (seconds) for a limit, 409 for a book already put forward,
+// 502 for anything else.
 export function limitReply(result, kind = 'vote') {
-  if (result?.error !== 'rate_limited' && result?.error !== 'tips_full') {
+  if (result?.error === 'duplicate') return { status: 409, body: { error: 'duplicate', message: BOOK_DUPLICATE }, headers: {} };
+  if (result?.error !== 'rate_limited' && result?.error !== 'tips_full' && result?.error !== 'books_full') {
     return { status: 502, body: { error: 'unavailable', message: 'That could not be saved. Try again in a minute.' }, headers: {} };
   }
   const retryAfter = Math.max(1, Math.trunc(Number(result?.retry_after) || 60));
-  const error = result?.error === 'tips_full' ? 'tips_full' : 'rate_limited';
+  const error = result?.error === 'tips_full' || result?.error === 'books_full' ? result.error : 'rate_limited';
   const message = error === 'tips_full'
     ? 'The tip box is full for today. Try again tomorrow.'
+    : error === 'books_full' ? 'Our editor has all the books they can read today. Try again tomorrow.'
     : kind === 'tip' ? 'You’ve sent the most tips we take in a day. Try again tomorrow.'
+      : kind === 'book' ? 'You’ve put forward the most books we take in a day. Try again tomorrow.'
       : kind === 'click' ? 'That’s a lot of clicks. They are not being counted for a while.' : 'That’s a lot of votes. Wait a while, then try again.';
   return { status: 429, body: { error, message, retryAfter }, headers: { 'Retry-After': String(retryAfter) } };
 }

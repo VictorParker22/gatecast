@@ -22,11 +22,12 @@ const bareById = (id) => bare.books.find((b) => b.id === id);
 
 test('books.json is valid: ids, shelves, years, one-or-two-sentence descriptions, tags', () => {
   assert.deepEqual(validate(data), []);
-  assert.deepEqual(data.shelves.map((s) => s.id), ['crime', 'serial', 'unsolved', 'history', 'science', 'cults']);
+  assert.deepEqual(data.shelves.map((s) => s.id), ['crime', 'serial', 'unsolved', 'history', 'science', 'cults', 'fantasy', 'scifi']);
   for (const s of data.shelves) {
     const n = data.books.filter((b) => b.shelf === s.id).length;
     assert.ok(n >= 6 && n <= 10, `${s.id} has ${n} books`);
   }
+  assert.deepEqual(data.shelves.filter((s) => s.fiction).map((s) => s.id), ['fantasy', 'scifi'], 'only the fiction shelves are marked fiction');
 });
 
 test('every book on the approved board is on its board shelf', () => {
@@ -80,10 +81,12 @@ test('search matches title, author, topic and year, ignoring case, accents and a
 });
 
 test('filterView: shelf choice hides bays, query dims non-matches, status words', () => {
-  const all = filterView(data, {});
-  assert.equal(all.bays.length, 6);
+  const stocked = { ...data, shelves: data.shelves.filter((s) => data.books.some((b) => b.shelf === s.id)) };
+  const all = filterView(stocked, {});
+  const n = stocked.shelves.length;
+  assert.equal(all.bays.length, n);
   assert.equal(all.shown, data.books.length);
-  assert.equal(statusText(all), `${data.books.length} books on 6 shelves`);
+  assert.equal(statusText(all), `${data.books.length} books on ${n} shelves`);
   const one = filterView(data, { shelf: 'unsolved', query: 'ciphers' });
   assert.equal(one.bays.length, 1);
   assert.equal(one.matched, 1);

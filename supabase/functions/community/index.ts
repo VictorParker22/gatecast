@@ -1,5 +1,5 @@
-// Weird-news community features for anonymous visitors: the Weird-o-meter, reader favourites, the guestbook and
-// anonymous click totals. See docs/community.md.
+// Community features for anonymous visitors: the Weird-o-meter, reader favourites, the guestbook, anonymous click
+// totals, and books put forward for The Stacks by their author or publisher. See docs/community.md.
 //
 // Deployed with verify_jwt off (`supabase functions deploy community --no-verify-jwt`): visitors are not signed
 // in. Who a visitor is, for one-vote-per-story and the limits, is a salted SHA-256 of their network address;
@@ -13,21 +13,29 @@
 //   POST /functions/v1/community/click    { storyUrl }                -> 204, no body
 //        (one click on a weird story's link: added to that story's total for the UTC day; nothing about the visitor
 //        is stored with it. Needs the same migration; until then it answers 502)
+//   POST /functions/v1/community/book     { title, authors, isbn, year, publisher?, shelf, pitch, relation, email?, confirm: true, website }
+//                                                                       -> { ok: true } | 409 { error: 'duplicate', message }
+//        (a book put forward for The Stacks; it waits for the editor in the reviewer console. Needs
+//        supabase/migrations/20261117120000_stacks_submissions.sql; until then it answers 502)
 //
 // The database does the counting and enforces the limits (votes 60 per visitor per hour; tips 5 per visitor per
 // UTC day and 200 per UTC day in all; clicks 120 per visitor per hour) through definer functions only the service
-// role may call. Tipped links are checked by shape and never fetched. The pure logic is in logic.mjs
+// role may call; books 3 per visitor per UTC day and 50 per UTC day in all. Tipped links are checked by shape and
+// never fetched. A book's shelf is checked against the site's own data/books.json, read at most every 10 minutes. The pure logic is in logic.mjs
 // (tests/community.test.mjs).
 
 import {
-  BODY_MAX, clickHash, clientKey, corsHeaders, dayBucket, limitReply, parseIds, route, ROUTE_METHOD, saltReady, shapeRatings,
+  BODY_MAX, bookHash, clickHash, clientKey, corsHeaders, dayBucket, limitReply, parseIds, route, ROUTE_METHOD, saltReady, shapeRatings,
   storyId, tipHash, validateClick, validateTip, validateVote, voterHash, writeAllowed, publicRating, shapeFavourites,
+  validateBook, shelfInfo, BOOK_DUPLICATE,
 } from './logic.mjs';
 
 const SB_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SB_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 const SALT = Deno.env.get('COMMUNITY_SALT') ?? '';
 const EXTRA_ORIGINS = (Deno.env.get('COMMUNITY_ALLOWED_ORIGINS') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+// Where the site's data/books.json lives (the shelves a book may be put forward for). Optional; a custom domain.
+const SITE = (Deno.env.get('COMMUNITY_SITE_ORIGIN') ?? 'https://gatecast.vercel.app').replace(/\/+$/, '');
 
 type Json = Record<string, unknown>;
 type Rpc = { ok: true; data: unknown } | { ok: false; status: number };
@@ -52,6 +60,24 @@ async function rpc(fn: string, args: Json): Promise<Rpc> {
     console.error(JSON.stringify({ community: fn, error: err instanceof DOMException ? err.name : 'network' }));
     return { ok: false, status: 0 };
   }
+}
+
+// The shelves and the ISBNs already on them, from the site's data/books.json: kept 10 minutes, or 1 minute after a
+// failed read. null when unreadable (any shelf id of the right shape is then accepted; the editor checks it).
+type ShelfInfo = { shelves: Set<string>; isbns: Set<string> } | null;
+let shelfCache: { at: number; ttl: number; info: ShelfInfo } | null = null;
+async function siteShelves(): Promise<ShelfInfo> {
+  if (shelfCache && Date.now() - shelfCache.at < shelfCache.ttl) return shelfCache.info;
+  let info: ShelfInfo = null;
+  try {
+    const res = await fetch(`${SITE}/data/books.json`, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(3000) });
+    if (res.ok) info = shelfInfo(await res.json());
+  } catch {
+    info = null;
+  }
+  if (!info) console.error(JSON.stringify({ community: 'shelves_unreadable' }));
+  shelfCache = { at: Date.now(), ttl: info ? 10 * 60e3 : 60e3, info };
+  return info;
 }
 
 async function readJson(req: Request): Promise<{ ok: true; body: unknown } | { ok: false; status: number; message: string }> {
@@ -140,6 +166,24 @@ Deno.serve(async (req: Request) => {
       return reply(limit.body, limit.status, limit.headers);
     }
     return new Response(null, { status: 204, headers: { ...cors, 'Cache-Control': 'no-store' } });
+  }
+
+  // ── POST /book ── A book put forward for The Stacks. The honeypot answers as usual and stores nothing. A book already
+  // on the static shelves is a duplicate here; one already waiting or approved is caught by the database.
+  if (r === 'book') {
+    const info = await siteShelves();
+    const b = validateBook(parsed.body, { info });
+    if (!b.ok) return reply({ error: 'bad_request', message: b.message }, 400);
+    if (b.spam) return reply({ ok: true });
+    if (info?.isbns.has(b.book.isbn13)) return reply({ error: 'duplicate', message: BOOK_DUPLICATE }, 409);
+    const res = await rpc('stacks_submit_book', { p: b.book, p_ip_hash: await bookHash(SALT, who, dayBucket()) });
+    if (!res.ok) return reply({ error: 'unavailable', message: 'Your book could not be sent. Try again in a minute.' }, 502);
+    const out = res.data as Json | null;
+    if (out?.ok !== true) {
+      const limit = limitReply(out, 'book');
+      return reply(limit.body, limit.status, limit.headers);
+    }
+    return reply({ ok: true });
   }
 
   // ── POST /tip ──
