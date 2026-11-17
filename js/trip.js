@@ -41,7 +41,7 @@ function renderStops() {
   stopsEl.innerHTML = stops.map((s, i) => {
     const a = airport(s.code);
     const via = i > 0 && i < stops.length - 1;
-    return `<li class="stop-field${via ? ' stop-field--via' : ''}" data-id="${s.id}">
+    return `<li class="grid items-end gap-2 ${via ? 'grid-cols-[1fr_--spacing(26)_var(--spacing-tap)] border-l-2 border-dashed border-line pl-4 nav:grid-cols-[1fr_--spacing(24)_var(--spacing-tap)] nav:border-l-0 nav:pl-0' : 'grid-cols-1'}" data-id="${s.id}">
       <div class="field combo">
         <label for="ap-${s.id}">${roleLabel(i)}${via ? ' <span class="field__hint">optional</span>' : ''}</label>
         <input id="ap-${s.id}" type="text" role="combobox" autocomplete="off" autocapitalize="off" spellcheck="false"
@@ -49,7 +49,7 @@ function renderStops() {
           placeholder="${via ? 'City or airport code' : 'City or airport, e.g. ' + (i ? 'Denver' : 'JFK')}" value="${a ? esc(display(a)) : ''}">
         <ul id="lb-${s.id}" class="combo__list" role="listbox" aria-label="Airports" hidden></ul>
       </div>
-      ${via ? `<div class="field field--layover">
+      ${via ? `<div class="field">
         <label for="lay-${s.id}">Layover</label>
         <select id="lay-${s.id}">${LAYOVERS.map((m) => `<option value="${m}"${m === s.layover ? ' selected' : ''}>${fmtDuration(m)}</option>`).join('')}</select>
       </div>
@@ -265,9 +265,9 @@ const resultsEl = $('#results');
 function loading(trip) {
   resultsEl.hidden = false;
   resultsEl.setAttribute('aria-busy', 'true');
-  resultsEl.innerHTML = `<div class="tverdict tverdict--calm tverdict--loading"><div class="tverdict__text">
-    <h2 id="verdict-title" tabindex="-1">Checking the forecast for ${trip.r.map(esc).join(' → ')}…</h2>
-    <p class="tverdict__meta">Lining up each airport with the time you are there.</p></div></div>
+  resultsEl.innerHTML = `<div class="grid rounded-lg border border-line bg-np-card px-6 py-4"><div>
+    <h2 id="verdict-title" class="text-xl/snug font-semibold outline-none" tabindex="-1">Checking the forecast for ${trip.r.map(esc).join(' → ')}…</h2>
+    <p class="mt-1 max-w-measure text-sm text-np-muted">Lining up each airport with the time you are there.</p></div></div>
     <div class="skeleton" aria-hidden="true"><span></span><span></span></div>`;
 }
 
@@ -340,10 +340,10 @@ function noteTrip(trip, result, now) {
 function sinceHTML(c) {
   if (!c) return '';
   const now = Date.now(), tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  return `<div class="since" role="note" aria-label="Forecast changes since your last look">
-    <svg class="icon since__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 0 1 13.7-5.6L20 9M20 4v5h-5M20 12a8 8 0 0 1-13.7 5.6L4 15M4 20v-5h5"/></svg>
-    <div class="since__text"><p class="since__lead">${esc(changeLead(c.since, now, tz))}:</p>
-      <ul class="since__list">${c.changes.map((x) => `<li>${esc(changeLine(x))} <small>local time</small>.</li>`).join('')}</ul></div>
+  return `<div class="-mt-3 grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1 rounded-md border border-line bg-np-card py-2 pr-1 pl-4 text-sm/snug" role="note" aria-label="Forecast changes since your last look">
+    <svg class="icon mt-3 text-np-muted" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 0 1 13.7-5.6L20 9M20 4v5h-5M20 12a8 8 0 0 1-13.7 5.6L4 15M4 20v-5h5"/></svg>
+    <div class="py-2"><p class="text-np-muted">${esc(changeLead(c.since, now, tz))}:</p>
+      <ul class="font-semibold">${c.changes.map((x) => `<li>${esc(changeLine(x))} <small>local time</small>.</li>`).join('')}</ul></div>
     <button type="button" class="btn btn--icon since__close" data-dismiss aria-label="Dismiss this note"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
   </div>`;
 }
@@ -359,9 +359,9 @@ function render() {
     ${verdictHTML(result, trip, startDay, at, u)}
     ${sinceHTML(last.since)}
     ${stripHTML(model, u, prefs, startDay)}
-    <section class="tstops" aria-labelledby="tstops-title">
-      <h2 id="tstops-title">Stop by stop</h2>
-      <ol class="tstops__list">${result.stops.map((s, i) => stopCardHTML(s, forecasts.get(s.airport.code) || [], u, startDay, i)).join('')}</ol>
+    <section aria-labelledby="tstops-title">
+      <h2 id="tstops-title" class="sr-only">Stop by stop</h2>
+      <ol class="grid grid-cols-[repeat(auto-fit,minmax(min(100%,--spacing(76)),1fr))] gap-4">${result.stops.map((s, i) => stopCardHTML(s, forecasts.get(s.airport.code) || [], u, startDay, i)).join('')}</ol>
     </section>
     ${adviceHTML(result)}
     ${mapHTML(result, model, prefs)}`;
@@ -469,7 +469,7 @@ function renderExamples() {
     recents.map((t) => btn({ ...t, t: Date.parse(t.t) > now - 12 * HOUR ? t.t : defaultDeparture() }, t.r.join(' → '), 'pill--recent')).join('') +
     // ex marks a tried-out example, so the Today page never presents it as the visitor's own trip.
     EXAMPLES.map((x) => btn({ r: x.r, l: x.l, d: [], t: defaultDeparture(), ex: true }, x.label)).join('');
-  $('.examples__label').textContent = recents.length ? 'Recent and examples' : 'Try an example';
+  $('#examples-label').textContent = recents.length ? 'Recent and examples' : 'Try an example';
 }
 $('#example-list').addEventListener('click', (e) => {
   const b = e.target.closest('[data-trip]');

@@ -84,8 +84,8 @@ test('risk expands into the ink verdict; calm collapses to one quiet line', () =
   assert.match(lo, /tverdict--calm/);
   assert.doesNotMatch(lo, /tverdict--ink/);
   assert.match(lo, /Low risk\./);
-  assert.match(adviceHTML(risky.result), /<ol class="tdo__list">/);
-  assert.match(adviceHTML(quiet.result), /class="tdo-line"/);
+  assert.match(adviceHTML(risky.result), /<ol class="tdo__list[ "]/);
+  assert.match(adviceHTML(quiet.result), /class="tdo-line[ "]/);
   assert.ok(tips(risky.result).length >= 2);
 });
 
@@ -94,7 +94,7 @@ test('the strip is an ordered list of stops and flights with text for every bar'
   const m = journeyModel(result, plan, forecasts);
   const html = stripHTML(m, u, prefs, 'Tue 17 Nov');
   assert.equal((html.match(/class="jstop /g) || []).length, 3);
-  assert.equal((html.match(/class="jleg"/g) || []).length, 2);
+  assert.equal((html.match(/class="jleg[ "]/g) || []).length, 2);
   const bars = (html.match(/class="jhour /g) || []).length;
   assert.equal(bars, m.stops.reduce((n, s) => n + s.hours.length, 0));
   assert.equal((html.match(/<span class="sr-only">\d/g) || []).length, bars);
@@ -102,6 +102,6 @@ test('the strip is an ordered list of stops and flights with text for every bar'
   const card = stopCardHTML(result.stops[1], forecasts.get('FRA'), u, 'Tue 17 Nov', 1);
   assert.match(card, /data-stop="1"/);
   assert.match(card, /is-driver/);
-  assert.match(card, /<details class="tcard__hours">/);
+  assert.match(card, /<details class="tcard__hours[ "]/);
   assert.match(card, /data-live="FRA"/);
 });

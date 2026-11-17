@@ -14,13 +14,21 @@
   "scripts": {
     "build": "node scripts/build-data.cjs",
     "start": "node server.js",
-    "dev": "node server.js",
+    "dev": "node scripts/dev.cjs",
     "test": "node --test tests/*.mjs tests/*.cjs",
-    "ci": "npm test && npm run build"
+    "ci": "npm test && npm run build",
+    "css": "node scripts/build-css.cjs"
   },
   "dependencies": {
     "topojson-client": "^3.1.0",
     "world-atlas": "^2.0.2"
   },
-  "engines": { "node": ">=18" }
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "4.3.5",
+    "daisyui": "5.8.1",
+    "tailwindcss": "4.3.5"
+  }
 }

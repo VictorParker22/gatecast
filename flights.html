@@ -27,9 +27,7 @@
   <meta name="twitter:description" content="Live flight tracking with weather at both ends, and current weather risk at any airport.">
   <meta name="twitter:image" content="https://gatecast.vercel.app/vendor/og/gatecast-og.png">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23111418'/%3E%3Cpath d='M9 25V14a7 7 0 0 1 14 0v11M16 18v7' stroke='%23fff' stroke-width='2.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles/tokens.css">
-  <link rel="stylesheet" href="styles/app.css">
-  <link rel="stylesheet" href="styles/flights.css">
+  <link rel="stylesheet" href="styles/site.css">
   <link rel="preload" href="data/airports.json" as="fetch" crossorigin>
   <script type="module" src="js/flights.js"></script>
 </head>
@@ -57,16 +55,16 @@
 
   <div id="settings" class="settings" popover aria-labelledby="settings-title"></div>
 
-  <main id="main">
+  <main id="main" class="frame">
     <section class="hero hero--compact" aria-labelledby="hero-title">
-      <h1 id="hero-title">Flight status and airport weather</h1>
+      <h1 id="hero-title" class="hero__title">Flight status and airport weather</h1>
       <p class="hero__lede">Track a flight live, or see what the weather is doing to an airport right now.</p>
-      <form id="flight-form" class="trip-form lookup" novalidate>
-        <fieldset class="segmented lookup__mode"><legend class="sr-only">Search by</legend>
+      <form id="flight-form" class="form-box mt-4 grid gap-3" novalidate>
+        <fieldset class="segmented m-0 max-w-88" id="mode"><legend class="sr-only">Search by</legend>
           <label><input type="radio" name="mode" value="flight" checked><span>Flight number</span></label>
           <label><input type="radio" name="mode" value="airport"><span>Airport</span></label>
         </fieldset>
-        <div class="lookup__row">
+        <div class="grid items-end gap-3 sm:grid-cols-[minmax(0,--spacing(96))_auto] sm:justify-start">
           <div class="field" id="flight-field">
             <label for="flight">Flight number <span class="field__hint">for example UA 1 or BA117</span></label>
             <input id="flight" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="UA 1">
@@ -80,9 +78,9 @@
         </div>
         <p id="form-error" class="form-error" role="alert" hidden></p>
       </form>
-      <div class="examples">
-        <span class="examples__label">Try</span>
-        <div class="examples__list" id="example-list"></div>
+      <div class="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
+        <span class="text-sm text-np-muted">Try</span>
+        <div class="flex flex-wrap gap-2" id="example-list"></div>
       </div>
     </section>
 

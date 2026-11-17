@@ -11,24 +11,23 @@
   </script>
   <title>Reviewer console — Gatecast</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23111418'/%3E%3Cpath d='M9 25V14a7 7 0 0 1 14 0v11M16 18v7' stroke='%23fff' stroke-width='2.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles/tokens.css">
-  <link rel="stylesheet" href="styles/app.css">
-  <link rel="stylesheet" href="styles/review.css">
+  <link rel="stylesheet" href="styles/site.css">
+  <link rel="stylesheet" href="styles/console.css">
   <script type="module" src="js/review.js"></script>
 </head>
-<body class="page-review">
+<body class="min-h-dvh">
   <a class="skip-link" href="#main">Skip to content</a>
 
-  <main id="main" class="rv">
+  <main id="main" class="rv w-full">
     <!-- Signed out, link sent, not a reviewer: one centred card. -->
-    <section class="rv-gate" id="gate" aria-labelledby="gate-title">
-      <div class="rv-gate__card">
-        <a class="brand rv-gate__brand" href="./" aria-label="Gatecast home">
+    <section class="rv-gate grid min-h-dvh place-items-center px-4 py-6" id="gate" aria-labelledby="gate-title">
+      <div class="grid w-full max-w-120 gap-4 rounded-xl border border-line bg-np-card px-4 py-6 shadow-np md:px-6 md:py-8">
+        <a class="brand justify-self-start" href="./" aria-label="Gatecast home">
           <svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8"/><g transform="translate(4 5)"><path d="M5 20V9a7 7 0 0 1 14 0v11"/><path d="M12 13v7"/></g></svg>
           <span class="brand__name">Gatecast</span>
         </a>
-        <h1 class="rv-gate__title signage" id="gate-title">Reviewer console</h1>
-        <div id="gate-body">
+        <h1 class="signage text-title/none" id="gate-title">Reviewer console</h1>
+        <div id="gate-body" class="grid gap-4">
           <p class="rv-gate__lede">For the people who check and publish “Both sides” topics. Visitors never see this page.</p>
           <noscript><p class="rv-alert">The reviewer console needs JavaScript.</p></noscript>
         </div>
@@ -36,33 +35,33 @@
     </section>
 
     <!-- Signed in as a reviewer. -->
-    <div class="rv-app" id="app" hidden>
-      <nav class="rv-side" aria-label="Views">
-        <a class="brand rv-side__brand" href="./" aria-label="Gatecast home">
+    <div class="grid h-dvh grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)] md:h-auto md:min-h-dvh md:grid-cols-[--spacing(60)_minmax(0,1fr)] md:grid-rows-none" id="app" hidden>
+      <nav class="flex items-center gap-2 overflow-x-auto overscroll-x-contain border-b border-line bg-np-card px-3 py-2 md:sticky md:top-0 md:grid md:h-dvh md:content-start md:overflow-auto md:border-r md:border-b-0 md:px-3 md:py-4" aria-label="Views">
+        <a class="brand flex-none md:px-2 max-md:[&_.brand\_\_name]:hidden" href="./" aria-label="Gatecast home">
           <svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8"/><g transform="translate(4 5)"><path d="M5 20V9a7 7 0 0 1 14 0v11"/><path d="M12 13v7"/></g></svg>
           <span class="brand__name">Gatecast</span>
         </a>
-        <h1 class="rv-side__title signage">Reviewer console</h1>
-        <div id="nav"></div>
+        <h1 class="signage px-2 pb-2 text-xl/tight text-np-muted max-md:hidden">Reviewer console</h1>
+        <div id="nav" class="max-md:flex max-md:gap-1"></div>
       </nav>
 
-      <div class="rv-main">
-        <div class="rv-top">
+      <div class="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden md:h-dvh md:overflow-visible">
+        <div class="flex items-center gap-2 border-b border-line bg-np-paper px-3 py-2 md:gap-3 md:px-4 md:py-3">
           <label class="sr-only" for="search">Search this view</label>
-          <input id="search" class="rv-search" type="search" placeholder="Search title, speaker or place" autocomplete="off" spellcheck="false">
-          <span class="rv-top__who" id="who"></span>
+          <input id="search" class="flex-1 md:max-w-128" type="search" placeholder="Search title, speaker or place" autocomplete="off" spellcheck="false">
+          <span class="ml-auto min-w-0 truncate text-sm text-np-muted max-md:hidden" id="who"></span>
           <button type="button" class="btn btn--ghost" id="signout">Sign out</button>
         </div>
 
-        <div class="rv-panes" id="panes" data-pane="list">
-          <section class="rv-list" id="list-pane" aria-labelledby="list-title"></section>
-          <section class="rv-detail" id="detail" aria-label="Details"></section>
+        <div class="rv-panes grid min-h-0 grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] lg:grid-cols-[minmax(--spacing(72),--spacing(96))_minmax(0,1fr)]" id="panes" data-pane="list">
+          <section class="rv-list relative min-h-0 overflow-auto bg-np-card lg:border-r lg:border-line" id="list-pane" aria-labelledby="list-title"></section>
+          <section class="rv-detail relative min-h-0 overflow-auto bg-np-paper" id="detail" aria-label="Details"></section>
         </div>
       </div>
     </div>
   </main>
 
-  <div class="rv-toasts" id="toasts" role="status" aria-live="polite"></div>
+  <div class="fixed top-18 right-4 z-20 grid w-[min(100%-2*var(--spacing)*4,--spacing(104))] gap-2" id="toasts" role="status" aria-live="polite"></div>
   <dialog class="rv-dialog" id="dialog" aria-labelledby="dialog-title"></dialog>
 </body>
 </html>

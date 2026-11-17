@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/VictorParker22/gatecast/actions/workflows/ci.yml/badge.svg)](https://github.com/VictorParker22/gatecast/actions/workflows/ci.yml)
 
-Gatecast is a late-90s weird-news front page, modern underneath: odd news from real outlets, each one the outlet's own headline linked to the original, with the weather where you are on top (a live sky in an old program window) and a virtual library for the curious, The Stacks. Readers can rate the lead on the Weird-o-meter and send tips through the guestbook. The flight and trip tools stay as a small utility: enter your airports, departure time and layover, and Gatecast lines up the forecast at every stop with the hours you are there, rates each airport Low, Elevated or High, and says why. It is a static site with no framework and no build step, built on free, keyless data sources, with a small server only for the sources that cannot be called from a browser.
+Gatecast is a late-90s weird-news front page, modern underneath: odd news from real outlets, each one the outlet's own headline linked to the original, with the weather where you are on top (a live sky in an old program window) and a virtual library for the curious, The Stacks. Readers can rate the lead on the Weird-o-meter and send tips through the guestbook. The flight and trip tools stay as a small utility: enter your airports, departure time and layover, and Gatecast lines up the forecast at every stop with the hours you are there, rates each airport Low, Elevated or High, and says why. It is a static site with no framework, styled with Tailwind CSS (compiled at build time), built on free, keyless data sources, with a small server only for the sources that cannot be called from a browser.
 
 <p align="center">
   <img src="docs/screenshots/board-desktop.png" alt="Gatecast before the redesign: a blue sky header above a board of weather boxes." width="640">
@@ -35,10 +35,14 @@ Local weather with flight status. Three pages:
 ## Quick start
 
 ```bash
-node server.js     # or: npm run dev
+npm install        # once: Tailwind CSS, its CLI and daisyUI (dev dependencies)
+npm run dev        # server + Tailwind in watch mode: styles/site.css is rebuilt on every edit
+# or: node server.js   (builds styles/site.css once if it is missing or out of date, then serves)
 ```
 
-Then open http://localhost:4173. Node 18 or newer, no dependencies, no build step. Set `PORT` to use another port.
+Then open http://localhost:4173. Node 20 or newer. Set `PORT` to use another port.
+
+**Styles.** The pages on Tailwind (`how.html`, `trip.html`, `flights.html`, `review.html`) link one compiled stylesheet, `styles/site.css`, built from `styles/main.css` (theme tokens, base, `@layer components`) and `styles/components/*.css`; the reviewer console adds `styles/console.css` from `styles/main-console.css`. Both outputs are generated and git-ignored: `npm run css` builds them once, `npm run dev` keeps them fresh. The front page and the library (`index.html`, `library.html`) still use the hand-written `styles/tokens.css`, `app.css`, `home.css` and `library.css` until they are migrated. How the theme works is in [`docs/design-system.md`](docs/design-system.md).
 
 The weather page and connection checker also work as plain static files. Flight tracking, "Right now" airport observations and FAA delay programmes need the `/api` routes (`server.js` locally, the `api/` functions on Vercel), because those sources do not allow direct browser calls.
 
@@ -48,7 +52,7 @@ The weather page and connection checker also work as plain static files. Flight 
 node --test tests/*.mjs tests/*.cjs     # or: npm test
 ```
 
-CI runs the tests and the build step on Node 18.x and 22.x for every push and pull request (`.github/workflows/ci.yml`). To run the same thing locally:
+CI runs the tests and the build step on Node 20.x and 22.x for every push and pull request (`.github/workflows/ci.yml`). To run the same thing locally:
 
 ```bash
 npm ci
@@ -57,7 +61,7 @@ npm run ci          # npm test && npm run build
 
 ## Deployment
 
-The site is deployed on Vercel (`vercel.json`). Vercel runs `node scripts/build-data.cjs`, which downloads the airport list, writes the map outline, and assembles the static site in `public/`; the functions in `api/` serve the `/api` routes. The build step needs `npm ci` first (for `topojson-client` and `world-atlas`) and network access. `public/` is generated and not committed.
+The site is deployed on Vercel (`vercel.json`). Vercel runs `node scripts/build-data.cjs`, which downloads the airport list, writes the map outline, compiles the Tailwind stylesheets into `public/styles/site.css` and `console.css` (`scripts/build-css.cjs`), and assembles the static site in `public/`; the functions in `api/` serve the `/api` routes. The build step needs `npm ci` first (for `topojson-client`, `world-atlas` and the Tailwind CLI) and network access. `public/` is generated and not committed.
 
 ## Project structure
 
@@ -69,8 +73,8 @@ The site is deployed on Vercel (`vercel.json`). Vercel runs `node scripts/build-
 | `js/sky/governor.js` | Decides the sky's quality level from measured frame times (pure, unit-tested) |
 | `js/motion.js`, `styles/motion.css` | First-load entrance and small press feedback, off under reduced motion |
 | `js/boardcontent.js` | Headline sentence and sky mapping used by Today; also older content helpers kept for their tests (pure, unit-tested) |
-| `js/journey.js`, `js/tripview.js`, `styles/trip.css` | Trips: the journey strip model (pure, unit-tested) and the verdict, strip and stop-card views |
-| `js/flightstatus.js`, `styles/flights.css` | Flights: which number leads, position freshness, the one-line weather verdict (pure, unit-tested) |
+| `js/journey.js`, `js/tripview.js` | Trips: the journey strip model (pure, unit-tested) and the verdict, strip and stop-card views |
+| `js/flightstatus.js` | Flights: which number leads, position freshness, the one-line weather verdict (pure, unit-tested) |
 | `flights.html`, `js/flights.js` | Flight tracking and airport view |
 | `trip.html`, `js/trip.js` | Connection checker |
 | `js/shell.js` | Shared storage; unit, clock (12 or 24 hour) and theme preferences; settings popover |
@@ -78,12 +82,15 @@ The site is deployed on Vercel (`vercel.json`). Vercel runs `node scripts/build-
 | `js/data.js` | Airport and city search, forecasts, alerts, flight and live-data clients |
 | `js/ui.js` | Icons, units and chips shared by every page |
 | `js/view.js` | Route map and hourly strip for the flights and connections pages (re-exports `js/ui.js`) |
-| `styles/tokens.css`, `styles/app.css` | Design tokens and components |
+| `styles/main.css`, `styles/components/` | Tailwind CSS v4 entry: the theme (newsprint and risk colours, type, spacing, radii, shadows, breakpoints), base styles and the shared components; compiled to `styles/site.css` |
+| `styles/main-console.css`, `styles/components/review.css` | The reviewer console's components (with daisyUI for its fields and pills); compiled to `styles/console.css` |
+| `scripts/build-css.cjs`, `scripts/dev.cjs` | Tailwind build (`npm run css`) and the dev server with CSS watch (`npm run dev`) |
+| `styles/tokens.css`, `styles/app.css` | Legacy tokens and components, still used by the front page and the library until their migration |
 | `lib/live.js` | Server-side lookups: airport observations, FAA status and today's FAA plans (parser unit-tested), flight route and position, nearby aircraft |
 | `api/*.js` | Vercel functions wrapping `lib/live.js` |
 | `server.js` | Local static server exposing the same `/api` routes |
 | `scripts/build-data.cjs` | Build step: airport list with size ranking, map outline, `sitemap.xml` dated the build day, assembles `public/` |
-| `how.html`, `styles/how.css` | "How Gatecast works": how the brief and the verdicts are chosen, data sources and limits, what Gatecast never does, corrections |
+| `how.html` | "How Gatecast works": how the brief and the verdicts are chosen, data sources and limits, what Gatecast never does, corrections |
 | `robots.txt` | Crawl rules: everything public allowed (OAI-SearchBot and PerplexityBot named), `/review.html` and `/api/` disallowed, sitemap line |
 | `vendor/og/gatecast-og.png`, `docs/og/og-template.html` | The 1200×630 share image for Open Graph and Twitter cards, and the HTML it is rendered from |
 | `vendor/leaflet/` | Leaflet 1.9.4 (BSD-2-Clause), used only for the radar map |
@@ -91,7 +98,7 @@ The site is deployed on Vercel (`vercel.json`). Vercel runs `node scripts/build-
 | `data/airports.json` | 7,769 airports with IATA codes, time zones and a size rank |
 | `js/config.js` | The Supabase project address and its publishable key (public by design; row rules decide access) |
 | `js/civic.js`, `js/civicmodel.js`, `styles/civic.css` | "Your statehouse" and "Both sides" on Today: mounted with `mountCivic(root, { state })`; the words and numbers are pure and unit-tested |
-| `review.html`, `js/review.js`, `js/reviewmodel.js`, `styles/review.css` | Reviewer console for the Both sides queue (sign-in link, queue, publish, assistant); not in the navigation, `noindex`. Rules in `reviewmodel.js` are unit-tested |
+| `review.html`, `js/review.js`, `js/reviewmodel.js` | Reviewer console for the Both sides queue (sign-in link, queue, publish, assistant); not in the navigation, `noindex`. Rules in `reviewmodel.js` are unit-tested |
 | `supabase/migrations/` | Database: the Both sides review queue, statehouse votes and their switch, the hourly collector job; see `supabase/README.md` |
 | `supabase/functions/` | Edge Functions: `collect` (statehouse votes from Open States, hourly) and `assist` (the reviewer console's assistant) |
 | `docs/` | Design system, user research plan, research report, content sources, moderation policy, design direction |
