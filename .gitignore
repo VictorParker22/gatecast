@@ -4,3 +4,5 @@ public/
 .DS_Store
 styles/site.css
 styles/console.css
+styles/site-front.css
+styles/site-library.css

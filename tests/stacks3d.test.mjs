@@ -214,7 +214,7 @@ test('library.html: import map points at vendored files that exist, with their l
 
 test('every image the library asks for is in assets/stacks', async () => {
   const { existsSync } = await import('node:fs');
-  const css = readFileSync(new URL('../styles/library.css', import.meta.url), 'utf8');
+  const css = readFileSync(new URL('../styles/components/library.css', import.meta.url), 'utf8');
   const js = readFileSync(new URL('../js/library.js', import.meta.url), 'utf8');
   const refs = new Set([...css.matchAll(/assets\/stacks\/([\w.{}-]+\.webp)/g), ...js.matchAll(/assets\/stacks\/([\w.{}-]+\.webp)/g)].map((m) => m[1]));
   assert.ok(refs.size >= 10);

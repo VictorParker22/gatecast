@@ -56,7 +56,7 @@ The full system is in [`docs/design-system.md`](docs/design-system.md). In short
 2. **Never colour alone.** A risk level is always a word, a shape and a colour together (teal tick, amber triangle, rose octagon).
 3. **Local time, always labelled.** Each airport shows its own clock with the zone, and a written date when the day changes.
 4. **Plain words.** No METAR, IFR or ATC terms in the main view; raw data sits one tap deeper. No exclamation marks, emoji or "expect".
-5. **Tokens only.** Components never contain a colour value; they take it from a semantic token in `styles/tokens.css`.
+5. **Tokens only.** Components never contain a colour value; they take it from a theme token in `styles/main.css` (or the `@theme` block at the top of a component file).
 
 Also: 44px minimum tap targets, every motion removed under `prefers-reduced-motion`, and copy that is deterministic (the same forecast always gives the same words).
 

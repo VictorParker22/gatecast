@@ -209,7 +209,7 @@ document.addEventListener('click', async (e) => {
 /* ---------- Favourites: readers' (from real votes) or the editor's picks ---------- */
 // PAUSED by the owner (to be planned before it ships): with FAVOURITES false the section stays hidden and the rest of
 // the page lays out as if it did not exist. To remove it entirely: this block, the #favs section in index.html, the
-// "Favourites" block in styles/home.css, favourites() in js/frontmodel.js and its tests.
+// "Favourites" block in styles/components/front.css, favourites() in js/frontmodel.js and its tests.
 const FAVOURITES = false;
 function renderFavs() {
   const sec = $('#favs');

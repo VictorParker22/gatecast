@@ -1,0 +1,5 @@
+/* The front page's own components (index.html only), compiled to styles/site-front.css next to site.css so the other
+   pages do not carry them. @reference gives @apply the same theme and variants as main.css without emitting them again;
+   the page tokens are defined once in site.css (the "@theme static" block in main.css). */
+@reference "./main.css";
+@import "./components/front.css";

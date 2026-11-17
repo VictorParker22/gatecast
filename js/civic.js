@@ -9,7 +9,7 @@
 // title is one level below. Pass 2 when the section is not inside another h2.
 //
 // The container starts hidden and is only revealed once there is content. Resolves to true when something
-// was shown. Styles: styles/civic.css. Words and numbers come from js/civicmodel.js (pure, unit-tested).
+// was shown. Styles: the civic rules in styles/components/front.css. Words and numbers come from js/civicmodel.js (pure, unit-tested).
 import { SUPABASE_URL, SUPABASE_KEY } from './config.js';
 import { esc } from './ui.js';
 import { stateCode, STATE_NAMES, votesPath, topicsPath, votesModel, topicsModel } from './civicmodel.js';

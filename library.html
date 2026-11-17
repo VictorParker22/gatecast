@@ -29,9 +29,8 @@
   <link rel="preload" href="vendor/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="vendor/fonts/alfa-slab-one-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="vendor/fonts/barlow-condensed-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="styles/tokens.css">
-  <link rel="stylesheet" href="styles/app.css">
-  <link rel="stylesheet" href="styles/library.css">
+  <link rel="stylesheet" href="styles/site.css">
+  <link rel="stylesheet" href="styles/site-library.css">
   <link rel="preload" href="data/books.json" as="fetch" type="application/json" crossorigin>
   <script>
     // The 3D room or the DOM shelves? A first guess before paint, so the page keeps room for the bookcases and
@@ -162,7 +161,7 @@
       <div class="lib-book" id="lib-book">
         <div class="lib-face lib-face--front" id="bk-front">
           <div class="lib-standin" id="bk-standin">
-            <span class="lib-standin__deco" aria-hidden="true"></span>
+            <span class="hidden" aria-hidden="true"></span>
             <span class="lib-standin__shelf" id="bk-cover-shelf"></span>
             <span class="lib-standin__title" id="bk-cover-title"></span>
             <span class="lib-standin__rule" aria-hidden="true"></span>
@@ -181,7 +180,7 @@
           <ul class="lib-back__tags" id="bk-tags" aria-label="Topics"></ul>
           <p class="lib-note" id="bk-note"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.2"/></svg><span><strong>Content note.</strong> <span id="bk-note-text"></span></span></p>
           <p class="lib-note lib-note--caveat" id="bk-caveat"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg><span><strong>Worth knowing.</strong> <span id="bk-caveat-text"></span></span></p>
-          <div class="lib-back__links">
+          <div class="mt-auto flex flex-wrap gap-2 pt-1">
             <a class="lib-bev lib-bev--ink" id="bk-wc" rel="noopener">Find at your library</a>
             <a class="lib-bev" id="bk-buy" rel="noopener">Buy at Bookshop.org</a>
           </div>

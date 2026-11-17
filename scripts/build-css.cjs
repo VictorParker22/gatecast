@@ -1,16 +1,18 @@
 // Compiles the Tailwind entries into minified stylesheets with the Tailwind CLI:
 //   styles/main.css          -> site.css     (every page on Tailwind: theme, base, shared components, utilities)
-//   styles/main-console.css  -> console.css  (the reviewer console's own components; review.html only)
-//   node scripts/build-css.cjs           -> styles/site.css + styles/console.css (local, git-ignored; served by server.js)
+//   styles/main-front.css    -> site-front.css    (the front page's own components; index.html only)
+//   styles/main-library.css  -> site-library.css  (The Stacks' own components; library.html only)
+//   styles/main-console.css  -> console.css       (the reviewer console's own components; review.html only)
+//   node scripts/build-css.cjs           -> those four files in styles/ (local, git-ignored; served by server.js)
 //   node scripts/build-css.cjs --watch   -> the same, rebuilt on every change (npm run dev)
-//   buildCss(dir) from build-data.cjs    -> public/styles/site.css + console.css for the deploy
+//   buildCss(dir) from build-data.cjs    -> the same four in public/styles/ for the deploy
 const { spawn, spawnSync } = require('node:child_process');
 const path = require('node:path');
 const fs = require('node:fs');
 
 const root = path.join(__dirname, '..');
 const STYLES = path.join(root, 'styles');
-const ENTRIES = { 'site.css': 'main.css', 'console.css': 'main-console.css' };
+const ENTRIES = { 'site.css': 'main.css', 'site-front.css': 'main-front.css', 'site-library.css': 'main-library.css', 'console.css': 'main-console.css' };
 const OUTPUTS = Object.keys(ENTRIES);
 const cli = path.join(root, 'node_modules', '@tailwindcss', 'cli', 'dist', 'index.mjs');
 const args = (input, out, extra = []) => [cli, '-i', path.join(STYLES, input), '-o', out, '--minify', ...extra];

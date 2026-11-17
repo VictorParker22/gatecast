@@ -7,7 +7,7 @@
 //                        precip: mm in the wettest of the next 3 hours, temp: °C,
 //                        now: ms, sunrise: ms, sunset: ms }
 //
-// The canvas stays invisible (opacity 0, see styles/sky.css) until a frame has been drawn, and is hidden
+// The canvas stays invisible (opacity 0, see .sky__canvas in styles/components/front.css) until a frame has been drawn, and is hidden
 // again if the GPU context is lost, so the flat CSS colour of .sky is always the fallback.
 // Each weather kind is a set of numbers (colours and layer strengths). Changing kind blends from the
 // numbers on screen to the new ones over FADE_S seconds, which is what crossfades the picture.
