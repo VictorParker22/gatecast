@@ -4,6 +4,7 @@
 // plain Node. The database (row rules and triggers) stays the authority; these checks only explain early.
 import { STATE_NAMES, stateCode, safeUrl, fmtDate, SIDE_LABEL } from './civicmodel.js';
 import { normaliseStoryUrl } from './community.js';
+import { youtubeId, ytThumb, ytWatch, pickImageProblem, pickVideoProblem, registrableDomain, sourceFor } from './storymedia.js';
 
 /* ---------- Views, statuses and counts ---------- */
 
@@ -349,7 +350,7 @@ export const TIP_STATUS_LABEL = { new: 'New', accepted: 'Accepted', rejected: 'R
 // database). Claude may draft it (assist draft_hook); a reviewer edits it and saves every one.
 export const HOOK_MAX = 140;
 export const HOOK_LABEL = 'Hook (your words, shown under the headline)';
-export const PICK_LIMITS = { url: 2048, title: 300, outlet: 120, note: HOOK_MAX };
+export const PICK_LIMITS = { url: 2048, title: 300, outlet: 120, note: HOOK_MAX, image: 2048 };
 
 export const WEIRD_OFF = 'Tips and picks arrive when the weird-community migration is applied.';
 
@@ -435,8 +436,9 @@ export function pickUrlProblem(raw) {
   return null;
 }
 
-// Field -> message, mirroring the database checks.
-export function pickErrors(f) {
+// Field -> message, mirroring the database checks. The picture rule needs the outlets (data/weird-sources.json):
+// opts.sources; without them a picture must be on the story's own site.
+export function pickErrors(f, { sources = [] } = {}) {
   const e = {};
   const urlProblem = pickUrlProblem(f.url);
   if (urlProblem) e.url = urlProblem;
@@ -448,13 +450,44 @@ export function pickErrors(f) {
   if (!Object.hasOwn(CATEGORY_LABEL, f.category)) e.category = 'Choose a category.';
   if (f.rating !== '' && f.rating != null && !/^[1-5]$/.test(String(f.rating))) e.rating = 'Rate it 1 to 5, or leave it unrated.';
   if ([...String(f.note ?? '').replace(/\s+/g, ' ').trim()].length > PICK_LIMITS.note) e.note = `Keep the hook to ${PICK_LIMITS.note} characters.`;
+  const video = pickVideoProblem(f.video);
+  if (video) e.video = video;
+  const image = pickImageProblem(f.image_url, String(f.url ?? '').trim(), { outlet: f.outlet, sources });
+  if (image) e.image_url = image;
   return e;
 }
+
+// The pick form's two media fields as the live previews show them:
+//   video: null (empty) | { problem } | { id, thumb: Gatecast's still, watch: the YouTube page }
+//   image: null (empty) | { problem } | { url, host, site }: site is the story's registrable domain
+export function pickMediaView(f, { sources = [] } = {}) {
+  const v = String(f?.video ?? '').trim();
+  const i = String(f?.image_url ?? '').trim();
+  let video = null, image = null;
+  if (v) {
+    const problem = pickVideoProblem(v);
+    const id = problem ? null : youtubeId(v);
+    video = id ? { id, thumb: ytThumb(id), watch: ytWatch(id) } : { problem };
+  }
+  if (i) {
+    const story = String(f?.url ?? '').trim();
+    const problem = pickImageProblem(i, story, { outlet: f?.outlet, sources });
+    let host = '';
+    try { host = new URL(i).hostname; } catch {}
+    const src = sourceFor(story, f?.outlet, sources);
+    image = problem ? { problem } : { url: i, host, site: registrableDomain(host), outlet: src ? src.name : '' };
+  }
+  return { video, image };
+}
+
+// A saved pick's media as the form shows it again: the video as its YouTube link.
+export const pickVideoLink = (id) => (id ? ytWatch(id) || '' : '');
 
 // Trimmed values ready to send. The link is stored normalised (no tracking parameters, fragment or trailing
 // slash), the same form story ids are made from, so one story is one pick.
 export function cleanPick(f) {
   const url = String(f.url ?? '').trim();
+  const image = String(f.image_url ?? '').trim();
   return {
     url: normaliseStoryUrl(url) || url,
     title: String(f.title ?? '').replace(/\s+/g, ' ').trim(),
@@ -463,14 +496,21 @@ export function cleanPick(f) {
     category: f.category,
     rating: /^[1-5]$/.test(String(f.rating ?? '')) ? Number(f.rating) : null,
     note: String(f.note ?? '').replace(/\s+/g, ' ').trim() || null,
+    video_id: youtubeId(f.video) || null,
+    image_url: image || null,
   };
 }
 
+// True when a save was refused only because the media columns do not exist yet (the pick-media migration is not
+// applied): PostgREST's "column not found in the schema cache".
+export const mediaColumnsMissing = (status, body) => body?.code === 'PGRST204' || (body?.code === '42703' && /video_id|image_url/.test(String(body?.message ?? '')));
+export const MEDIA_OFF = 'Pictures and videos for picks arrive when the pick-media migration (20261117150000_pick_media.sql) is applied. Clear both fields to save the pick without them.';
+
 // Why a pick cannot be published yet, or null.
-export function pickBlock(p) {
+export function pickBlock(p, { sources = [] } = {}) {
   if (!p) return 'Choose a pick.';
   if (p.status === 'published') return 'Already published.';
-  const e = pickErrors({ ...p, rating: p.rating ?? '' });
+  const e = pickErrors({ ...p, rating: p.rating ?? '', video: pickVideoLink(p.video_id), image_url: p.image_url ?? '' }, { sources });
   const first = Object.values(e)[0];
   return first ? `Edit the pick first: ${first}` : null;
 }
@@ -511,13 +551,14 @@ export function tipHost(url) {
 // What "Accept" puts in a new pick draft: the link only. The headline, outlet and date come from the story
 // itself, and the hook is the reviewer's (written or drafted with Claude, then edited), never the visitor's.
 export function pickFromTip(tip) {
-  return { url: normaliseStoryUrl(tip?.url) || String(tip?.url ?? ''), title: '', outlet: '', published: '', category: 'other', rating: '', note: '' };
+  return { url: normaliseStoryUrl(tip?.url) || String(tip?.url ?? ''), title: '', outlet: '', published: '', category: 'other', rating: '', note: '', video: '', image_url: '' };
 }
 
 // A refused pick save as one sentence.
 export function pickSaveError(status, body) {
   if (body?.code === '23505' || status === 409) return 'That story is already a pick. Search the Picks list for it.';
-  if (body?.code === '23514') return 'The database refused one of the values. Check the link, the note length and the rating.';
+  if (body?.code === '23514') return 'The database refused one of the values. Check the links, the note length and the rating.';
+  if (mediaColumnsMissing(status, body)) return MEDIA_OFF;
   return errorText(body, status);
 }
 

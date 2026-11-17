@@ -16,6 +16,7 @@ Gatecast's database lives in the Supabase project `gatecast` (`hfdwmzuedjcsaxgzh
 | `migrations/20261116160000_weird_community.sql` | **Applied** (16 Nov 2026). Weird news: reader votes (`weird_votes`, the Weird-o-meter), guestbook tips (`weird_tips`), the editor's picks (`weird_picks`), their limits, history and a daily retention job. See `docs/community.md` |
 | `migrations/20261117090000_reader_favourites.sql` | **Applied** (17 Nov 2026). Reader favourites (`weird_favourites()`), the 140-character hook line on `weird_picks.note`, anonymous click totals (`weird_clicks`, `weird_count_click()`, `weird_click_totals()`) and 90-day click retention in `private.weird_retention()`. Replaces the old `paused/weird_favourites.sql`. See `docs/community.md` |
 | `migrations/20261117120000_stacks_submissions.sql` | **Applied** (17 Nov 2026). The Stacks: books put forward by their author or publisher (`stacks_submissions`, `stacks_submit_book()`), approved books (`stacks_books`, `stacks_approve_submission()`, `stacks_reject_submission()`, `stacks_set_hidden()`), the Book of the Week (`stacks_featured`, `stacks_set_featured()`), and their retention in `private.weird_retention()`. See `docs/community.md` |
+| `migrations/20261117150000_pick_media.sql` | **Applied** (17 Nov 2026). The editor's media for a pick: `weird_picks.video_id` (a YouTube id, `^[A-Za-z0-9_-]{11}$`) and `weird_picks.image_url` (https, ≤2,048 characters), readable by visitors on published picks; `private.weird_picks_guard()` counts a change to either on a published pick as a logged edit. See `docs/community.md`, "Pick media" |
 | `functions/community/` | Edge Function for anonymous visitors: `POST /vote`, `GET /ratings`, `GET /favourites`, `POST /tip`, `POST /click`, `POST /book`. Hashes the visitor's address with a secret salt; never stores it. See `docs/community.md` |
 
 Which pages read it:
@@ -43,7 +44,7 @@ Weird news (once `20261116160000_weird_community.sql` is applied):
 | `weird_cast_vote(...)` | no | no | call it (one vote per voter per story, 60 per voter per hour) |
 | `weird_tips` | nothing | read (not the address hash); set status only, signed by a trigger | nothing directly: only through `weird_submit_tip` |
 | `weird_submit_tip(...)` | no | no | call it (5 per sender per UTC day, 200 per day in all) |
-| `weird_picks` | read published picks (public columns only) | read all, add, edit, publish, withdraw; delete when not published | nothing |
+| `weird_picks` | read published picks (public columns only, including `video_id` and `image_url` once `20261117150000_pick_media.sql` is applied) | read all, add, edit, publish, withdraw; delete when not published | nothing |
 | `weird_pick_activity(pick)` | no | read a pick's history | no |
 | `weird_favourites(days, min_votes)` | call it: up to 12 stories with 10+ votes in the window, averages from 50 votes | same | same |
 | `weird_clicks` | nothing | nothing directly: only through `weird_click_totals` | nothing directly: only through `weird_count_click` |
@@ -145,6 +146,14 @@ Before step 1, the console shows no click badges, the favourites preview shows t
 4. Check: `curl -s https://gatecast.vercel.app/api/books | head -c 300` answers the books with `"featured":null` until a pick is set. In the console, The Stacks → Books shows the queue and Book of the week.
 
 Before step 1, the console's Books view says it arrives with the migration, and `/api/books` serves the static books with `featured: null`.
+
+## Pick media: going live
+
+1. Apply `migrations/20261117150000_pick_media.sql` (after `20261116160000_weird_community.sql`). It is safe to run twice. It adds two nullable columns, so no existing pick changes.
+2. Deploy the site (Vercel): `/api/yt-thumb` (the video still, served by Gatecast) and the new `/api/weird` fields. Nothing to configure: no YouTube key is needed (oEmbed and the still are public).
+3. Check: `select id, video_id, image_url from public.weird_picks where status = 'published';` in the SQL editor; `curl -s "https://gatecast.vercel.app/api/weird?limit=3"` shows `"youtube": {...}` for a pick with a working video; `curl -sI "https://gatecast.vercel.app/api/yt-thumb?id=<id>"` answers `200 image/jpeg` with `Cache-Control: public, max-age=86400, s-maxage=86400, …`.
+
+Before step 1, the site reads picks without the two columns (one extra request when the first is refused), and the console saves picks without media and says the migration is needed when media is given.
 
 To remove a vote or tip by hand (for example after abuse), use the SQL editor: `delete from public.weird_tips where id = '<id>';`. To see today's tip volume: `select hits from private.weird_rate where key = 'tip:all' order by window_start desc limit 1;`.
 

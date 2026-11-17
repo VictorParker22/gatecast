@@ -79,6 +79,9 @@ async function build() {
   const stackPages = await stacks.writeStacksPages(out);
   fs.mkdirSync(path.join(out, 'data'), { recursive: true });
   fs.copyFileSync(path.join(root, 'data', 'books.json'), path.join(out, 'data', 'books.json'));
+  // The weird-news outlets, for the reviewer console's picture rule (a pick's picture must be on the story's site or
+  // one of the outlet's imageHosts; js/storymedia.js pickImageProblem). Public facts only: names, feeds and hosts.
+  fs.copyFileSync(path.join(root, 'data', 'weird-sources.json'), path.join(out, 'data', 'weird-sources.json'));
 
   const res = await fetch(SRC);
   if (!res.ok) throw new Error('airport list download failed: ' + res.status);

@@ -28,6 +28,7 @@ import {
   CATEGORY_LABEL, PICK_STATUS_LABEL, TIP_STATUS_LABEL, PICK_LIMITS, WEIRD_OFF, pickErrors,
   cleanPick, pickBlock, picksForView, tipsForView, tipHost, pickFromTip, pickSaveError, pickTimeline,
   HOOK_LABEL, HOOK_GUIDANCE, hookChecks, hookDraftRequest, hookSuggestions, hookDraftNotes, clicksLabel,
+  pickMediaView, pickVideoLink, mediaColumnsMissing, MEDIA_OFF,
   BOOKS_OFF, STACKS_LIMITS, RELATION_LABEL, SUB_STATUS_LABEL, COPY_RUN, approvalFromSubmission, approveErrors, cleanApproval,
   descriptionChecks, stacksReplyError, pendingCount, booksRows, currentFeatured, featuredErrors, weekLabel, thisMonday,
   openLibraryIsbnUrl, coverImageUrl, coverFromEdition,
@@ -61,6 +62,8 @@ const S = {
   assistOpen: null, // null: open on wide screens, closed on narrow ones
   // Weird news. weirdOff: a sentence when the migration is not applied. pickDraft: half-typed pick form values.
   tips: [], picks: [], weirdOff: null, weirdError: null, pickDraft: null, editPick: false, pickActivity: {}, pickActivityOn: true,
+  // The weird-news outlets (data/weird-sources.json), for the pick picture rule; [] until loaded or if it fails.
+  weirdSources: [], weirdSourcesOff: false,
   // hook: the pick form's "Draft with Claude" (suggestions are only ever inserted by a click, never saved by it).
   hook: { busy: false, started: 0, reply: null, error: '', readPage: false },
   // clicks: pick id -> clicks in the last 7 days (published picks), clicksOn: false until the migration is applied.
@@ -188,8 +191,20 @@ async function loadWeird() {
   if (t.ok && Array.isArray(t.data)) S.tips = t.data;
   if (p.ok && Array.isArray(p.data)) S.picks = p.data;
   S.weirdError = !t.ok ? t.error : !p.ok ? p.error : null;
-  await loadClicks();
+  await Promise.all([loadClicks(), loadWeirdSources()]);
 }
+
+// The outlets and their image hosts, for the pick form's picture rule (js/storymedia.js pickImageProblem). Read once.
+// Without them a picture must be on the story's own site.
+async function loadWeirdSources() {
+  if (S.weirdSources.length || S.weirdSourcesOff) return;
+  try {
+    const j = await fetch('data/weird-sources.json', { headers: { Accept: 'application/json' } }).then((r) => (r.ok ? r.json() : null));
+    S.weirdSources = Array.isArray(j?.sources) ? j.sources : [];
+  } catch { S.weirdSources = []; }
+  S.weirdSourcesOff = !S.weirdSources.length;
+}
+const mediaOpts = () => ({ sources: S.weirdSources });
 
 // Anonymous clicks per published pick over the last 7 days (public.weird_click_totals; reviewers only). Picks are
 // matched to the click totals by story id, the same id the front page counts clicks by.
@@ -1218,10 +1233,67 @@ function tipDetail(t) {
   </div></div>`;
 }
 
+// The pick form's live previews. The video: Gatecast's own still (api/yt-thumb, so the console contacts YouTube no
+// more than the front page does) and a link to the video on YouTube. The picture: loaded from the publisher in the
+// reviewer's browser, with its size once it arrives (pickMediaLoaded), so the editor sees it before saving.
+// A link that breaks the rules has no preview: its problem is shown on the field's own error line (mediaErrors).
+function videoPreviewHTML(m) {
+  if (!m || m.problem) return '';
+  return `<figure class="rv-media__fig rv-media__fig--video">
+      <span class="rv-media__frame"><img src="${esc(m.thumb)}" alt="" width="480" height="360" data-media-preview="video"><span class="rv-media__knob" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z"/></svg></span></span>
+      <figcaption><span>YouTube video <code>${esc(m.id)}</code></span> ${ext(m.watch, 'Watch it on YouTube')}
+        <span class="rv-media__msg" data-media-status="video">The still comes from Gatecast. Readers see it with a play button.</span></figcaption>
+    </figure>`;
+}
+function imagePreviewHTML(m) {
+  if (!m || m.problem) return '';
+  return `<figure class="rv-media__fig">
+      <span class="rv-media__frame"><img src="${esc(m.url)}" alt="" referrerpolicy="no-referrer" data-media-preview="image"></span>
+      <figcaption><span>From ${esc(m.host)}${m.outlet ? ` (${esc(m.outlet)})` : ''}</span>
+        <span class="rv-media__msg" data-media-status="image">Loading the picture from the publisher…</span></figcaption>
+    </figure>`;
+}
+// Only redraw a preview when what it shows changes, so the picture is not fetched again on every key. The two
+// fields are checked as they are typed: a problem goes on the field's own error line (the same line Save uses).
+const previewKey = {};
+function syncMediaPreview(form) {
+  const f = Object.fromEntries(new FormData(form));
+  const m = pickMediaView(f, mediaOpts());
+  for (const [kind, html] of [['video', videoPreviewHTML(m.video)], ['image', imagePreviewHTML(m.image)]]) {
+    const problem = m[kind]?.problem || '';
+    const input = document.getElementById(`pk-${kind}`), err = document.getElementById(`pk-${kind}-err`);
+    if (err) { err.textContent = problem; err.hidden = !problem; }
+    if (input) { if (problem) input.setAttribute('aria-invalid', 'true'); else input.removeAttribute('aria-invalid'); }
+    const key = JSON.stringify(m[kind]);
+    const el = document.getElementById(`pk-${kind}-preview`);
+    if (!el || previewKey[kind] === key) continue;
+    previewKey[kind] = key;
+    el.innerHTML = html;
+  }
+}
+// The preview's picture arrived or failed. Not blocking: a picture that fails here may still fail for readers, and
+// the front page then shows the story without it.
+function pickMediaLoaded(img, ok) {
+  const kind = img.dataset.mediaPreview;
+  const msg = img.closest('figure')?.querySelector(`[data-media-status="${kind}"]`);
+  if (!msg) return;
+  const w = img.naturalWidth, h = img.naturalHeight;
+  if (kind === 'video') {
+    if (!ok) { msg.textContent = 'YouTube has no still for this video. Check the link: the video may be private or removed.'; msg.classList.add('is-bad'); }
+    return;
+  }
+  if (!ok) { msg.textContent = 'This picture did not load here. Check the link; the site may also refuse to show it on other sites.'; msg.classList.add('is-bad'); img.closest('.rv-media__frame')?.classList.add('is-empty'); return; }
+  const small = w < 400 || h < 225;
+  msg.textContent = `${w} × ${h} pixels.${small ? ' That is small: the lead is shown up to about 900 pixels wide, so look for a bigger version.' : ' Readers see it credited to the outlet.'}`;
+  msg.classList.toggle('is-warn', small);
+}
+
 function pickForm(p, { create = false } = {}) {
-  const base = p ? { ...p, rating: p.rating ?? '', note: p.note ?? '', published: p.published ?? '' }
-    : { url: '', title: '', outlet: '', published: '', category: 'other', rating: '', note: '' };
+  const base = p ? { ...p, rating: p.rating ?? '', note: p.note ?? '', published: p.published ?? '', video: pickVideoLink(p.video_id), image_url: p.image_url ?? '' }
+    : { url: '', title: '', outlet: '', published: '', category: 'other', rating: '', note: '', video: '', image_url: '' };
+  for (const k of Object.keys(previewKey)) delete previewKey[k];
   const v = { ...base, ...(S.pickDraft || {}) };
+  const mv = pickMediaView(v, mediaOpts());
   const opt = (val, label, cur) => `<option value="${esc(val)}"${String(cur) === String(val) ? ' selected' : ''}>${esc(label)}</option>`;
   return `<form class="rv-form" id="pick-form" data-create="${create ? 1 : 0}" novalidate>
     ${field('pk-url', 'Story link', `<input id="pk-url" name="url" type="url" inputmode="url" placeholder="https://" value="${esc(v.url)}" aria-describedby="pk-url-err">`, { hint: 'the outlet’s own https page' })}
@@ -1234,6 +1306,14 @@ function pickForm(p, { create = false } = {}) {
       ${field('pk-category', 'Category', `<select id="pk-category" name="category" aria-describedby="pk-category-err">${Object.entries(CATEGORY_LABEL).map(([k, l]) => opt(k, l, v.category)).join('')}</select>`)}
       ${field('pk-rating', 'Your weird rating', `<select id="pk-rating" name="rating" aria-describedby="pk-rating-err">${opt('', 'Unrated', v.rating)}${[1, 2, 3, 4, 5].map((n) => opt(n, `${n} of 5: ${RATING_WORD[n]}`, v.rating)).join('')}</select>`)}
     </div>
+    <fieldset class="rv-media">
+      <legend>Picture or video <span class="rv-hint">optional; without either the front page shows the story text-led</span></legend>
+      ${field('pk-video', 'Video (YouTube link)', `<input id="pk-video" name="video" type="url" inputmode="url" placeholder="https://www.youtube.com/watch?v=…" value="${esc(v.video)}" aria-describedby="pk-video-err pk-video-preview">`, { hint: 'a click-to-play still; YouTube loads only when a reader presses Play', error: mv.video?.problem || '' })}
+      <div class="rv-media__preview" id="pk-video-preview" aria-live="polite">${videoPreviewHTML(mv.video)}</div>
+      ${field('pk-image', 'Picture (link to the image)', `<input id="pk-image" name="image_url" type="url" inputmode="url" placeholder="https://" value="${esc(v.image_url)}" aria-describedby="pk-image-err pk-image-preview">`, { hint: 'on the story’s own site or its image server', error: mv.image?.problem || '' })}
+      <div class="rv-media__preview" id="pk-image-preview" aria-live="polite">${imagePreviewHTML(mv.image)}</div>
+      <p class="rv-muted">With both, the front page shows the picture with a small “Has video” button. A video is checked with YouTube before it is shown; one that is gone or may not be embedded is left out.</p>
+    </fieldset>
     <div class="rv-hook">
       ${field('pk-note', esc(HOOK_LABEL), `<textarea id="pk-note" name="note" rows="2" aria-describedby="pk-note-err pk-note-n pk-hook-checks">${esc(v.note)}</textarea>`, { hint: 'optional, one line; never the article’s text', counterId: counterHTML('pk-note-n', v.note, PICK_LIMITS.note) })}
       <p class="rv-muted">${esc(HOOK_GUIDANCE)}</p>
@@ -1290,7 +1370,7 @@ function newPickDetail() {
 
 function pickDetail(p) {
   const href = safeUrl(p.url);
-  const why = pickBlock(p);
+  const why = pickBlock(p, mediaOpts());
   const tl = pickTimeline(p, S.pickActivityOn ? S.pickActivity[p.id] : undefined);
   const actions = p.status === 'published'
     ? `<button type="button" class="btn btn--primary" data-act="pick-withdraw">Withdraw</button>
@@ -1314,6 +1394,9 @@ function pickDetail(p) {
           <dt>Hook</dt><dd>${p.note ? esc(p.note) : '<span class="rv-quiet">No hook.</span>'}</dd>
           ${p.status === 'published' && S.clicksOn && clicksLabel(S.clicks[p.id]) ? `<dt>Clicks</dt><dd>${esc(clicksLabel(S.clicks[p.id]))} <span class="rv-muted">(anonymous totals, from the front page)</span></dd>` : ''}
           <dt>Your rating</dt><dd>${p.rating ? `${esc(p.rating)} of 5: ${esc(RATING_WORD[p.rating])}` : 'Unrated'}</dd>
+          <dt>Video</dt><dd>${p.video_id ? ext(pickVideoLink(p.video_id), `YouTube ${p.video_id}`) : '<span class="rv-quiet">None</span>'}</dd>
+          <dt>Picture</dt><dd>${p.image_url && safeUrl(p.image_url) ? ext(safeUrl(p.image_url), hostOf(p.image_url) || 'Picture') : '<span class="rv-quiet">None</span>'}</dd>
+          ${!p.video_id && !p.image_url ? '<dd class="rv-dl__note rv-muted">Without a picture or a video the front page shows this story text-led, unless the outlet’s feed has a picture for it.</dd>' : ''}
           <dt>Link</dt><dd class="rv-tip__url">${esc(p.url)}</dd>
         </dl>`}
     </section>
@@ -1328,11 +1411,18 @@ function pickDetail(p) {
 async function submitPick(form) {
   const create = form.dataset.create === '1';
   const f = Object.fromEntries(new FormData(form));
-  if (!showErrors(form, 'pk', pickErrors(f))) return;
+  if (!showErrors(form, 'pk', pickErrors(f, mediaOpts()), { image_url: 'image' })) return;
   const btn = $('button[type="submit"]', form);
   btn.disabled = true;
   const body = cleanPick(f);
-  const r = create ? await change('weird_picks', 'POST', body) : await change(`weird_picks?id=eq.${S.selected}`, 'PATCH', body);
+  const save = (b) => (create ? change('weird_picks', 'POST', b) : change(`weird_picks?id=eq.${S.selected}`, 'PATCH', b));
+  let r = await save(body);
+  // Before the pick-media migration the two columns do not exist: a pick without media still saves.
+  if (!r.ok && mediaColumnsMissing(r.status, r.data)) {
+    if (body.video_id || body.image_url) { btn.disabled = false; return toast(MEDIA_OFF, { error: true }); }
+    const { video_id: _v, image_url: _i, ...rest } = body;
+    r = await save(rest);
+  }
   btn.disabled = false;
   if (!r.ok) return toast(`Couldn’t save the pick: ${pickSaveError(r.status, r.data)}`, { error: true });
   S.pickDraft = null; S.editPick = false; S.hook = freshHook();
@@ -1898,12 +1988,16 @@ function wire() {
     else if (f.id === 'approve-form') submitApprove(f);
     else if (f.id === 'feat-form') submitFeatured(f);
   });
+  // The pick form's preview pictures: load and error do not bubble either.
+  detail.addEventListener('load', (e) => { if (e.target instanceof HTMLImageElement && e.target.dataset.mediaPreview) pickMediaLoaded(e.target, true); }, true);
+  detail.addEventListener('error', (e) => { if (e.target instanceof HTMLImageElement && e.target.dataset.mediaPreview) pickMediaLoaded(e.target, false); }, true);
   // toggle does not bubble, so listen while it travels down. Remembers whether the assistant is open.
   detail.addEventListener('toggle', (e) => { if (e.target.id === 'assist') S.assistOpen = e.target.open; }, true);
   detail.addEventListener('input', (e) => {
     const el = e.target;
     if (el.id === 'pk-hook-read') { S.hook.readPage = el.checked; return; }
     if (el.id === 'pk-note') syncHookField(el);
+    if (['pk-video', 'pk-image', 'pk-url', 'pk-outlet'].includes(el.id) && el.form) syncMediaPreview(el.form);
     if (el.form?.id === 'approve-form' || el.form?.id === 'feat-form') return booksInput(el);
     const pickForm = el.form?.id === 'pick-form';
     const max = pickForm ? { title: PICK_LIMITS.title, note: PICK_LIMITS.note }[el.name]

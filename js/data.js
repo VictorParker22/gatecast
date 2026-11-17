@@ -274,7 +274,7 @@ export async function loadNearby(a) {
 
 // Resolves to { items, categories, checkedAt, sources } and never throws: on a static host, a failed request or an
 // odd answer, items is empty. Each item is re-checked here: https link, headline, outlet, date; the image only if
-// https; rating only 1-5 from a pick. limit 1-60 (default 30); category one of WEIRD_CATEGORIES or none.
+// https; a YouTube video only with a well-formed id; rating only 1-5 from a pick. limit 1-60 (default 30); category one of WEIRD_CATEGORIES or none.
 export const WEIRD_CATEGORIES = ['people', 'animals', 'laws', 'records', 'unexplained', 'weather', 'other'];
 export async function loadWeird({ limit = 30, category = null } = {}) {
   const counts = () => Object.fromEntries(WEIRD_CATEGORIES.map((c) => [c, 0]));
@@ -300,6 +300,9 @@ export async function loadWeird({ limit = 30, category = null } = {}) {
           category: WEIRD_CATEGORIES.includes(x.category) ? x.category : 'other',
           image, imageCredit: image ? (text(x.imageCredit) || `Image: ${x.outlet.trim()}`) : null,
           video: x.video === true, pick,
+          // A checked YouTube video: only the id and the words for its label; js/frontmodel.js cleanYoutube checks it again.
+          youtube: x.youtube && typeof x.youtube === 'object' && /^[A-Za-z0-9_-]{11}$/.test(String(x.youtube.id))
+            ? { id: x.youtube.id, title: text(x.youtube.title) || '', channel: text(x.youtube.channel) || '', duration: text(x.youtube.duration) } : null,
           rating: pick && Number.isInteger(x.rating) && x.rating >= 1 && x.rating <= 5 ? x.rating : null,
           note: pick ? text(x.note) : null,
         };

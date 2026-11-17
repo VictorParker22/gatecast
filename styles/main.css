@@ -278,6 +278,8 @@
   --text-burst: 2.375rem; /* 38px: EDITOR'S PICK on the lead starburst (WeirdHome / WeirdPhone boards) */
   --text-burst-sm: 1.625rem; /* 26px: the lead starburst on phones (WeirdHome / WeirdPhone boards) */
   --text-digit: 2.875rem; /* 46px: the streak counter digits (WeirdHome / WeirdPhone boards) */
+  --text-card-type: clamp(1.25rem, 1.1107rem + 0.5714vw, 1.625rem); /* a text-led card's slab headline (no picture, no video): 20px at 390 -> 26px at 1440 */
+  --text-lead-pull: clamp(1.125rem, 0.9857rem + 0.5714vw, 1.5rem); /* the hook as a pull quote in a text-led lead: 18px at 390 -> 24px at 1440 */
   --text-fav: clamp(1.75rem, 1.6571rem + 0.381vw, 2rem); /* favourite headline (paused feature): 28px at 390 -> 32px at 1440 */
   --text-guestbook: clamp(1.5rem, 1.2679rem + 0.9524vw, 2.125rem); /* the guestbook title: 24px at 390 -> 34px at 1440 */
   --text-head-lead: clamp(1.5rem, 1.2rem + 1.2vw, 2.125rem); /* the brief lead headline: 24px at 390 -> 34px at 1440 */
