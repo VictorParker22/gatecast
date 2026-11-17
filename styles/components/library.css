@@ -54,24 +54,27 @@
   .s3d-ready .lib-gl { @apply opacity-100; }
   .lib-gl[hidden] { @apply hidden; }
   .s3d .lib-room::after { content: ""; @apply absolute; inset: auto 0 0; @apply h-12 z-0 pointer-events-none; background: linear-gradient(180deg, transparent, var(--color-lib-night)); }
-  .lib-room__ui { @apply relative z-1; width: min(100% - 2 * var(--spacing-lib-gutter), var(--container-frame)); @apply mx-auto; padding-top: var(--spacing-lib-top); @apply grid; gap: var(--spacing-lib-gap); }
-  .is-reading .lib-hero__text, .is-reading .lib-panel, .is-reading .lib-cases > :not(.lib-loading) { @apply opacity-0 invisible; transition: opacity 0.35s ease, visibility 0s 0.35s; }
-  .lib-hero__text, .lib-panel, .lib-cases > * { transition: opacity 0.5s ease 0.2s; }
-  .lib-hero { @apply grid; grid-template-columns: minmax(0, 1fr) max-content; @apply gap-y-4 gap-x-8 items-start; }
-  .lib-hero__text { @apply min-w-0 grid justify-items-start gap-1.5; }
-  .lib-label { @apply relative mt-0 mr-0 -mb-3 ml-1.5; filter: drop-shadow(0 6px 6px rgb(0 0 0 / 0.55)); transform: rotate(-2.2deg); }
+  /* The top of the room is one compact control bar, so the bookcases fill the first screen (owner request,
+     17 Nov 2026: "the shelves are completely hidden"). The hero, the panel and the actions lend their children to this
+     grid (display: contents); the areas change with the width, below. The long introduction is under the room. */
+  .lib-room__ui { @apply relative z-1; width: min(100% - 2 * var(--spacing-lib-gutter), var(--container-frame)); @apply mx-auto; padding-top: var(--spacing-lib-top); @apply grid items-center gap-x-3; row-gap: --spacing(2.5);
+    grid-template-columns: minmax(0, 1fr) max-content; grid-template-areas: "title card" "search surprise" "chips chips" "status toggles"; }
+  .lib-hero, .lib-panel, .lib-actions { @apply contents; }
+  .is-reading .lib-hero__text, .is-reading .lib-panel > *, .is-reading .lib-actions > *, .is-reading .lib-cases > :not(.lib-loading) { @apply opacity-0 invisible; transition: opacity 0.35s ease, visibility 0s 0.35s; }
+  .lib-hero__text, .lib-panel > *, .lib-actions > *, .lib-cases > * { transition: opacity 0.5s ease 0.2s; }
+  .lib-hero__text { grid-area: title; @apply min-w-0 grid justify-items-start; }
+  .lib-label { @apply relative mt-0 mr-0 -mb-1 ml-1.5 whitespace-nowrap max-sm:hidden; filter: drop-shadow(0 6px 6px rgb(0 0 0 / 0.55)); transform: rotate(-2.2deg); }
   .lib-label span { @apply block; padding: --spacing(2.5) --spacing(5.5) 9px; color: #221A10; @apply not-italic font-extrabold; font-size: var(--text-lib-label); line-height: 1.05; @apply font-sign normal-nums; letter-spacing: 0.05em; @apply uppercase; background: #E3D2AC var(--tex-paper) center / 260px; box-shadow: inset 0 0 18px rgb(110 75 30 / 0.45); clip-path: polygon(0 8%, 3% 0, 9% 6%, 15% 1%, 22% 5%, 30% 0, 38% 4%, 47% 1%, 55% 6%, 63% 0, 71% 4%, 79% 1%, 87% 5%, 94% 0, 100% 7%, 98% 30%, 100% 55%, 97% 78%, 100% 100%, 92% 94%, 85% 100%, 77% 95%, 69% 100%, 61% 94%, 52% 99%, 44% 94%, 36% 100%, 27% 95%, 19% 100%, 11% 94%, 4% 100%, 0 92%, 2% 66%, 0 40%); }
-  .lib-title { @apply relative m-0 font-slab font-normal; font-size: var(--text-lib-title); line-height: 0.98; letter-spacing: 0.005em; @apply z-1 text-transparent wrap-anywhere text-balance; background: repeating-linear-gradient(90deg, rgb(255 255 255 / 0.07) 0 1px, rgb(0 0 0 / 0.06) 1px 2px, transparent 2px 5px),
+  .lib-title { @apply relative m-0 font-slab font-normal; font-size: var(--text-lib-title); line-height: 0.98; letter-spacing: 0.005em; @apply z-1 text-transparent whitespace-nowrap; background: repeating-linear-gradient(90deg, rgb(255 255 255 / 0.07) 0 1px, rgb(0 0 0 / 0.06) 1px 2px, transparent 2px 5px),
     linear-gradient(180deg, #E4E1DA 0%, #B5B0A6 30%, #7D776E 50%, #9C968C 58%, #CBC6BC 76%, #8E887E 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-stroke: 1.5px rgb(28 24 18 / 0.9); filter: drop-shadow(0 2px 0 #3A342C) drop-shadow(0 3px 0 #14110D) drop-shadow(0 12px 14px rgb(0 0 0 / 0.75)); }
   .lib-title::after { @apply absolute inset-0 pointer-events-none text-transparent; content: attr(data-text) / ""; background: linear-gradient(180deg, rgb(255 255 255 / 0.75) 0%, rgb(255 255 255 / 0) 22%, rgb(255 255 255 / 0) 100%); -webkit-background-clip: text; background-clip: text; transform: translate(-1px, -1px); -webkit-text-stroke: 0; }
   .lib-lede { @apply max-w-180 mt-0; font-size: var(--text-lib-lede); line-height: 1.45; @apply italic; font-weight: 450; color: #EADFC6; text-shadow: 0 1px 2px rgb(0 0 0 / 0.9), 0 0 18px rgb(0 0 0 / 0.6); @apply text-pretty; }
-  .lib-cardwrap { @apply relative min-w-0 w-87.5 pt-2.5 pr-1.5 pb-0 pl-0 justify-self-end; }
-  @media (min-width: 1100px) {
-    .lib-cardwrap { margin-right: max(0px, calc(--spacing(160) - 37cqw)); }
-  }
-  .lib-cardwrap::before { @apply absolute; content: ""; inset: 2px -6px -10px --spacing(3.5); border-radius: 6px; transform: rotate(2.4deg); background: #3B2516 var(--tex-wood) center / 300px; box-shadow: 0 16px 30px rgb(0 0 0 / 0.6), inset 0 0 0 1px rgb(255 220 160 / 0.12); }
-  .lib-cardbtn { @apply hidden; }
-  .lib-card { @apply relative pt-4.5 pb-2.5 px-4.5 text-lib-ink; transform: rotate(1.2deg); background: var(--color-lib-paper) var(--tex-paper) center / 420px; box-shadow: 0 10px 22px rgb(0 0 0 / 0.55), inset 0 0 30px rgb(120 80 30 / 0.35); @apply grid gap-1; }
+  .lib-cardwrap { grid-area: card; @apply relative min-w-0 justify-self-end; }
+  .lib-cardbtn { @apply inline-flex items-center gap-2 min-h-tap py-0 px-3.5 cursor-pointer text-lib-ink border-2 border-lib-brass-edge; border-radius: 6px; background: var(--color-lib-paper) var(--tex-paper) center / 260px; box-shadow: 0 6px 14px rgb(0 0 0 / 0.55); @apply not-italic font-extrabold; font-size: var(--text-base); @apply leading-none font-sign normal-nums tracking-code uppercase whitespace-nowrap; }
+  .lib-cardbtn svg { @apply w-4.5 h-4.5 stroke-current; fill: none; stroke-width: 2; }
+  .lib-cardbtn__n { padding: 3px --spacing(2); @apply rounded-full; background: #3A2619; color: #F6E3B4; font-size: var(--text-sm); }
+  .lib-card { @apply hidden absolute z-5 right-0 mt-2.5 pt-4.5 pb-2.5 px-4.5 text-lib-ink; top: 100%; width: min(--spacing(87.5), 100vw - 2 * var(--spacing-lib-gutter)); background: var(--color-lib-paper) var(--tex-paper) center / 420px; box-shadow: 0 10px 22px rgb(0 0 0 / 0.55), inset 0 0 30px rgb(120 80 30 / 0.35); @apply gap-1; }
+  .lib-card.is-open { @apply grid; }
   .lib-card::before { content: ""; @apply absolute; inset: --spacing(1.5) -5px -7px --spacing(1); @apply -z-1; transform: rotate(-2deg); background: #DCCBA4 var(--tex-paper) 30% 70% / 420px; filter: brightness(0.86); box-shadow: 0 6px 14px rgb(0 0 0 / 0.5); }
   .lib-card__clip { @apply absolute -top-4 w-11.5 h-5.5; left: 50%; transform: translateX(-50%); border-radius: 3px 3px 6px 6px; background: linear-gradient(180deg, #4A4A4A, #111 70%); box-shadow: 0 3px 4px rgb(0 0 0 / 0.6); }
   .lib-card__clip::before { @apply absolute left-2 right-2 -top-3.5 h-4.5; content: ""; border: 3px solid #BDBDBD; border-bottom: 0; border-radius: 8px 8px 0 0; }
@@ -90,15 +93,15 @@
   .is-bump { animation: lib-bump 0.45s ease; }
   @keyframes lib-bump { 40% { transform: scale(1.18); } }
   .lib-linkbtn { @apply inline-flex items-center border-0; background: none; @apply p-0 min-h-tap text-inherit; font: inherit; @apply underline; text-underline-offset: 0.2em; @apply cursor-pointer; }
-  .lib-panel { @apply grid; grid-template-columns: minmax(--spacing(60), --spacing(90)) minmax(0, 1fr); grid-template-areas: "search chips" "actions toggles"; @apply gap-y-3 gap-x-5 items-start; }
   .lib-search { grid-area: search; @apply flex items-center gap-2.5 h-13 py-0 px-3.5 min-w-0; background: rgb(22 17 13 / 0.82); border: 2px solid rgb(214 190 140 / 0.55); border-radius: 6px; box-shadow: inset 0 2px 10px rgb(0 0 0 / 0.7), 0 6px 16px rgb(0 0 0 / 0.4); color: #F3E8CF; }
   .lib-search:focus-within { outline: 3px solid var(--color-lib-focus); outline-offset: 2px; }
   .lib-search svg { @apply w-4.5 h-4.5 flex-none stroke-current; fill: none; stroke-width: 2.2; stroke-linecap: round; }
   .lib-search input { @apply flex-1 min-w-0 h-tap border-0; background: transparent; color: #F3E8CF; @apply not-italic font-medium; font-size: var(--text-base); line-height: normal; @apply font-body normal-nums; outline: none; }
   .lib-search input::placeholder { @apply opacity-100; color: #BCAE90; }
   .lib-page .lib-search input:focus-visible { outline: none; }
-  .lib-chips { grid-area: chips; @apply flex flex-wrap gap-y-3.5 gap-x-2 pb-3; }
-  .lib-chip { @apply relative inline-flex items-center min-h-tap; padding: 0 11px; @apply cursor-pointer; border: 2px solid #1A120B; border-radius: 6px; color: #F1E3C4; background: var(--chip, #3A2619) var(--tex-leather) center / 180px; background-blend-mode: overlay; box-shadow: inset 0 1px 0 rgb(255 230 190 / 0.18), inset 0 -2px 0 rgb(0 0 0 / 0.4), 0 4px 10px rgb(0 0 0 / 0.5); @apply not-italic font-extrabold; font-size: var(--text-note); @apply leading-none font-sign normal-nums tracking-code uppercase; transition: transform 0.12s ease, filter 0.12s ease; }
+  .lib-chips { grid-area: chips; @apply flex flex-nowrap gap-x-2 min-w-0 overflow-x-auto pt-0.5 pb-3.5; scroll-snap-type: x proximity; scrollbar-width: none; }
+  .lib-chips::-webkit-scrollbar { @apply hidden; }
+  .lib-chip { @apply relative inline-flex flex-none items-center min-h-tap; scroll-snap-align: start; padding: 0 11px; @apply cursor-pointer; border: 2px solid #1A120B; border-radius: 6px; color: #F1E3C4; background: var(--chip, #3A2619) var(--tex-leather) center / 180px; background-blend-mode: overlay; box-shadow: inset 0 1px 0 rgb(255 230 190 / 0.18), inset 0 -2px 0 rgb(0 0 0 / 0.4), 0 4px 10px rgb(0 0 0 / 0.5); @apply not-italic font-extrabold; font-size: var(--text-note); @apply leading-none font-sign normal-nums tracking-code uppercase; transition: transform 0.12s ease, filter 0.12s ease; }
   .lib-chip::before { content: ""; @apply absolute; inset: 3px; border: 1px dashed rgb(255 220 160 / 0.32); border-radius: 4px; @apply pointer-events-none; }
   .lib-chip::after { content: ""; @apply absolute; left: 50%; bottom: -11px; @apply w-7; height: 5px; transform: translateX(-50%); border-radius: 50%; background: var(--color-lib-glow); box-shadow: 0 0 8px 3px rgb(255 190 100 / 0.55), 0 0 22px 6px rgb(255 170 80 / 0.25); @apply opacity-85; }
   .lib-chip:nth-child(n + 5) { background: linear-gradient(rgb(30 12 8 / 0.5), rgb(30 12 8 / 0.5)), #4C2620 var(--tex-red) center / 200px; background-blend-mode: normal; }
@@ -107,9 +110,9 @@
   .lib-chip[aria-pressed="true"] { @apply border-lib-brass-edge; color: #2A1D0A; background: linear-gradient(180deg, var(--color-lib-brass-1), var(--color-lib-brass-2) 55%, var(--color-lib-brass-3)); background-blend-mode: normal; box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.55), 0 0 16px rgb(255 200 110 / 0.35), 0 4px 10px rgb(0 0 0 / 0.5); }
   .lib-chip[aria-pressed="true"]::before { border-color: rgb(60 40 10 / 0.35); }
   .lib-chip[aria-pressed="true"]::after { @apply opacity-100; box-shadow: 0 0 10px 4px rgb(255 200 110 / 0.75), 0 0 28px 8px rgb(255 170 80 / 0.35); }
-  .lib-actions { grid-area: actions; @apply flex flex-wrap items-center gap-y-2 gap-x-3.5; }
+  .lib-surprise { grid-area: surprise; }
   .lib-toggles { grid-area: toggles; @apply flex gap-2.5 justify-end self-center; }
-  .lib-status { flex: 1 1 --spacing(37.5); @apply min-h-5 m-0 not-italic font-normal; font-size: var(--text-lib-status); @apply leading-none font-pixel normal-nums; color: #E9D9AE; text-shadow: 0 1px 2px #000; }
+  .lib-status { grid-area: status; @apply min-w-0 min-h-5 m-0 not-italic font-normal; font-size: var(--text-lib-status); @apply leading-none font-pixel normal-nums; color: #E9D9AE; text-shadow: 0 1px 2px #000; }
   .lib-brass { @apply relative inline-flex items-center justify-center gap-2 min-h-12 py-0 px-7.5 cursor-pointer border-2 border-lib-brass-edge; border-radius: 8px; color: #2A1D0A; @apply no-underline; background: var(--tex-brass) center / 220px, linear-gradient(180deg, var(--color-lib-brass-1) 0%, var(--color-lib-brass-2) 55%, var(--color-lib-brass-3) 100%); background-blend-mode: soft-light, normal; box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.6), inset 0 -2px 0 rgb(0 0 0 / 0.25), 0 6px 14px rgb(0 0 0 / 0.55); @apply not-italic; font-weight: 750; font-size: var(--text-sign); @apply leading-none font-body normal-nums; transition: transform 0.12s ease, filter 0.12s ease; }
   .lib-brass::before, .lib-brass::after { @apply absolute w-2 h-2 -mt-1; content: ""; top: 50%; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #F7E4A8, #6E5220 75%); box-shadow: 0 0 0 1px rgb(40 25 5 / 0.6); }
   .lib-brass::before { left: 9px; }
@@ -125,11 +128,25 @@
   .lib-toggle svg { @apply w-5 h-5 stroke-current; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .lib-toggle[aria-pressed="true"] .off, .lib-toggle[aria-pressed="false"] .on { @apply hidden; }
   #lib-3d[aria-pressed="true"] { @apply border-lib-brass-2; }
+  @media (min-width: 760px) {
+    .lib-room__ui { grid-template-columns: minmax(0, 1fr) max-content max-content max-content; grid-template-areas: "title title toggles card" "search search surprise surprise" "chips chips chips chips"; }
+    /* The count ("78 books on 8 shelves", or what a search found) sits just under the bar, over the room's wall,
+       so it takes no room from the bookcases. */
+    .lib-status { @apply absolute left-0 top-full mt-1 whitespace-nowrap; }
+  }
+  @media (min-width: 1100px) {
+    .lib-room__ui { grid-template-columns: max-content minmax(--spacing(56), 1fr) max-content max-content max-content; @apply gap-x-4; grid-template-areas: "title search surprise toggles card" "chips chips chips chips chips"; }
+    .lib-search { @apply justify-self-end w-full max-w-100; }
+  }
   .lib-cases { @apply hidden; }
   /* The frame holds n bays and the headroom over them (the Book of the Week, the figurines): model.js frameWorld(n)
      is (n x 0.68 + (n - 1) x 0.06 + 0.08) by 1.33 m. 4 bays from 1100px, 3 from 940px, 2 from 600px, 1 below
      (tests/stacks3d.test.mjs checks these against frameWorld). */
-  .s3d .lib-cases { @apply relative block z-1; width: min(100% - 2 * var(--spacing-lib-gutter), var(--container-frame)); margin: var(--spacing-lib-cases) auto 0; aspect-ratio: 2.98 / 1.33; @apply pointer-events-none; }
+  .s3d .lib-cases { @apply relative block z-1; width: min(100% - 2 * var(--spacing-lib-gutter), var(--container-frame)); margin: --spacing(2) auto 0; aspect-ratio: 2.98 / 1.33; @apply pointer-events-none; }
+  @media (min-width: 1100px) {
+    /* Four bookcases and the bar above them fit one window: the frame narrows on a short window (never below 60rem). */
+    .s3d .lib-cases { width: min(100% - 2 * var(--spacing-lib-gutter), var(--container-frame), max(60rem, (100svh - 17.5rem) * 2.98 / 1.33)); }
+  }
   @media (max-width: 1099px) {
     .s3d .lib-cases { aspect-ratio: 2.24 / 1.33; }
   }
@@ -341,25 +358,11 @@
   .lib-dlg.is-flat.is-preview .lib-face--back { @apply hidden; }
   .lib-dlg.is-flat .lib-look { grid-template-rows: minmax(--spacing(100), 1fr) auto; }
   @media (max-width: 1099px) {
-    .lib-hero { grid-template-columns: minmax(0, 1fr) max-content; @apply gap-y-4 gap-x-5; }
-    .lib-cardwrap { @apply w-75; }
-    .lib-panel { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "search search" "chips chips" "actions toggles"; }
-    .lib-chips { @apply pb-2.5; }
   }
   @media (max-width: 759px) {
-    .lib-hero { grid-template-columns: minmax(0, 1fr); }
-    .lib-cardwrap { @apply justify-self-end p-0 -mb-1.5 grid justify-items-end gap-2.5 w-full; order: -1; }
-    .lib-cardwrap::before { @apply hidden; }
-    .lib-cardbtn { @apply inline-flex items-center gap-2 min-h-tap py-0 px-3.5 cursor-pointer text-lib-ink border-2 border-lib-brass-edge; border-radius: 6px; background: var(--color-lib-paper) var(--tex-paper) center / 260px; box-shadow: 0 6px 14px rgb(0 0 0 / 0.55); @apply not-italic font-extrabold; font-size: var(--text-base); @apply leading-none font-sign normal-nums tracking-code uppercase; }
-    .lib-cardbtn svg { @apply w-4.5 h-4.5 stroke-current; fill: none; stroke-width: 2; }
-    .lib-cardbtn__n { padding: 3px --spacing(2); @apply rounded-full; background: #3A2619; color: #F6E3B4; font-size: var(--text-sm); }
-    .lib-card { @apply hidden w-full; transform: none; }
-    .lib-card.is-open { @apply grid; }
-    .lib-card__clip { @apply hidden; }
-    .lib-chips { @apply flex-nowrap overflow-x-auto; scroll-snap-type: x proximity; scroll-padding-inline: var(--spacing-lib-gutter); margin-inline: calc(-1 * var(--spacing-lib-gutter)); padding: 2px var(--spacing-lib-gutter) --spacing(4); scrollbar-width: none; }
-    .lib-chips::-webkit-scrollbar { @apply hidden; }
-    .lib-chip { @apply flex-none; scroll-snap-align: start; }
-    .lib-actions .lib-surprise { flex: 1 1 auto; }
+    .lib-chips { margin-inline: calc(-1 * var(--spacing-lib-gutter)); padding-inline: var(--spacing-lib-gutter); scroll-padding-inline: var(--spacing-lib-gutter); }
+    .lib-cardbtn > span:not(.lib-cardbtn__n) { @apply sr-only; } /* a phone shows the card icon and the stamp count */
+    .lib-surprise { @apply px-4; &::before, &::after { @apply hidden; } }
     .lib-pan { top: 44%; }
     .lib-pan--prev { @apply -left-2.5; }
     .lib-pan--next { @apply -right-2.5; }
@@ -401,7 +404,10 @@
   .lib-feat__open { @apply mt-1.5; }
 
   /* "Wrote a true story? Put your book forward": a paper request slip at the end of the page. */
-  .lib-submit { width: min(100% - 2 * var(--spacing-lib-gutter), var(--container-frame)); @apply mx-auto mt-12 mb-4; }
+  .lib-below { width: min(100% - 2 * var(--spacing-lib-gutter), var(--container-frame)); @apply mx-auto mt-12 mb-4 grid items-start gap-x-10 gap-y-8 md:grid-cols-2; }
+  .lib-about { @apply grid justify-items-start gap-3; }
+  .lib-about__title { @apply m-0 font-slab font-normal text-lib-cream; font-size: clamp(var(--text-2xl), 1.1rem + 1vw, var(--text-3xl)); line-height: 1.1; }
+  .lib-about__links { @apply flex flex-wrap gap-x-5 gap-y-1; & a { @apply inline-flex min-h-tap items-center text-white; } }
   .lib-submit__card { @apply relative grid gap-3 max-w-read py-6 px-5 sm:px-7 text-lib-ink; background: var(--color-lib-paper) var(--tex-paper) center / 420px; box-shadow: 0 10px 22px rgb(0 0 0 / 0.55), inset 0 0 30px rgb(120 80 30 / 0.3); border-radius: 2px; }
   .lib-submit__title { @apply m-0 not-italic font-normal; font-size: clamp(var(--text-2xl), 1.1rem + 1vw, var(--text-3xl)); line-height: 1.1; @apply font-slab normal-nums text-lib-ink; }
   .lib-submit__lede { font-size: var(--text-note); @apply leading-normal font-semibold; }
