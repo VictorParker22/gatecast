@@ -480,7 +480,7 @@ test('the guides: every "Worth knowing" note of the true-story shelves and every
   const disputed = data.books.filter((b) => b.caveat && !fiction.has(b.shelf));
   assert.ok(disputed.length >= 20);
   for (const b of disputed) {
-    assert.ok(wk.includes(`<a href="/stacks/${b.id}/">${esc(b.title)}</a>`), b.id);
+    assert.ok(wk.includes(`<h3 class="stk-item__title"><a class="inline-flex min-h-tap items-center" href="/stacks/${b.id}/">${esc(b.title)}</a></h3>`), `${b.id}: the shared title style, a 44px link`);
     assert.ok(wk.includes(`<p class="stk-note stk-note--caveat"><strong>Worth knowing.</strong> ${esc(b.caveat)}</p>`), b.id);
   }
   for (const b of data.books.filter((x) => x.caveat && fiction.has(x.shelf))) assert.ok(!wk.includes(esc(b.caveat)), `${b.id}: an edition note of a fiction shelf is not a dispute`);
@@ -495,6 +495,8 @@ test('the guides: every "Worth knowing" note of the true-story shelves and every
     assert.ok(g.title.length <= S.INTRO_TITLE_MAX && g.description.length <= S.DESC_MAX, g.id);
     assert.ok(!/name="robots" content="noindex/.test(h), `${g.id} is indexed`);
     assert.equal((h.match(/<h1[\s>]/g) || []).length, 1);
+    assert.ok(h.includes(`<li><span aria-current="page">${esc(g.h1)}</span></li>`), 'the last crumb is the heading, as on every /stacks/ page');
+    assert.ok(g.title.startsWith(g.h1), 'one name in the title and the heading');
     assert.ok(h.includes(`<link rel="canonical" href="https://gatecast.vercel.app/stacks/${g.id}/">`));
     assert.ok(!/<script(?![^>]*application\/ld\+json)[^>]*src=/.test(h), 'no script file');
     const lds = [...h.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((x) => JSON.parse(x[1]));

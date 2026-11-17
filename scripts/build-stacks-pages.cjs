@@ -524,8 +524,8 @@ const GUIDES = [
   {
     id: 'worth-knowing', field: 'caveat', label: 'Worth knowing.', noteClass: 'stk-note stk-note--caveat', trueStoriesOnly: true,
     name: 'Worth knowing', h1: 'True-story books, and what is disputed about them',
-    title: 'True-story books and what is disputed about them · Gatecast',
-    lede: 'What is disputed about famous true-story books, in our editor’s words.',
+    title: 'True-story books, and what is disputed about them · Gatecast',
+    lede: 'What is disputed about famous true-story books, and what they leave out, in our own words.',
     intro: 'Some of the best-known true stories are also the most argued over, so we keep them and say what is disputed. These are the “Worth knowing” notes from our true-story shelves, in one place.',
     description: 'What is disputed about famous true-story books, from In Cold Blood to Catch Me If You Can: the “Worth knowing” notes from The Stacks, in our own words.',
   },
@@ -552,13 +552,13 @@ function guideShelves(g, data) {
 function guidePage(g, data, m) {
   const groups = guideShelves(g, data);
   const books = groups.flatMap((x) => x.books);
-  const trail = crumbs([{ name: g.name, path: pagePath(g.id) }]);
+  const trail = crumbs([{ name: g.h1, path: pagePath(g.id) }]); // the last crumb is the page's own heading, as on every /stacks/ page
   const sections = groups.map(({ shelf, books: list }) => `    <section class="stk-section" aria-labelledby="guide-${shelf.id}">
       <h2 id="guide-${shelf.id}" class="stk-section__title"><a href="${pagePath(shelf.id)}">${esc(shelf.name)}</a></h2>
       <ul class="grid gap-6">
-        ${list.map((b) => `<li class="grid justify-items-start gap-2">
-          <h3 class="text-xl/snug font-bold"><a href="${pagePath(b.id)}">${esc(b.title)}</a></h3>
-          <p class="text-sm text-np-muted">${esc(m.authorLine(b.authors))} · ${b.year}</p>
+        ${list.map((b) => `<li class="grid min-w-0 gap-1">
+          <h3 class="stk-item__title"><a class="inline-flex min-h-tap items-center" href="${pagePath(b.id)}">${esc(b.title)}</a></h3>
+          <p class="stk-item__meta">${esc(m.authorLine(b.authors))} · ${b.year}</p>
           <p class="${g.noteClass}"><strong>${g.label}</strong> ${esc(b[g.field])}</p>
         </li>`).join('\n        ')}
       </ul>
@@ -583,7 +583,7 @@ ${sections}
     </nav>`;
   const ld = {
     '@context': 'https://schema.org', '@type': 'CollectionPage',
-    name: g.h1, description: g.description, url: pageUrl(g.id), inLanguage: 'en-GB',
+    name: g.h1.endsWith('The Stacks') ? g.h1 : `${g.h1} — The Stacks`, description: g.description, url: pageUrl(g.id), inLanguage: 'en-GB',
     isPartOf: { '@type': 'WebSite', name: 'Gatecast', url: SITE_ORIGIN + '/' },
     mainEntity: {
       '@type': 'ItemList', numberOfItems: books.length,
