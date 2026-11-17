@@ -27,7 +27,7 @@ function setMode(m) {
   $('#flight-field').hidden = m !== 'flight';
   $('#airport-field').hidden = m !== 'airport';
 }
-$('.lookup__mode').addEventListener('change', () => { setMode(mode()); setError(''); (mode() === 'flight' ? flightInput : airportInput).focus(); });
+$('#mode').addEventListener('change', () => { setMode(mode()); setError(''); (mode() === 'flight' ? flightInput : airportInput).focus(); });
 
 function setError(msg, el) {
   errEl.hidden = !msg; errEl.textContent = msg || '';
@@ -109,7 +109,7 @@ function paint(html) {
   for (const d of resultsEl.querySelectorAll('details[data-key]')) if (open.has(d.dataset.key)) d.open = true;
   if (key) resultsEl.querySelector(key)?.focus({ preventScroll: true });
 }
-const message = (title, body) => `<div class="verdict verdict--unknown">${riskIcon('unknown')}<div><h2 tabindex="-1">${esc(title)}</h2><p>${esc(body)}</p></div></div>`;
+const message = (title, body) => `<div class="verdict">${riskIcon('unknown')}<div><h2 tabindex="-1">${esc(title)}</h2><p>${esc(body)}</p></div></div>`;
 const far = (km) => (prefs.wind === 'mph' ? `${Math.round(km / 1.609).toLocaleString('en-US')} mi` : `${Math.round(km).toLocaleString('en-US')} km`);
 const farVal = (km) => Math.round(prefs.wind === 'mph' ? km / 1.609 : km).toLocaleString('en-US');
 const hourAt = (hours, ms) => hours.find((h) => h.t <= ms && ms < h.t + HOUR) || null;
@@ -137,24 +137,24 @@ function airportCard(w, u, { title, link = true }) {
   const level = risk.level;
   const quiet = level === 'low';
   return `<article class="stop stop--${level}${quiet ? ' stop--calm' : ''}">
-    <header class="stop__head">
+    <header class="flex flex-wrap items-start justify-between gap-3">
       <div><p class="stop__role">${esc(title)}</p>
-        <h3><span class="code">${a.code}</span> ${esc(a.city || a.name)}</h3>
+        <h3 class="stop__title"><span class="code">${a.code}</span> ${esc(a.city || a.name)}</h3>
         <p class="stop__name">${esc(a.name)} · ${timeZ(Date.now(), a.tz)} now</p></div>
       ${chip(level, levelText(level)).replace('class="chip', quiet ? 'class="chip chip--calm' : 'class="chip')}
     </header>
     ${h ? `<div class="stop__wx">
-      <div class="stop__now">${weatherIcon(h.code, h.day, 'wx--lg')}<div><p class="stop__temp">${u.temp(h.temp)}<small>${u.tempUnit.slice(1)}</small></p><p>${esc(describeCode(h.code).text)}</p></div></div>
+      <div class="flex items-center gap-3">${weatherIcon(h.code, h.day, 'wx--lg')}<div><p class="stop__temp">${u.temp(h.temp)}<small>${u.tempUnit.slice(1)}</small></p><p>${esc(describeCode(h.code).text)}</p></div></div>
       <dl class="facts">
         <div><dt>Gusts</dt><dd>${u.speed(h.gust)} <small>${compass(h.dir)}</small></dd></div>
         <div><dt>Rain or snow</dt><dd>${h.pop ?? 0}% <small>chance</small></dd></div>
         <div><dt>Visibility</dt><dd>${u.vis(h.vis)}</dd></div>
       </dl>
-      <p class="stop__when">Forecast for ${timeZ(h.t, a.tz)}, ${esc(fmtDay(h.t, a.tz))}</p>
+      <p class="col-span-full text-xs text-np-muted">Forecast for ${timeZ(h.t, a.tz)}, ${esc(fmtDay(h.t, a.tz))}</p>
     </div>` : ''}
     <p class="stop__why">${esc(why(risk))}</p>
     ${observation(a, u)}
-    ${link ? `<p class="muted"><a href="?airport=${a.code}" data-airport="${a.code}">More on ${a.code}</a></p>` : ''}
+    ${link ? `<p class="text-sm text-np-muted"><a href="?airport=${a.code}" data-airport="${a.code}">More on ${a.code}</a></p>` : ''}
   </article>`;
 }
 
@@ -223,7 +223,7 @@ function planRows(airports, many) {
 
 // The weather block shared by both modes: one verdict line, alerts, then cards.
 // Calm collapses (one grey line, cards behind "Details"); risk expands (that airport's card first, open).
-function weatherBlock(ends, u, { id, link, cardTitle, many }) {
+function weatherBlock(ends, u, { id, link, cardTitle, many, flush = false }) {
   const v = endsVerdict(ends);
   const alerts = alertRows(ends.map((e) => e.a), many);
   const plans = planRows(ends.map((e) => e.a), many);
@@ -237,17 +237,17 @@ function weatherBlock(ends, u, { id, link, cardTitle, many }) {
   if (v.kind === 'unknown') cards = rest.map(card).join(''); // only observations to show: keep them open
   else {
     const label = risky.length ? `Details for ${rest.map((w) => w.code).join(' and ')}` : 'Details';
-    cards = risky.map(card).join('') + (rest.length ? `<details class="fl-wxmore" data-key="${id}-more"><summary><span>${esc(label)}</span></summary><div class="fl-wxmore__cards">${rest.map(card).join('')}</div></details>` : '');
+    cards = risky.map(card).join('') + (rest.length ? `<details class="fl-wxmore" data-key="${id}-more"><summary><span>${esc(label)}</span></summary><div class="mt-3 grid gap-4 lg:has-[>:nth-child(2)]:grid-cols-2 lg:has-[>:nth-child(2)]:items-start">${rest.map(card).join('')}</div></details>` : '');
   }
-  return `<section class="fl-wx fl-wx--${v.kind} fl-wx--${level}" aria-labelledby="${id}">
+  return `<section class="fl-wx fl-wx--${v.kind} fl-wx--${level} grid gap-3${flush ? '' : ' mt-6'}" aria-labelledby="${id}">
     <div class="fl-wxline">${riskIcon(level)}<div>
-      <h2 id="${id}" tabindex="-1">${esc(title)}</h2>
-      <p class="fl-wxline__now">${v.kind === 'unknown' ? 'The forecast did not load. Try again in a little while.'
+      <h2 id="${id}" class="font-sign text-wxline font-bold outline-none" tabindex="-1">${esc(title)}</h2>
+      <p class="fl-wxline__now mt-1 [&_:is(.code,.num)]:text-xl [&_:is(.code,.num)]:text-np-ink">${v.kind === 'unknown' ? 'The forecast did not load. Try again in a little while.'
         : ends.map((w) => brief(w, u)).join('<span aria-hidden="true"> · </span><span class="sr-only">, </span>')}</p>
     </div></div>
-    ${alerts.length ? `<div class="fl-wx__alerts">${alerts.join('')}</div>` : ''}
-    ${plans.length ? `<div class="fl-wx__plans">${plans.join('')}</div>` : ''}
-    <div class="fl-wx__cards">${cards}</div>
+    ${alerts.length ? `<div class="grid gap-2">${alerts.join('')}</div>` : ''}
+    ${plans.length ? `<div class="grid gap-1">${plans.join('')}</div>` : ''}
+    <div class="grid gap-4">${cards}</div>
   </section>`;
 }
 
@@ -312,6 +312,7 @@ function updateFreshness() {
   el.classList.toggle('is-stale', fr.stale);
 }
 
+const WORD = (w) => `<span class="font-sign text-sub/none font-bold tracking-caps uppercase">${w}</span>`;
 const PLANE = '<path transform="rotate(90)" d="M0 -1.1 0.22 -0.25 1.05 0.3 1.05 0.5 0.22 0.25 0.16 0.8 0.42 1 0.42 1.12 0 1 -0.42 1.12 -0.42 1 -0.16 0.8 -0.22 0.25 -1.05 0.5 -1.05 0.3 -0.22 -0.25z"/>';
 
 function renderFlight() {
@@ -324,9 +325,9 @@ function renderFlight() {
   let status;
   if (airborne) {
     status = `<p class="fl-status${fr.live ? ' fl-status--live' : ''}${fr.stale ? ' is-stale' : ''}" data-fresh="${fr.live}">
-      ${fr.live ? '<i aria-hidden="true"></i><span class="fl-status__word">Live</span>' : '<span class="fl-status__word">Not live</span>'}
-      <span class="fl-status__age">${esc(fr.text)}</span></p>`;
-  } else status = `<p class="fl-status"><span class="fl-status__word">${live ? 'On the ground' : 'Not in the air now'}</span></p>`;
+      ${fr.live ? `<i aria-hidden="true"></i>${WORD('Live')}` : WORD('Not live')}
+      <span class="fl-status__age text-sm empty:hidden">${esc(fr.text)}</span></p>`;
+  } else status = `<p class="fl-status">${WORD(live ? 'On the ground' : 'Not in the air now')}</p>`;
 
   // Progress: one line with the plane on it, codes either side, distance and landing estimate under it.
   let eta = null, progress = '';
@@ -354,24 +355,25 @@ function renderFlight() {
       }
     }
     const p = pct == null ? '' : ` style="--pct:${(pct * 100).toFixed(1)}%"`;
-    progress = `<div class="fl-progress">
-      <div class="fl-progress__line" aria-hidden="true">
-        <span class="fl-progress__end"><b class="code">${from.code}</b><small>${esc(from.city || from.name)}</small></span>
+    const end = (a, to) => `<span class="grid leading-none${to ? ' justify-items-end text-right' : ''}"><b class="code text-route">${a.code}</b><small class="mt-1 max-w-40 truncate text-sm">${esc(a.city || a.name)}</small></span>`;
+    progress = `<div class="grid gap-3 [grid-area:progress]">
+      <div class="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4" aria-hidden="true">
+        ${end(from)}
         <span class="fl-progress__track${pct == null ? ' is-idle' : ''}"${p}><i></i>${pct == null ? '' : `<svg class="fl-progress__plane" viewBox="-1.2 -1.2 2.4 2.4">${PLANE}</svg>`}</span>
-        <span class="fl-progress__end fl-progress__end--to"><b class="code">${to.code}</b><small>${esc(to.city || to.name)}</small></span>
+        ${end(to, true)}
       </div>
-      <p class="fl-progress__facts" aria-hidden="true">${facts}</p>
+      <p class="flex flex-wrap items-baseline gap-x-6 gap-y-1 text-np-muted [&_b]:text-np-ink [&_:is(.num,.code)]:text-2xl/tight" aria-hidden="true">${facts}</p>
       <p class="sr-only">${esc(said)}</p>
     </div>`;
   }
 
   const vr = live && live.vRateFpm;
   const trend = vr == null ? '' : vr > 400 ? 'climbing' : vr < -400 ? 'descending' : 'level';
-  const stats = live ? `<dl class="fl-stats">
+  const stats = live ? `<dl class="grid grid-cols-[repeat(auto-fit,minmax(--spacing(34),1fr))] gap-x-6 gap-y-3 [grid-area:stats] [&_dt]:text-xs [&_dt]:text-np-muted [&_.num]:text-2xl/tight">
       <div><dt>Altitude</dt><dd><b class="num">${live.onGround ? 'Ground' : live.altFt == null ? '–' : `${Math.round(live.altFt).toLocaleString('en-US')} ft`}</b> <small>${airborne ? trend : ''}</small></dd></div>
       <div><dt>Ground speed</dt><dd><b class="num">${live.gsKt == null ? '–' : u.speed(live.gsKt * 1.852)}</b></dd></div>
       <div><dt>Aircraft</dt><dd><b class="num">${esc(live.type || '–')}</b> <small>${esc(live.registration)}</small></dd></div>
-    </dl>` : `<p class="fl-quiet">${f.liveError ? 'Live tracking is not responding right now.' : `No aircraft is broadcasting ${esc(names.primary)} right now. It may not have left yet, may have landed, or may be out of receiver range.`}</p>`;
+    </dl>` : `<p class="max-w-measure text-np-muted [grid-area:stats]">${f.liveError ? 'Live tracking is not responding right now.' : `No aircraft is broadcasting ${esc(names.primary)} right now. It may not have left yet, may have landed, or may be out of receiver range.`}</p>`;
 
   const hoursOf = (a) => (fc ? fc.forecasts.get(a.code) || [] : []);
   const ends = [];
@@ -380,25 +382,25 @@ function renderFlight() {
   const cardTitle = (w) => (w.role === 'Departure' ? 'Departure · weather now' : w.when === 'landing' ? 'Arrival · weather at landing' : 'Arrival · weather now');
 
   // The map earns its place by showing where the aircraft really is; without a position it is just the route, so it stays small.
-  const map = from && to ? `<figure class="fl-map${airborne ? '' : ' fl-map--route'}">${routeMap(ends.map((w) => ({ airport: w.a, level: w.level })), airborne ? live : null)}</figure>` : '';
+  const map = from && to ? `<figure class="fl-map self-start overflow-hidden rounded-md border border-line [grid-area:map]">${routeMap(ends.map((w) => ({ airport: w.a, level: w.level })), airborne ? live : null)}</figure>` : '';
 
   return `
     <article class="fl-card" aria-labelledby="fl-title">
-      <header class="fl-card__head">
+      <header class="flex flex-wrap items-start justify-between gap-x-4 gap-y-3 [grid-area:head]">
         <div>
-          ${f.airline ? `<p class="fl-card__airline">${esc(f.airline.name)}</p>` : ''}
-          <h2 id="fl-title" class="fl-card__number" tabindex="-1"><span class="sr-only">Flight </span>${esc(names.primary)}</h2>
-          ${names.alias ? `<p class="fl-card__alias">${esc(names.alias)}</p>` : ''}
+          ${f.airline ? `<p class="font-sign text-base font-semibold tracking-caps text-np-muted uppercase">${esc(f.airline.name)}</p>` : ''}
+          <h2 id="fl-title" class="mt-1 font-sign text-flight font-bold tracking-wide outline-none" tabindex="-1"><span class="sr-only">Flight </span>${esc(names.primary)}</h2>
+          ${names.alias ? `<p class="mt-2 text-sm text-np-muted">${esc(names.alias)}</p>` : ''}
         </div>
         ${status}
       </header>
       ${progress}
       ${stats}
       ${map}
-      <p class="fl-card__note">Position from community aircraft receivers, refreshed every 30 seconds; the landing time is our estimate from distance and speed. Scheduled times, gates and cancellations need an airline feed, so they are not shown here. Check with your airline for those.</p>
+      <p class="max-w-read text-xs text-np-muted [grid-area:note]">Position from community aircraft receivers, refreshed every 30 seconds; the landing time is our estimate from distance and speed. Scheduled times, gates and cancellations need an airline feed, so they are not shown here. Check with your airline for those.</p>
     </article>
     ${ends.length ? weatherBlock(ends, u, { id: 'wx-title', link: true, cardTitle, many: ends.length > 1 }) : ''}
-    ${to ? `<p class="fl-next">Connecting onward in ${esc(to.city || to.code)}? <a href="trip.html">Check a connection</a> against the forecast.</p>` : ''}`;
+    ${to ? `<p class="mt-4 text-sm text-np-muted">Connecting onward in ${esc(to.city || to.code)}? <a href="trip.html">Check a connection</a> against the forecast.</p>` : ''}`;
 }
 
 /* ---------- Airport ---------- */
@@ -422,9 +424,9 @@ async function showAirport(code) {
 
 // Aircraft near the airport as a departure board: codes in signage, numbers lined up, scrolls sideways on phones.
 function nearbyBoard(a, nearby, u) {
-  if (nearby === undefined) return '<p class="muted">Looking for aircraft nearby…</p>';
-  if (nearby === null) return '<p class="muted">Live aircraft are not available right now.</p>';
-  if (!nearby.length) return `<p class="muted">No airline flights within 75 km of ${a.code} right now.</p>`;
+  if (nearby === undefined) return '<p class="text-sm text-np-muted">Looking for aircraft nearby…</p>';
+  if (nearby === null) return '<p class="text-sm text-np-muted">Live aircraft are not available right now.</p>';
+  if (!nearby.length) return `<p class="text-sm text-np-muted">No airline flights within 75 km of ${a.code} right now.</p>`;
   const rows = nearby.map((n) => {
     const cs = esc(n.callsign);
     const flight = FLIGHT_RE.test(n.callsign) ? `<a href="?flight=${cs}" data-flight="${cs}" aria-label="Track ${cs}">${cs}</a>` : `<span>${cs}</span>`;
@@ -435,7 +437,7 @@ function nearbyBoard(a, nearby, u) {
     <table><caption class="sr-only">Airline aircraft within 75 km of ${a.code}: callsign, aircraft type, altitude, ground speed and distance</caption>
       <thead><tr><th scope="col">Flight</th><th scope="col">Type</th><th scope="col">Altitude <small>ft</small></th><th scope="col">Speed <small>${u.speedUnit}</small></th><th scope="col">Away <small>${prefs.wind === 'mph' ? 'mi' : 'km'}</small></th></tr></thead>
       <tbody>${rows}</tbody></table></div>
-    <p class="muted">Select a flight number to track it. Callsigns that are not flight numbers cannot be looked up.</p>`;
+    <p class="text-sm text-np-muted">Select a flight number to track it. Callsigns that are not flight numbers cannot be looked up.</p>`;
 }
 
 function renderAirport() {
@@ -447,15 +449,15 @@ function renderAirport() {
   const strip = hourlyStrip(stop, hours, u, { range: [now, now + 11 * HOUR], legend: 'Shaded = next 3 hours' });
   const missing = fcError === 'rate' ? 'The forecast service is busy. Try again in a little while.' : 'No forecast available right now.';
   return `
-    <div class="ap">
-      <div class="ap__main">
-        ${weatherBlock([w], u, { id: 'ap-title', link: false, cardTitle: () => 'Airport weather · next 3 hours', many: false })}
+    <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_--spacing(120)] xl:items-start">
+      <div class="grid min-w-0 content-start gap-4">
+        ${weatherBlock([w], u, { id: 'ap-title', link: false, cardTitle: () => 'Airport weather · next 3 hours', many: false, flush: true })}
         <section class="panel" aria-labelledby="hours-title"><h2 id="hours-title">Next 12 hours at ${a.code}</h2>
-          ${strip || `<p class="muted">${missing}</p>`}
+          ${strip || `<p class="text-sm text-np-muted">${missing}</p>`}
         </section>
-        <p class="fl-next">Flying through ${a.code}? <a href="trip.html">Check a connection</a> against the forecast for your times.</p>
+        <p class="text-sm text-np-muted">Flying through ${a.code}? <a href="trip.html">Check a connection</a> against the forecast for your times.</p>
       </div>
-      <section class="panel ap__near" aria-labelledby="near-title"><h2 id="near-title">In the air near ${a.code}</h2>${nearbyBoard(a, nearby, u)}</section>
+      <section class="panel xl:sticky xl:top-4" aria-labelledby="near-title"><h2 id="near-title">In the air near ${a.code}</h2>${nearbyBoard(a, nearby, u)}</section>
     </div>`;
 }
 

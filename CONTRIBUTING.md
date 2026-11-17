@@ -4,7 +4,7 @@ Thanks for helping. Gatecast tells travellers, in one plain sentence, whether th
 
 ## Set up
 
-You need Node 18 or newer (`.nvmrc` pins 22 for local work; CI runs 18.x and 22.x).
+You need Node 20 or newer (`.nvmrc` pins 22 for local work; CI runs 20.x and 22.x). Tailwind CSS v4's engine needs Node 20.
 
 ```bash
 git clone https://github.com/VictorParker22/gatecast.git
@@ -12,12 +12,12 @@ cd gatecast
 npm ci
 ```
 
-`npm ci` is only needed for the build step (`topojson-client` and `world-atlas`). The site itself and the tests have no dependencies.
+`npm ci` installs the build step's packages (`topojson-client`, `world-atlas`) and the styling toolchain (Tailwind CSS 4, its CLI and daisyUI, dev dependencies). The pages link the compiled `styles/site.css`, so run `npm run dev` (or `npm run css`) before opening them.
 
 ## Run
 
 ```bash
-npm run dev        # same as: node server.js
+npm run dev        # node server.js plus Tailwind in watch mode (styles/site.css, styles/console.css)
 ```
 
 Open http://localhost:4173 (set `PORT` to change it). `server.js` serves the static pages and the same `/api` routes that run as Vercel functions in `api/`. Flight tracking, "Right now" airport observations and FAA delay programmes need those routes; the weather page and connection checker also work as plain static files.
@@ -26,7 +26,7 @@ Open http://localhost:4173 (set `PORT` to change it). `server.js` serves the sta
 
 ```bash
 npm test           # node --test tests/*.mjs tests/*.cjs
-npm run build      # node scripts/build-data.cjs: downloads the airport list, assembles public/
+npm run build      # node scripts/build-data.cjs: downloads the airport list, compiles the CSS, assembles public/
 npm run ci         # both, as CI runs them
 ```
 

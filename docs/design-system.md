@@ -1,8 +1,43 @@
 # Gatecast design system
 
-The visual language and components of the Gatecast site. Tokens live in `styles/tokens.css`; shared components in `styles/app.css`; the front page in `styles/home.css`.
+The visual language and components of the Gatecast site. Since 16 Nov 2026 the site is moving onto **Tailwind CSS v4**: the tokens are a Tailwind theme in `styles/main.css`, the shared pieces are a small component layer in `styles/components/`, and pages are styled with utilities. `how.html`, `trip.html`, `flights.html` and `review.html` are migrated; the front page (`index.html`, `styles/home.css`) and the library (`library.html`, `styles/library.css`) still use the legacy `styles/tokens.css` and `styles/app.css` until phase 2. The values below are the same in both.
 
-The direction (approved 16 Nov 2026) is **a late-90s weird-news front page, modern underneath**: newsprint paper, hard 2px ink edges, offset shadows, beveled buttons that press in, a slab masthead, pixel-type datelines, starbursts and stickers, and a ticker. Underneath it stays accessible, fast and responsive: semantic HTML, 44px targets, visible focus, 4.5:1 text, `prefers-reduced-motion` respected, no framework and no build step. The approved boards are `WeirdHome` (1440px) and `WeirdPhone` (390px); the front page is built to them and checked against them (see "Fidelity" below).
+The direction (approved 16 Nov 2026) is **a late-90s weird-news front page, modern underneath**: newsprint paper, hard 2px ink edges, offset shadows, beveled buttons that press in, a slab masthead, pixel-type datelines, starbursts and stickers, and a ticker. Underneath it stays accessible, fast and responsive: semantic HTML, 44px targets, visible focus, 4.5:1 text, `prefers-reduced-motion` respected, no framework; the only build step for styles is the Tailwind compile. The approved boards are `WeirdHome` (1440px) and `WeirdPhone` (390px); the front page is built to them and checked against them (see "Fidelity" below).
+
+## How the theme works (Tailwind CSS v4)
+
+**Files.** `styles/main.css` is the entry: `@import "tailwindcss" source(none)` plus the `@source` list of pages and scripts to scan, the `@theme` block (every token), `@custom-variant dark`, the fonts, `@layer base` (element defaults on top of Tailwind's preflight) and the imports of `styles/components/site.css` (header, nav and phone tab bar, footer, buttons, settings window, fields, pills, risk chips, reading-page pieces) and `styles/components/weather.css` (verdict, stop card, facts, hourly strip, live rows, route map, panel, ink panel, and the Trips and Flights pieces that have states). `scripts/build-css.cjs` compiles it with the Tailwind CLI into one minified `styles/site.css` (local, git-ignored) and `public/styles/site.css` (the Vercel build). The reviewer console's own components (`styles/components/review.css`) compile separately, through `styles/main-console.css` (`@reference "./main.css"`), into `styles/console.css`, so public pages do not carry them; daisyUI 5 is loaded there only, with the prefix `d-` and a `gatecast` theme mapped onto the newsprint tokens (`d-input`, `d-textarea`, `d-kbd`, `d-badge`).
+
+**Tokens are utilities.** Each `@theme` variable becomes a utility: `--color-np-cobalt` gives `bg-np-cobalt`, `text-np-cobalt`, `border-np-cobalt`; `--shadow-btn` gives `shadow-btn`; `--text-code` gives `text-code`; `--spacing-tap` gives `min-h-tap`, `w-tap`; `--breakpoint-nav` gives `nav:` and `max-nav:`. Tailwind's default colour palette, radii, shadows and fonts are cleared (`--color-*: initial` and so on), so only Gatecast's values exist: there is no `bg-red-500` to reach for, which enforces "risk colours are reserved".
+
+**The night edition.** Every colour token is a `light-dark()` pair, so it follows `color-scheme` on each element: `:root` is `light dark`, the settings toggle (localStorage `color-scheme` copied into `<meta name="color-scheme">` by the inline script in each page's head) forces `light` or `dark`, and ink panels set `color-scheme: dark` on their inside so their text, muted text, hairlines, focus ring and risk hues take their night values. Nothing needs a `dark:` prefix for colour. `@custom-variant dark` exists for the rare non-colour difference and honours the same toggle and `prefers-color-scheme`. Browsers without `light-dark()` (Safari before 17.5) get the day edition, or the night edition on a dark device, from an `@supports` fallback in `main.css`.
+
+**Risk.** A component sets `--risk` once with `risk-low`, `risk-elevated`, `risk-high`, `risk-unknown` or `risk-calm` (custom utilities, always generated because scripts build them from a level) or a level modifier (`.chip--high`, `.stop--elevated`, `.jhour--high` …); everything inside reads `var(--risk)` (`text-(--risk)`, `border-top-color: var(--risk)`, the 11–14% tints with `color-mix`). The risk hexes and their contrast are unchanged.
+
+### The scale
+
+| What | Scale | Notes |
+|---|---|---|
+| Spacing | Tailwind's 4px step: `1` 4px, `2` 8px, `3` 12px, `4` 16px, `6` 24px, `8` 32px, `12` 48px, `16` 64px, `24` 96px | The old `--space-1`…`--space-9` map to `1, 2, 3, 4, 6, 8, 12, 16, 24`. Half steps (`0.5`, `1.5`) only for hairline offsets. Named: `tap` 44px, `gutter` 16→24px fluid, `tabbar` 74px, `panel` 24→48px fluid (ink panel sides), `icon` 1.25em |
+| Type | Tailwind's `xs` 12, `sm` 14, `base` 16, `lg` 18, `xl` 20, `2xl` 24, `3xl` 30, `4xl` 36, `5xl` 48 (with Tailwind's line heights, all on a 4px grid) | Named steps, each from a board or a page: `sign` 17px (VT323 minimum, nav labels), `sub` 22px (VT323 title bars, stop-card times, the live status word), `brand` 28px (header wordmark), `code` 40px (airport codes on Trips), `temp` 64px (stop-card temperature); fluid display sizes `title`, `page`, `display`, `verdict`, `verdict-hero`, `verdict-phone`, `flight`, `wxline`, `route` (each `clamp(phone, intercept + slope·vw, desktop)`) |
+| Measures | `max-w-headline` 16ch, `lede` 52ch, `measure` 62ch, `read` 68ch, `frame` 80rem | |
+| Radius | `rounded-sm`/`md` 2px, `rounded-lg`/`xl` 3px, `rounded-full` for risk chips only | Tailwind's larger radii do not exist |
+| Shadows | `shadow-np` 4px, `shadow-np-lg` 6px, `shadow-np-hover` 8px offsets (never blurred); `shadow-bevel`, `shadow-bevel-in`; `shadow-btn`, `shadow-btn-hover`, `shadow-btn-active` (bevel + 3/4/1px) | |
+| Breakpoints | `xs` 30rem, `sm` 40rem, `nav` 46rem (the phone tab bar switch), `md` 48rem, `lg` 64rem, `xl` 80rem, `wide` 84rem (the console's assistant column) | Container queries: `@container` with `@xl` (36rem) on the stop card |
+| Strokes | `stroke-thin` 1.5, `stroke-icon` 1.7, `stroke-2`, `stroke-bold` 2.4 | Line icons on a 24-unit grid |
+
+No raw pixel value appears in the markup or the scripts' templates. In the CSS sources the only pixel literals are the tokens themselves (radii, the print and bevel shadows), hairlines and focus rings (1–3px, the double rules), texture tiles (the 6px halftone, the 3px press lines, the 8px dashes of an untracked flight's line) and the 8px rise of the results' entrance. The hourly strip's 3/8/14px risk bars are scale steps (`h-0.75`, `h-2`, `h-3.5`).
+
+### Adding a component
+
+1. Try utilities in the markup first. Most layout (flex, grid, gaps, padding, type) needs nothing else.
+2. Make a component only when the same piece repeats across pages or scripts, has states (risk level, `is-here`, `[aria-current]`, `:checked`), or needs descendant or pseudo-element rules. Put it in `styles/components/site.css` (site-wide), `weather.css` (Trips and Flights) or `review.css` (the console), inside `@layer components`, built with `@apply` of utilities and nested `&` rules; keep it short and comment what it is.
+3. Use tokens only. If a value is new, add it to `@theme` in `main.css` with a comment saying where it comes from; never put an anonymous number in markup or CSS (no `p-[13px]`).
+4. Run `npm run css` (or keep `npm run dev` running) and check both editions and a phone width.
+
+### Migration status
+
+Phase 1 (done): `how.html`, `trip.html` (+ `js/trip.js`, `js/tripview.js`), `flights.html` (+ `js/flights.js`), `review.html` (+ `js/review.js` through its component layer) and the shared `js/view.js`, `js/ui.js`, `js/shell.js` output. `styles/how.css`, `trip.css`, `flights.css` and `review.css` are deleted. Phase 2: `index.html` with `styles/home.css`, `civic.css`, `sky.css`, `motion.css`, and `library.html` with `styles/library.css`; then `styles/tokens.css` and `app.css` can go. Until then the legacy sheets carry the same values, so both halves of the site look the same.
 
 ## Principles
 
@@ -248,7 +283,7 @@ Gatecast talks like a friend who knows the weather: someone who has read the for
 | Pair every risk colour with its icon and label | Use a coloured dot or border as the only signal |
 | Write times as `09:30 CST` and add the date when the day changes | Use "+1" day markers |
 | Say what a percentage refers to ("chance of rain or snow in that hour") | Show a bare "40%" |
-| Add a new colour as a raw value, then a semantic token | Put a hex value in `app.css` |
+| Add a new colour to `@theme` in `styles/main.css` | Put a hex value in a component or a page |
 | Keep one primary button per view | Add a second filled button |
 | Use cobalt, sun, lime, paper and ink for decoration | Use red, amber/orange or teal anywhere outside risk |
 | Keep risk chips round and everything else square | Round a card, button or sticker |

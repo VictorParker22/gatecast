@@ -29,9 +29,7 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23111418'/%3E%3Cpath d='M9 25V14a7 7 0 0 1 14 0v11M16 18v7' stroke='%23fff' stroke-width='2.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
   <link rel="preload" href="vendor/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="vendor/fonts/barlow-condensed-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="styles/tokens.css">
-  <link rel="stylesheet" href="styles/app.css">
-  <link rel="stylesheet" href="styles/how.css">
+  <link rel="stylesheet" href="styles/site.css">
   <!-- Only the settings popover (theme, units, clock) needs script; the page itself is plain HTML. -->
   <script type="module">
     import { initSettings } from './js/shell.js';
@@ -62,27 +60,27 @@
 
   <div id="settings" class="settings" popover aria-labelledby="settings-title"></div>
 
-  <main id="main" class="guide">
-    <section class="hero hero--compact guide__hero" aria-labelledby="how-title">
-      <p class="guide__eyebrow signage">About</p>
-      <h1 id="how-title">How Gatecast works</h1>
-      <p class="hero__lede">Gatecast is weird news from real outlets, with the weather on top, a library of strange true stories, and flight and trip checks when you need them. This page says how the stories and the weather verdicts are chosen, how reader votes and tips work, where every piece comes from, what we never do, and how to tell us when we get something wrong.</p>
+  <main id="main" class="frame grid gap-8 pb-12">
+    <section class="hero hero--compact pb-0" aria-labelledby="how-title">
+      <p class="signage mb-2 text-sm text-np-muted">About</p>
+      <h1 id="how-title" class="hero__title">How Gatecast works</h1>
+      <p class="hero__lede max-w-measure">Gatecast is weird news from real outlets, with the weather on top, a library of strange true stories, and flight and trip checks when you need them. This page says how the stories and the weather verdicts are chosen, how reader votes and tips work, where every piece comes from, what we never do, and how to tell us when we get something wrong.</p>
     </section>
 
-    <nav class="guide__toc" aria-labelledby="toc-title">
-      <h2 id="toc-title" class="signage">On this page</h2>
-      <ol>
-        <li><a href="#weird">How the weird news is chosen</a></li>
-        <li><a href="#community">Reader votes and tips</a></li>
-        <li><a href="#brief">How The brief is chosen</a></li>
-        <li><a href="#verdict">How a weather verdict is worked out</a></li>
-        <li><a href="#sources">Where the data comes from</a></li>
-        <li><a href="#never">What Gatecast never does</a></li>
-        <li><a href="#corrections">Corrections and contact</a></li>
+    <nav class="border-y border-line py-3" aria-labelledby="toc-title">
+      <h2 id="toc-title" class="signage text-sm/tight text-np-muted">On this page</h2>
+      <ol class="mt-2 flex flex-wrap gap-x-6">
+        <li><a class="inline-flex min-h-tap items-center" href="#weird">How the weird news is chosen</a></li>
+        <li><a class="inline-flex min-h-tap items-center" href="#community">Reader votes and tips</a></li>
+        <li><a class="inline-flex min-h-tap items-center" href="#brief">How The brief is chosen</a></li>
+        <li><a class="inline-flex min-h-tap items-center" href="#verdict">How a weather verdict is worked out</a></li>
+        <li><a class="inline-flex min-h-tap items-center" href="#sources">Where the data comes from</a></li>
+        <li><a class="inline-flex min-h-tap items-center" href="#never">What Gatecast never does</a></li>
+        <li><a class="inline-flex min-h-tap items-center" href="#corrections">Corrections and contact</a></li>
       </ol>
     </nav>
 
-    <section class="guide__section" id="weird" aria-labelledby="weird-title">
+    <section class="doc-section" id="weird" aria-labelledby="weird-title">
       <h2 id="weird-title">How the weird news is chosen</h2>
       <p>Every story comes from a real news outlet. We show its own headline, its name, the time and a link to the full story on its site. We don’t copy the article, rewrite the headline or add AI summaries. Pictures are the outlet’s own preview images, loaded from its site and credited, and a few outlets are shown without pictures.</p>
       <p>The outlets are UPI Odd News, Smithsonian Magazine, Atlas Obscura, ScienceDaily, Mental Floss, Live Science, SoraNews24, Sky News and Oddity Central. General-interest outlets only appear when a story is genuinely odd, and their quizzes, lists and podcasts are left out.</p>
@@ -90,48 +88,48 @@
       <p>The editor’s picks come first. A person chose each one, and any rating or note on it is the editor’s own. After the picks, stories are newest day first, and within a day the oddest first. Nothing is ranked by clicks.</p>
     </section>
 
-    <section class="guide__section" id="community" aria-labelledby="community-title">
+    <section class="doc-section" id="community" aria-labelledby="community-title">
       <h2 id="community-title">Reader votes and tips</h2>
       <p>The Weird-o-meter and the guestbook don’t use accounts or cookies. To count one vote per person per story and to stop floods, we keep a scrambled code (a salted SHA-256 hash) made from your network address, never the address itself. A vote’s code is deleted 90 days after you last voted on that story, while your rating stays in the story’s total. A tip’s code changes every day and is erased after 7 days, and the tip itself is deleted after 90 days.</p>
       <p>The readers’ average appears only once 50 people have voted on a story. We never open the links you send; a person checks every one before anything is published. Your reading streak is kept on your device only.</p>
     </section>
 
-    <section class="guide__section" id="brief" aria-labelledby="brief-title">
+    <section class="doc-section" id="brief" aria-labelledby="brief-title">
       <h2 id="brief-title">How The brief is chosen</h2>
       <p>The brief on the front page is built from three things: the place you chose, the weather there, and your saved trips. It shows only the parts that have something in them. There is no hidden profile: the place and trips are stored in your browser, not on our servers.</p>
-      <div class="guide__grid">
-        <article class="guide__card">
+      <div class="mt-2 grid grid-cols-[repeat(auto-fill,minmax(min(100%,--spacing(80)),1fr))] gap-3">
+        <article class="doc-card">
           <h3>Weather news</h3>
           <p>Active National Weather Service alerts for your place, most severe first, each linked to weather.gov. Then at most one forecast item, and only when an airport near you is at Elevated or High risk in the next three hours. A calm day adds nothing.</p>
         </article>
-        <article class="guide__card">
+        <article class="doc-card">
           <h3>Headlines</h3>
           <p>From a hand-picked list of 20 newsrooms (listed <a href="#newsrooms">below</a>). For a US place in a state on the list you get that state’s newsrooms; otherwise a short list of weather and aviation newsrooms. Stories from the past seven days, newest first, at most three from any one outlet and eight in all.</p>
           <p>Political items are never ranked by clicks. Gatecast does not count clicks: the order is time.</p>
         </article>
-        <article class="guide__card">
+        <article class="doc-card">
           <h3>Nothing copied</h3>
           <p>Each headline is the outlet’s own words, its name, the time and a link to the story. We never read or show the description, the opening paragraph or the article. There are no AI-written summaries or rewritten headlines.</p>
         </article>
-        <article class="guide__card">
+        <article class="doc-card">
           <h3>Pictures</h3>
           <p>The picture beside a headline is the publisher’s own link-preview image, credited “Image: <i>outlet</i>”. Your browser loads it straight from the publisher’s site (we never copy, store or resize it), and no referrer is sent. That means the publisher’s server sees your IP address. Any outlet can be switched to text only, and a picture that fails to load becomes the outlet’s initials.</p>
         </article>
-        <article class="guide__card">
+        <article class="doc-card">
           <h3>Your statehouse</h3>
           <p>Recent floor votes on bills in your state, copied as recorded from Open States: the bill, its official title, the result and the split by party, linked to the official record. Committee votes, procedural motions and votes older than 120 days are left out, and we add no words of our own.</p>
         </article>
-        <article class="guide__card">
+        <article class="doc-card">
           <h3>Both sides</h3>
           <p>One full, dated, linked quote from a named Democrat and one from a named Republican on the same topic, under a neutral fact with its source. We do not paraphrase or grade either. A person approves every topic before it appears, and the database refuses to publish a topic without a statement from each side. Every publish, withdrawal and deletion is logged with who did it.</p>
         </article>
       </div>
     </section>
 
-    <section class="guide__section" id="verdict" aria-labelledby="verdict-title">
+    <section class="doc-section" id="verdict" aria-labelledby="verdict-title">
       <h2 id="verdict-title">How a weather verdict is worked out</h2>
       <p>Gatecast looks at the hourly forecast for the hours that matter: for a trip, the hours you are at each airport, from an hour before you land to an hour after you leave; for a flight, the time around departure and landing; for an airport, the next three hours. Each hour gets points for weather that tends to slow airports down: thunderstorms, freezing rain, snow, fog and low visibility, strong gusts and very heavy rain. The worst factor counts in full and each further one adds a third of its points. The worst hour sets the level.</p>
-      <ul class="guide__levels" aria-label="Risk levels">
+      <ul class="flex flex-wrap gap-x-6 gap-y-2 *:flex *:items-center *:gap-2 *:text-np-muted" aria-label="Risk levels">
         <li><span class="chip chip--low"><svg class="risk-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.8 2.8L16 9.5"/></svg><span>Low</span></span> under 30 points</li>
         <li><span class="chip chip--elevated"><svg class="risk-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5 21.5 20h-19z"/><path d="M12 10v4.5M12 17.3h.01"/></svg><span>Elevated</span></span> 30 to 59</li>
         <li><span class="chip chip--high"><svg class="risk-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.2 3h7.6L21 8.2v7.6L15.8 21H8.2L3 15.8V8.2z"/><path d="M12 7.5v5.5M12 16.3h.01"/></svg><span>High</span></span> 60 and above</li>
@@ -139,9 +137,9 @@
       <p>At a connection, weather where your inbound flight leaves counts at half weight, because a late inbound flight is what breaks a connection, and a short layover adds points. A short layover on its own is pointed out in words, not counted as weather risk.</p>
       <p><strong>These thresholds are judgement calls.</strong> They have not yet been back-tested against real delay records, and they will change when they are.</p>
       <p>A trip verdict also says how far ahead it is: up to three days the forecast is usually good, up to a week timing can still shift, and beyond that it is an outlook. A sharper confidence label, from how many forecast model runs agree, is planned but not built yet.</p>
-      <details class="guide__more">
-        <summary>The points, exactly</summary>
-        <table class="guide__table">
+      <details class="max-w-176 rounded-md border border-line bg-np-card px-4 open:pb-4 [&>p]:mt-3 [&>p]:text-np-muted">
+        <summary class="min-h-tap cursor-pointer py-3 font-semibold">The points, exactly</summary>
+        <table class="doc-table">
           <caption class="sr-only">Points each forecast hour gets, by weather</caption>
           <thead><tr><th scope="col">What the forecast shows in an hour</th><th scope="col">Points</th></tr></thead>
           <tbody>
@@ -166,10 +164,10 @@
       </details>
     </section>
 
-    <section class="guide__section" id="sources" aria-labelledby="sources-title">
+    <section class="doc-section" id="sources" aria-labelledby="sources-title">
       <h2 id="sources-title">Where the data comes from</h2>
       <p>Every source is free and public. Each has limits, and we would rather show nothing than guess.</p>
-      <dl class="guide__sources">
+      <dl class="doc-defs">
         <div><dt>Open-Meteo</dt><dd>Forecasts up to 16 days, place search and air quality, called from your browser. Licensed CC BY 4.0. Its free tier is for non-commercial use and is limited per network address, so the forecast can be busy at times.</dd></div>
         <div><dt>National Weather Service</dt><dd>Weather alerts, and which state a US place is in. US only.</dd></div>
         <div><dt>NOAA Aviation Weather Center</dt><dd>The latest observation at an airport (METAR), through our server. The raw report is one tap deeper.</dd></div>
@@ -179,7 +177,7 @@
         <div><dt>Open States</dt><dd>Statehouse floor votes, collected once an hour, a few states at a time. Votes can arrive late, and we link the official record on every one.</dd></div>
         <div id="newsrooms"><dt>Newsrooms</dt><dd>
           The headlines and preview pictures come from these outlets’ public feeds, checked on 16 November 2026:
-          <ul class="guide__outlets">
+          <ul class="my-2 grid gap-1 pl-4">
             <li><b>New York:</b> New York Focus, City &amp; State New York, WAMC</li>
             <li><b>New Jersey:</b> New Jersey Monitor, NJ Spotlight News</li>
             <li><b>California:</b> CalMatters, KQED</li>
@@ -196,9 +194,9 @@
       </dl>
     </section>
 
-    <section class="guide__section" id="never" aria-labelledby="never-title">
+    <section class="doc-section" id="never" aria-labelledby="never-title">
       <h2 id="never-title">What Gatecast never does</h2>
-      <ul class="guide__never">
+      <ul class="grid gap-2 pl-4">
         <li>Show news text written by AI. An AI assistant may help a reviewer check quotes against their sources, but nothing it writes is saved unless a person saves it, and nothing it writes is shown to readers as news.</li>
         <li>Sell your data. There are no accounts; your place and trips stay in your browser.</li>
         <li>Rank political items by clicks, or grade newsrooms as left, right or trustworthy.</li>
@@ -207,9 +205,9 @@
       </ul>
     </section>
 
-    <section class="guide__section" id="corrections" aria-labelledby="corrections-title">
+    <section class="doc-section" id="corrections" aria-labelledby="corrections-title">
       <h2 id="corrections-title">Corrections and contact</h2>
-      <p>If something on Gatecast is wrong, misleading or out of date, please tell us. For now reports go through GitHub, where they are public: <a class="guide__report" href="https://github.com/VictorParker22/gatecast/issues/new?template=bug_report.yml" rel="noopener">Report an error</a>. Say which page, what you saw and what it should say. We fix errors as soon as we can; a public list of corrections is planned.</p>
+      <p>If something on Gatecast is wrong, misleading or out of date, please tell us. For now reports go through GitHub, where they are public: <a class="font-semibold" href="https://github.com/VictorParker22/gatecast/issues/new?template=bug_report.yml" rel="noopener">Report an error</a>. Say which page, what you saw and what it should say. We fix errors as soon as we can; a public list of corrections is planned.</p>
       <p>Security problems should not go in a public report. Use <a href="https://github.com/VictorParker22/gatecast/security/advisories/new" rel="noopener">GitHub’s private vulnerability reporting</a> instead. There is no email address yet.</p>
       <p>Newsrooms: if you would like your pictures or headlines removed, report it the same way and we will switch your outlet off.</p>
     </section>

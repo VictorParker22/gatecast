@@ -1,0 +1,5 @@
+/* The reviewer console's own components (review.html only; private, noindex), compiled to styles/console.css next to
+   site.css so the public pages do not carry them. @reference gives @apply the same theme, variants and daisyUI plugin
+   as main.css without emitting any of it again; utilities used in review.html and js/review.js are in site.css. */
+@reference "./main.css";
+@import "./components/review.css";

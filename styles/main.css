@@ -1,0 +1,275 @@
+/* Gatecast on Tailwind CSS v4: the entry file. Compiled to styles/site.css (local) and public/styles/site.css (build)
+   by scripts/build-css.cjs. Never edit site.css; edit this file and styles/components/*.css.
+   Layers, lowest first: theme (tokens) -> base (element defaults) -> components (the shared pieces, built with @apply)
+   -> utilities (in the markup). See docs/design-system.md, "How the theme works". */
+
+/* Only the pages and scripts that are on Tailwind are scanned. index.html and library.html (and their scripts) still use
+   styles/tokens.css + app.css + home.css / library.css until phase 2, and do not load this file. */
+@import "tailwindcss" source(none);
+@source "../how.html";
+@source "../trip.html";
+@source "../flights.html";
+@source "../review.html";
+@source "../js/trip.js";
+@source "../js/tripview.js";
+@source "../js/flights.js";
+@source "../js/review.js";
+@source "../js/view.js";
+@source "../js/ui.js";
+@source "../js/shell.js";
+
+/* daisyUI 5, only for the reviewer console's form controls and badges (used from styles/console.css). Prefixed d- so it never collides with
+   Gatecast's own .btn / .card / .chip; no stock themes (the "gatecast" theme below maps it onto the newsprint tokens). */
+@plugin "daisyui" {
+  prefix: "d-";
+  themes: false;
+  logs: false;
+  include: input, textarea, kbd, badge;
+}
+@plugin "daisyui/theme" {
+  name: "gatecast";
+  default: true;
+  color-scheme: "light dark";
+  --color-base-100: var(--color-np-paper);
+  --color-base-200: var(--color-np-sunken);
+  --color-base-300: var(--color-line);
+  --color-base-content: var(--color-np-ink);
+  --color-neutral: var(--color-np-ink);
+  --color-neutral-content: var(--color-np-paper);
+  --color-primary: var(--color-np-cobalt);
+  --color-primary-content: var(--color-np-on-cobalt);
+  --radius-field: 2px;
+  --radius-selector: 999px;
+  --radius-box: 3px;
+  --size-field: 0.25rem;
+  --size-selector: 0.25rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+
+/* The night edition: Settings > Appearance writes localStorage "color-scheme", which an inline script in each page's head
+   copies to <meta name="color-scheme">. "dark" or "light" there wins; otherwise ("light dark") the device decides.
+   Colours do not need this variant: every colour token is a light-dark() pair and follows color-scheme on its own,
+   including inside always-dark ink panels. Use dark: only for non-colour differences. */
+@custom-variant dark {
+  &:where(:root:has(meta[name="color-scheme"][content="dark"]), :root:has(meta[name="color-scheme"][content="dark"]) *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not(:has(meta[name="color-scheme"][content="light"])), :root:not(:has(meta[name="color-scheme"][content="light"])) *) {
+      @slot;
+    }
+  }
+}
+
+/* Fonts are self-hosted (SIL Open Font License) so no visitor data goes to a font service. */
+@font-face { font-family: "Inter Variable"; font-style: normal; font-display: swap; font-weight: 100 900; src: url("../vendor/fonts/inter-latin-wght-normal.woff2") format("woff2-variations"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Inter Variable"; font-style: normal; font-display: swap; font-weight: 100 900; src: url("../vendor/fonts/inter-latin-ext-wght-normal.woff2") format("woff2-variations"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Barlow Condensed"; font-style: normal; font-display: swap; font-weight: 600; src: url("../vendor/fonts/barlow-condensed-latin-600-normal.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Barlow Condensed"; font-style: normal; font-display: swap; font-weight: 600; src: url("../vendor/fonts/barlow-condensed-latin-ext-600-normal.woff2") format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Barlow Condensed"; font-style: normal; font-display: swap; font-weight: 700; src: url("../vendor/fonts/barlow-condensed-latin-700-normal.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Barlow Condensed"; font-style: normal; font-display: swap; font-weight: 700; src: url("../vendor/fonts/barlow-condensed-latin-ext-700-normal.woff2") format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Barlow Condensed"; font-style: normal; font-display: swap; font-weight: 800; src: url("../vendor/fonts/barlow-condensed-latin-800-normal.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Alfa Slab One"; font-style: normal; font-display: swap; font-weight: 400; src: url("../vendor/fonts/alfa-slab-one-latin-400-normal.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "VT323"; font-style: normal; font-display: swap; font-weight: 400; src: url("../vendor/fonts/vt323-latin-400-normal.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+
+/* ================= Theme: the one scale =================
+   Spacing: Tailwind's default 4px step (p-1 = 4px, p-2 = 8px, p-3 = 12px, p-4 = 16px, p-6 = 24px, p-8 = 32px, p-12 = 48px,
+   p-16 = 64px). Type: Tailwind's default scale (xs 12, sm 14, base 16, lg 18, xl 20, 2xl 24, 3xl 30, 4xl 36, 5xl 48)
+   plus the named steps below, each with the board or page it comes from. Colours: only the newsprint inks and the three
+   risk colours exist (Tailwind's default palette is cleared, so no stray red, amber or teal can appear). */
+@theme {
+  --color-*: initial;
+  --color-white: #fff;
+  --color-black: #000;
+
+  /* Newsprint: light = day edition, dark = night edition (light-dark() follows color-scheme on each element). */
+  --color-np-paper: light-dark(#F3EEE2, #1B1813);   /* the page */
+  --color-np-card: light-dark(#FFFDF7, #26221B);    /* paper cards, windows, popover */
+  --color-np-sunken: light-dark(#E9E1CE, #322C23);  /* image slots, tracks, pressed rows */
+  --color-np-ink: light-dark(#15120E, #F3EEE2);     /* headlines, borders, rules */
+  --color-np-text: light-dark(#3B362E, #E4DCCB);    /* body copy */
+  --color-np-muted: light-dark(#4A443A, #CEC4B1);   /* meta lines, 4.5:1+ on paper and card */
+  --color-np-rule: light-dark(#8C8475, #6E6658);    /* dashed separators only, never text */
+  --color-np-cobalt: light-dark(#1C36C7, #93A2FF);  /* masthead, primary buttons, link hover, focus ring */
+  --color-np-on-cobalt: light-dark(#FFFFFF, #15120E);
+  --color-np-sun: #FFD23F;                          /* fill only, with np-on-sun text */
+  --color-np-on-sun: #15120E;
+  --color-np-lime: #C8F03C;                         /* fill only, with np-on-lime text */
+  --color-np-on-lime: #15120E;
+  --color-np-night: light-dark(#15120E, #0D0B08);   /* always-dark bands and ink panels */
+  --color-np-on-night: #FFFFFF;
+  --color-np-shadow-ink: light-dark(#15120E, #000000);
+  --color-np-field: light-dark(#FFFFFF, #1B1813);   /* text fields */
+  --color-np-placeholder: light-dark(#6B6458, #A79E8D);
+  --color-line: light-dark(#C9C2B2, #4A443A);       /* hairlines inside cards; outer edges are ink */
+  --color-map-land: light-dark(#D9D1BE, #3A342B);
+  --color-map-sea: light-dark(#E9E1CE, #15130F);
+  /* Risk: reserved for risk, always with a word and a shape (docs/design-system.md, principle 2). */
+  --color-risk-low: light-dark(#0B6B5F, #5FD3C0);
+  --color-risk-elevated: light-dark(#8F4E00, #F2B450);
+  --color-risk-high: light-dark(#A81C48, #FF8AA8);
+
+  --font-*: initial;
+  --font-sans: "Inter Variable", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --font-body: var(--font-sans);                    /* sentences */
+  --font-sign: "Barlow Condensed", "Inter Variable", "Arial Narrow", system-ui, sans-serif; /* signage, codes, numbers */
+  --font-slab: "Alfa Slab One", Rockwell, Georgia, serif;           /* big headlines only */
+  --font-pixel: "VT323", ui-monospace, "Cascadia Mono", Menlo, monospace; /* pixel type, never below 17px */
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+
+  /* Named type steps (everything else is Tailwind's scale). Fluid ones interpolate linearly between phone and desktop. */
+  --text-sign: 1.0625rem;                /* 17px: VT323's smallest crisp size and the nav tab label (WeirdHome board) */
+  --text-sign--line-height: 1.25;
+  --text-brand: 1.75rem;                 /* 28px header wordmark (WeirdHome board, shared with home.css) */
+  --text-brand--line-height: 1;
+  --text-sub: 1.375rem;                  /* 22px: VT323 window title bars (WeirdHome weather box), times on Trips stop cards, the live status word */
+  --text-sub--line-height: 1;
+  --text-code: 2.5rem;                   /* 40px airport codes in the journey strip and stop cards (Trips page) */
+  --text-code--line-height: 1;
+  --text-temp: 4rem;                     /* 64px temperature on a stop card (Trips page) */
+  --text-temp--line-height: 0.9;
+  --text-title: clamp(1.5rem, 1.1rem + 1.6vw, 2.125rem);          /* section titles: 24px phone -> 34px desktop */
+  --text-title--line-height: 1.15;
+  --text-page: clamp(1.875rem, 1.405rem + 1.905vw, 2.875rem);     /* inner-page h1 in the slab: 30px at 390 -> 46px */
+  --text-page--line-height: 1;
+  --text-display: clamp(2rem, 1.2rem + 3.6vw, 3.5rem);            /* the trip form's question h1 */
+  --text-display--line-height: 1;
+  --text-verdict: clamp(1.875rem, 1.3rem + 2.2vw, 2.75rem);       /* verdict / message headline */
+  --text-verdict--line-height: 1.02;
+  --text-verdict-hero: clamp(2.5rem, 1.3rem + 4.2vw, 5rem);       /* the risky trip verdict on the ink panel */
+  --text-verdict-hero--line-height: 0.95;
+  --text-verdict-phone: clamp(2.25rem, 1.2rem + 5vw, 2.75rem);    /* the same, below 40rem */
+  --text-verdict-phone--line-height: 0.95;
+  --text-flight: clamp(3.25rem, 2.2rem + 4.4vw, 5.75rem);         /* the flight number on the flight card */
+  --text-flight--line-height: 0.92;
+  --text-wxline: clamp(1.625rem, 1.3rem + 1.2vw, 2.125rem);       /* the one-line airport weather verdict */
+  --text-wxline--line-height: 1.05;
+  --text-route: clamp(2.25rem, 1.8rem + 1.8vw, 3.25rem);          /* airport codes either side of the flight line */
+  --text-route--line-height: 1;
+
+  --leading-tight: 1.15;
+  --leading-body: 1.5;
+  --tracking-caps: 0.06em;               /* signage caps */
+  --tracking-code: 0.04em;               /* airport codes, tab labels */
+  --tracking-eyebrow: 0.12em;            /* verdict eyebrows */
+  --tracking-label: 0.1em;               /* small uppercase labels */
+  --tracking-slab: -0.01em;              /* slab page titles */
+  --tracking-display: 0.01em;            /* condensed display headlines (trip verdict, stop cards) */
+
+  /* Line icons on a 24-unit grid: thin for big marks, icon for the default, bold for the brand mark. */
+  --stroke-width-thin: 1.5;
+  --stroke-width-icon: 1.7;
+  --stroke-width-bold: 2.4;
+  --stroke-width-plane: 0.12;            /* the plane glyph is drawn in a 2.4-unit box */
+
+  /* Square print corners; only risk chips are round (rounded-full). */
+  --radius-*: initial;
+  --radius-sm: 2px;
+  --radius-md: 2px;
+  --radius-lg: 3px;
+  --radius-xl: 3px;
+
+  /* Print offset shadows (never blurred) and the 90s bevel. */
+  --shadow-*: initial;
+  --shadow-np: 4px 4px 0 var(--color-np-shadow-ink);
+  --shadow-np-lg: 6px 6px 0 var(--color-np-shadow-ink);
+  --shadow-np-hover: 8px 8px 0 var(--color-np-shadow-ink);
+  --shadow-bevel: inset 2px 2px 0 rgb(255 255 255 / 0.6), inset -2px -2px 0 rgb(0 0 0 / 0.22);
+  --shadow-bevel-in: inset -2px -2px 0 rgb(255 255 255 / 0.4), inset 2px 2px 0 rgb(0 0 0 / 0.25);
+  --shadow-btn: var(--shadow-bevel), 3px 3px 0 var(--color-np-shadow-ink);          /* raised */
+  --shadow-btn-hover: var(--shadow-bevel), 4px 4px 0 var(--color-np-shadow-ink);    /* lifted */
+  --shadow-btn-active: var(--shadow-bevel-in), 1px 1px 0 var(--color-np-shadow-ink); /* pressed in */
+
+  /* Breakpoints: Tailwind's sm 40rem, md 48rem, lg 64rem, xl 80rem, plus the site nav's own switch. */
+  --breakpoint-xs: 30rem;                /* small phones: compact cards */
+  --breakpoint-nav: 46rem;               /* below this the nav is a bottom tab bar (same as home.css / library.css) */
+  --breakpoint-wide: 84rem;              /* the reviewer console gives its assistant its own column from here */
+
+  --container-headline: 16ch;            /* big page questions */
+  --container-lede: 52ch;                /* page ledes */
+  --container-measure: 62ch;             /* notes and verdict sentences */
+  --container-read: 68ch;                /* long reading text */
+  --container-frame: 80rem;              /* 1280px of content (WeirdHome board) */
+  --spacing-tap: 2.75rem;                /* 44px minimum target */
+  --spacing-gutter: clamp(1rem, 0.762rem + 0.976vw, 1.5rem); /* 16px phone -> 24px desktop gutters (boards) */
+  --spacing-tabbar: 4.625rem;            /* 74px phone tab bar */
+  --spacing-panel: clamp(1.5rem, 4vw, 3rem); /* sides of the risky-trip ink panel: 24px phone -> 48px desktop */
+  --spacing-icon: 1.25em;                /* line icons scale with the text beside them */
+
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --default-transition-duration: 80ms;
+  --animate-rise: rise 150ms var(--ease-out);
+  --animate-pulse-soft: pulse-soft 1.2s ease-in-out infinite alternate;
+  --animate-ping-soft: ping-soft 1.6s var(--ease-out) infinite;
+  @keyframes rise { from { opacity: 0; transform: translateY(8px); } }
+  @keyframes pulse-soft { to { opacity: 0.45; } }
+  @keyframes ping-soft { from { transform: scale(1); opacity: 0.55; } to { transform: scale(2.6); opacity: 0; } }
+}
+
+/* Decorative textures and the page frame: not utilities, but tokens the components read. */
+@layer theme {
+  :root {
+    --np-print: repeating-linear-gradient(0deg, light-dark(rgb(21 18 14 / 0.028), rgb(255 255 255 / 0.02)) 0 1px, transparent 1px 3px);
+    --np-halftone-lite: radial-gradient(light-dark(rgb(21 18 14 / 0.1), rgb(255 255 255 / 0.06)) 1px, transparent 1.6px);
+    --frame: min(100% - 2 * var(--spacing-gutter), var(--container-frame));
+  }
+  /* Browsers without light-dark() (Safari before 17.5): the day edition, or the night edition on a dark device. */
+  @supports not (color: light-dark(#000, #fff)) {
+    :root {
+      --color-np-paper: #F3EEE2; --color-np-card: #FFFDF7; --color-np-sunken: #E9E1CE; --color-np-ink: #15120E; --color-np-text: #3B362E;
+      --color-np-muted: #4A443A; --color-np-rule: #8C8475; --color-np-cobalt: #1C36C7; --color-np-on-cobalt: #FFFFFF; --color-np-night: #15120E;
+      --color-np-shadow-ink: #15120E; --color-np-field: #FFFFFF; --color-np-placeholder: #6B6458; --color-line: #C9C2B2;
+      --color-map-land: #D9D1BE; --color-map-sea: #E9E1CE; --color-risk-low: #0B6B5F; --color-risk-elevated: #8F4E00; --color-risk-high: #A81C48;
+      --np-print: repeating-linear-gradient(0deg, rgb(21 18 14 / 0.028) 0 1px, transparent 1px 3px);
+      --np-halftone-lite: radial-gradient(rgb(21 18 14 / 0.1) 1px, transparent 1.6px);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --color-np-paper: #1B1813; --color-np-card: #26221B; --color-np-sunken: #322C23; --color-np-ink: #F3EEE2; --color-np-text: #E4DCCB;
+        --color-np-muted: #CEC4B1; --color-np-rule: #6E6658; --color-np-cobalt: #93A2FF; --color-np-on-cobalt: #15120E; --color-np-night: #0D0B08;
+        --color-np-shadow-ink: #000000; --color-np-field: #1B1813; --color-np-placeholder: #A79E8D; --color-line: #4A443A;
+        --color-map-land: #3A342B; --color-map-sea: #15130F; --color-risk-low: #5FD3C0; --color-risk-elevated: #F2B450; --color-risk-high: #FF8AA8;
+        --np-print: repeating-linear-gradient(0deg, rgb(255 255 255 / 0.02) 0 1px, transparent 1px 3px);
+        --np-halftone-lite: radial-gradient(rgb(255 255 255 / 0.06) 1px, transparent 1.6px);
+      }
+    }
+  }
+}
+
+/* ================= Base: element defaults on top of Tailwind's preflight ================= */
+@layer base {
+  :root { color-scheme: light dark; }
+  :root:has(> head > meta[name="color-scheme"][content="dark"]) { color-scheme: dark; }
+  :root:has(> head > meta[name="color-scheme"][content="light"]) { color-scheme: light; }
+  html { -webkit-text-size-adjust: 100%; scroll-padding-top: --spacing(4); }
+  /* Plain declarations here (not @apply of the text and leading utilities), so a text-* utility on an element still sets its own
+     line-height instead of inheriting --tw-leading from the base rule. */
+  body { @apply bg-np-paper font-body text-np-ink tabular-nums; font-size: var(--text-base); line-height: var(--leading-body); background-image: var(--np-print); }
+  h1, h2, h3 { @apply font-body font-bold text-balance; line-height: var(--leading-tight); }
+  a { @apply text-np-ink underline decoration-1 underline-offset-[0.2em] hover:text-np-cobalt hover:decoration-2; }
+  small { @apply font-normal text-np-muted; font-size: var(--text-xs); }
+  :focus-visible { @apply outline-3 outline-offset-3 outline-np-cobalt; }
+  input::placeholder { @apply text-np-placeholder opacity-100; }
+  /* Text fields: 44px, 2px ink edge; the invalid state is the high-risk rose with aria-invalid (and a message). */
+  input:is([type="text"], [type="datetime-local"], [type="number"]), select {
+    @apply min-h-tap w-full rounded-sm border-2 border-np-ink bg-np-field px-3 font-medium text-inherit hover:border-np-cobalt;
+  }
+  input[aria-invalid="true"] { @apply border-risk-high shadow-[0_0_0_1px_var(--color-risk-high)]; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  }
+}
+
+/* Risk plumbing: a component sets --risk once from its level (risk-low ... risk-unknown); everything inside reads it.
+   JS builds these names from a level, so they are always generated. */
+@utility risk-low { --risk: var(--color-risk-low); }
+@utility risk-elevated { --risk: var(--color-risk-elevated); }
+@utility risk-high { --risk: var(--color-risk-high); }
+@utility risk-unknown { --risk: var(--color-np-muted); }
+@utility risk-calm { --risk: var(--color-np-muted); }
+@source inline("risk-{low,elevated,high,unknown,calm}");
+
+@import "./components/site.css";
+@import "./components/weather.css";

@@ -1,9 +1,11 @@
 // Build step: generates the two large data files and assembles the static site in public/
-// (pages, robots.txt, a sitemap.xml dated today, styles, scripts and vendor files including the share image).
+// (pages, robots.txt, a sitemap.xml dated today, styles, scripts and vendor files including the share image),
+// and compiles the Tailwind stylesheets public/styles/site.css and console.css (scripts/build-css.cjs).
 // Airports come from mwgg/Airports (MIT), ranked with OurAirports (public domain); the land outline from Natural Earth via world-atlas.
 const fs = require('node:fs');
 const path = require('node:path');
 const topo = require('topojson-client');
+const { buildCss } = require('./build-css.cjs');
 
 const root = path.join(__dirname, '..');
 const out = path.join(root, 'public');
@@ -44,7 +46,10 @@ async function airportRanks() {
 
 async function build() {
   fs.rmSync(out, { recursive: true, force: true });
-  for (const dir of ['styles', 'js', 'vendor', 'assets']) fs.cpSync(path.join(root, dir), path.join(out, dir), { recursive: true });
+  // styles/: the legacy stylesheets that index.html and library.html still link (phase 2), not the Tailwind sources.
+  const notSource = (src) => !/[/\\]styles[/\\](main\.css|main-console\.css|site\.css|console\.css|components)$/.test(src);
+  for (const dir of ['styles', 'js', 'vendor', 'assets']) fs.cpSync(path.join(root, dir), path.join(out, dir), { recursive: true, filter: notSource });
+  buildCss(path.join(out, 'styles'));
   for (const file of STATIC_FILES) fs.copyFileSync(path.join(root, file), path.join(out, file));
   fs.writeFileSync(path.join(out, 'sitemap.xml'), sitemapXml());
   fs.mkdirSync(path.join(out, 'data'), { recursive: true });
@@ -72,7 +77,7 @@ async function build() {
   let d = '';
   for (const poly of polys) for (const ring of poly) d += 'M' + ring.map(([x, y]) => (x + 180).toFixed(1) + ' ' + (90 - y).toFixed(1)).join('L') + 'Z';
   fs.writeFileSync(path.join(out, 'js', 'world.js'), '// Natural Earth 110m land (public domain), equirectangular 360x180\nexport const LAND_PATH="' + d + '";\n');
-  console.log('built public/: ' + rows.length + ' airports, map outline ' + d.length + ' bytes, sitemap of ' + SITEMAP_PAGES.length + ' pages');
+  console.log('built public/: site.css ' + fs.statSync(path.join(out, 'styles', 'site.css')).size + ' bytes, ' + rows.length + ' airports, map outline ' + d.length + ' bytes, sitemap of ' + SITEMAP_PAGES.length + ' pages');
 }
 
 if (require.main === module) build().catch((err) => { console.error(err); process.exit(1); });

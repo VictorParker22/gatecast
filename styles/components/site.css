@@ -1,0 +1,153 @@
+/* Shared site pieces: the frame, header and navigation, footer, buttons, settings window, form fields, examples,
+   risk chips and the type helpers. Built from utilities with @apply; the only raw values are hairlines. */
+@layer components {
+  .frame { width: var(--frame); @apply mx-auto; }
+  .skip-link { @apply absolute -top-16 left-4 z-100 border-2 border-np-ink bg-np-sun px-4 py-2 font-bold text-np-on-sun focus:top-2; }
+
+  /* Type helpers: signage (Barlow Condensed) for codes, numbers and labels; sentences stay in Inter. */
+  .code { @apply font-sign font-bold tracking-code; }
+  .signage { @apply font-sign font-bold tracking-caps uppercase; }
+  .num { @apply font-sign font-semibold tracking-normal tabular-nums; }
+  .icon, .wx, .risk-icon { @apply size-icon flex-none fill-none stroke-current stroke-icon; stroke-iconcap: round; stroke-iconjoin: round; }
+  .wx--lg { @apply size-12 stroke-thin; }
+
+  /* ---------- Header: wordmark, beveled tabs, settings, on a double rule ---------- */
+  .site-header {
+    @apply flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-3;
+    padding-inline: max(var(--spacing-gutter), (100% - var(--container-frame)) / 2);
+    border-bottom: 3px double var(--color-np-ink);
+    background-image: var(--np-halftone-lite); background-size: 6px 6px;
+  }
+  .brand { @apply inline-flex min-h-tap items-center gap-2 text-np-ink no-underline hover:text-np-ink; }
+  .brand__mark { @apply size-8 flex-none; }
+  .brand__mark rect { fill: var(--color-np-cobalt); rx: 0; stroke: var(--color-np-ink); stroke-width: 2px; }
+  .brand__mark path { @apply fill-none stroke-np-on-cobalt stroke-bold; stroke-iconcap: round; stroke-iconjoin: round; }
+  .brand__name {
+    @apply font-slab text-brand/none font-normal tracking-normal text-np-cobalt uppercase;
+    text-shadow: 1px 1px 0 var(--color-np-sun), 2px 2px 0 var(--color-np-shadow-ink);
+  }
+
+  /* Main navigation: Front page, Library, Trips, Flights. The current page is pressed in (night, sun type).
+     Below the nav breakpoint the same list is a tab bar fixed to the bottom of the screen. */
+  .site-nav { @apply mr-auto ml-2 max-nav:fixed max-nav:inset-x-0 max-nav:bottom-0 max-nav:z-50 max-nav:m-0 max-nav:border-t-3 max-nav:border-np-sun max-nav:bg-np-night; }
+  .site-nav { @variant max-nav { padding-bottom: env(safe-area-inset-bottom); } }
+  .site-nav ul { @apply flex flex-wrap gap-2 max-nav:grid max-nav:grid-cols-4 max-nav:gap-0; }
+  .site-nav a {
+    @apply inline-flex min-h-12 items-center gap-2 rounded-sm border-2 border-np-ink bg-np-card px-3.5 font-sign text-sign/none font-extrabold tracking-code text-np-ink uppercase no-underline shadow-btn transition-[translate,box-shadow] ease-in-out;
+    @apply hover:-translate-px hover:text-np-ink hover:shadow-btn-hover active:translate-0.5 active:shadow-btn-active motion-reduce:hover:translate-0;
+    @variant max-nav {
+      @apply flex min-h-tabbar flex-col justify-center gap-0.75 rounded-none border-0 bg-transparent px-0.5 text-center text-sm/none tracking-caps text-np-on-night shadow-none;
+      @apply hover:translate-0 hover:text-np-sun hover:shadow-none;
+    }
+  }
+  .site-nav a[href="library.html"]:not([aria-current]) { @apply bg-np-lime text-np-on-lime max-nav:bg-transparent max-nav:text-np-on-night; }
+  .site-nav a[aria-current="page"] { @apply bg-np-night text-np-sun max-nav:bg-np-sun max-nav:text-np-on-sun; }
+  .site-nav__icon { @apply hidden size-5.5 fill-none stroke-current stroke-2 max-nav:block; stroke-iconcap: round; stroke-iconjoin: round; }
+  .site-nav :focus-visible { @apply max-nav:-outline-offset-4 max-nav:outline-np-sun; }
+  body:has(.site-nav) { @variant max-nav { padding-bottom: calc(var(--spacing-tabbar) + env(safe-area-inset-bottom)); } }
+  .site-header__settings { @apply ml-auto w-tap px-0 nav:w-auto nav:px-4; }
+  .site-header__settings span { @apply max-nav:sr-only; }
+
+  .site-footer {
+    width: var(--frame);
+    @apply mx-auto mt-8 pt-6 pb-12 text-sm text-np-muted;
+    border-top: 3px double var(--color-np-ink);
+    & p + p { @apply mt-2 text-xs; }
+    & a { @apply text-np-ink; }
+  }
+
+  /* ---------- Buttons: beveled, 44px, lift on hover, press in ---------- */
+  .btn {
+    @apply inline-flex min-h-tap cursor-pointer items-center justify-center gap-2 rounded-sm border-2 border-np-ink bg-np-card px-4 font-bold text-np-ink no-underline shadow-btn transition-[translate,box-shadow,background-color,border-color] ease-in-out;
+    @apply hover:-translate-px hover:text-inherit hover:shadow-btn-hover active:translate-0.5 active:shadow-btn-active motion-reduce:hover:translate-0;
+    @apply disabled:cursor-progress disabled:opacity-60;
+  }
+  .btn--primary { @apply bg-np-cobalt px-6 text-np-on-cobalt hover:text-np-on-cobalt; }
+  .btn--ghost { @apply text-sm; }
+  .btn--text { @apply border-0 bg-transparent px-2 text-np-ink underline decoration-1 underline-offset-[0.2em] shadow-none hover:translate-0 hover:text-np-cobalt hover:decoration-2 hover:shadow-none; }
+  .btn--icon { @apply w-tap px-0 text-np-ink; }
+
+  /* ---------- Settings popover: a program window ---------- */
+  .settings {
+    inset: auto; top: --spacing(18); right: max(var(--spacing-gutter), (100vw - var(--container-frame)) / 2);
+    width: min(22rem, 100vw - 2 * var(--spacing-gutter));
+    @apply rounded-none border-2 border-np-ink bg-np-card px-6 pb-6 text-np-ink shadow-np-lg;
+    & h2 { @apply -mx-6 mb-4 border-b-2 border-np-ink bg-np-cobalt px-3 py-2 font-pixel text-sub/none font-normal tracking-code text-np-on-cobalt uppercase; }
+  }
+  .segmented {
+    @apply mb-4 flex flex-wrap gap-1 last:mb-0;
+    & legend { @apply mb-1 text-sm text-np-muted; }
+    & label { @apply relative flex-1; }
+    & input { @apply absolute inset-0 cursor-pointer opacity-0; }
+    & span { @apply grid min-h-tap place-items-center rounded-sm border-2 border-np-ink bg-np-card px-3 text-sm font-semibold whitespace-nowrap shadow-bevel; }
+    & input:checked + span { @apply bg-np-night font-bold text-np-sun shadow-bevel-in; }
+    & input:focus-visible + span { @apply outline-3 outline-offset-2 outline-np-cobalt; }
+  }
+
+  /* ---------- Page hero ---------- */
+  .hero { @apply pt-6 pb-8; }
+  .hero__title { @apply max-w-headline font-slab text-display font-normal tracking-slab; }
+  .hero__lede { @apply mt-3 max-w-lede text-xl/snug text-np-muted; }
+  .hero--compact { @apply pt-4 pb-6; & .hero__title { @apply max-w-none text-page; } & .hero__lede { @apply text-base/snug; } }
+
+  /* ---------- Forms ---------- */
+  .form-box { @apply mt-6 rounded-none border-2 border-np-ink bg-np-card p-4 shadow-np-lg nav:p-6; }
+  .field {
+    @apply grid min-w-0 gap-1;
+    & label { @apply text-sm font-semibold; }
+  }
+  .field__hint { @apply text-xs font-normal text-np-muted; }
+  .combo { @apply relative; }
+  .combo__list {
+    @apply absolute inset-x-0 top-[calc(100%+var(--spacing))] z-5 max-h-76 overflow-auto rounded-none border-2 border-np-ink bg-np-card p-1 shadow-np;
+    & [role="option"] { @apply flex min-h-tap cursor-pointer items-center gap-3 px-3 py-2; }
+    & [aria-selected="true"], & [role="option"]:hover { @apply bg-np-sun text-np-on-sun; & small { @apply text-np-on-sun; } }
+    & .code { @apply w-[3ch] text-xl text-np-ink; }
+  }
+  .combo__name { @apply grid min-w-0 leading-[1.25]; & small { @apply truncate; } }
+  .combo__empty { @apply p-3 text-sm text-np-muted; }
+  .form-error { @apply mt-3 font-semibold text-risk-high; }
+  .disclosure > summary { @apply flex min-h-tap cursor-pointer items-center gap-2 font-semibold text-np-ink; }
+
+  /* Square tags for places and examples (only risk chips are round). */
+  .pill {
+    @apply min-h-tap cursor-pointer rounded-sm border-2 border-np-ink bg-np-card px-3 text-sm font-semibold text-np-ink shadow-bevel hover:bg-np-sun hover:text-np-on-sun;
+  }
+  .pill--recent { @apply font-sign text-base font-semibold tracking-code; }
+
+  /* ---------- Risk: a word, a shape and a colour ---------- */
+  /* A component sets --risk once from its level; everything inside reads it. */
+    .chip--low, .stop--low, .hour--low, .map__stop--low { @apply risk-low; }
+  .chip--elevated, .stop--elevated, .hour--elevated, .map__stop--elevated, .live--alert { @apply risk-elevated; }
+  .chip--high, .stop--high, .hour--high, .map__stop--high { @apply risk-high; }
+  .chip--unknown, .stop--unknown, .map__stop--unknown { @apply risk-unknown; }
+  .chip--calm, .stop--calm { @apply risk-unknown; }
+  .chip {
+    @apply inline-flex items-center gap-[0.35em] rounded-full border py-[0.15em] pr-[0.75em] pl-[0.45em] font-sign text-base/[1.25] font-bold tracking-code whitespace-nowrap uppercase;
+    color: var(--risk);
+    background: color-mix(in oklab, var(--risk) 14%, var(--color-np-card));
+    border-color: color-mix(in oklab, var(--risk) 45%, transparent);
+    & .risk-icon { @apply stroke-2; }
+  }
+  .chip--calm { @apply border-transparent bg-transparent px-0; }
+  .chip--sm { font-size: var(--text-sm); }
+
+  @media (forced-colors: active) { .chip, .stop, .btn, .pill { border-color: CanvasText; } }
+}
+
+/* Reading pages (how.html): sections, small cards, the points table and the sources list. */
+@layer components {
+  .doc-section { @apply grid scroll-mt-4 gap-3; & > h2 { @apply text-title; } & > p, & > ul { @apply max-w-read; } }
+  .doc-card { @apply grid content-start gap-2 rounded-md border border-line bg-np-card p-4; & h3 { @apply text-base/tight; } }
+  .doc-table {
+    @apply w-full text-sm;
+    & th, & td { @apply border-b border-line py-2 text-left font-normal; }
+    & thead th { @apply font-semibold text-np-muted; }
+    & td { @apply text-right text-base; }
+  }
+  .doc-defs {
+    @apply grid max-w-208 border-t border-line;
+    & > div { @apply grid scroll-mt-4 gap-x-6 gap-y-2 border-b border-line py-3 sm:grid-cols-[--spacing(56)_1fr]; }
+    & dt { @apply font-semibold; }
+  }
+}

@@ -1,0 +1,205 @@
+/* Weather pieces shared by Trips and Flights (and drawn by js/view.js): verdict, stop card, facts, hourly strip,
+   live rows, route map, panel and the always-dark ink panel. Then the few Trips and Flights pieces that have states
+   (risk levels, here / key hours, live / stale, risk banners) and so cannot be plain utilities in the templates. */
+@layer components {
+  .results { @apply scroll-mt-4 pb-8 motion-safe:animate-rise; }
+  .skeleton { @apply mt-4 grid gap-3; & span { @apply h-36 bg-np-sunken motion-safe:animate-pulse-soft; } }
+
+  /* Verdict banner: calm collapses (plain card, coloured rule), risk expands (tinted). */
+  .verdict {
+    @apply grid grid-cols-[auto_1fr] items-start gap-x-4 gap-y-3 border-2 border-l-8 border-np-ink bg-np-card p-6 shadow-np-lg risk-unknown lg:grid-cols-[auto_1fr_auto];
+    border-left-color: var(--risk);
+    & > .risk-icon { @apply size-10 stroke-thin; color: var(--risk); }
+    & h2 { @apply font-slab text-verdict font-normal tracking-normal outline-none; }
+    & p { @apply mt-2 max-w-measure; }
+    & div > .btn { @apply mt-3; }
+  }
+  .verdict--loading { @apply grid-cols-1; }
+
+  /* ---------- Stop card: one airport ---------- */
+  .stop {
+    @apply @container grid min-w-0 gap-3 border-2 border-t-6 border-np-ink bg-np-card p-4 shadow-np;
+    border-top-color: var(--risk);
+  }
+  .stop__role { @apply font-sign text-sm font-bold tracking-caps text-np-muted uppercase; }
+  .stop__name { @apply text-sm text-np-muted; }
+  .stop__title { @apply mt-0.5 text-xl/tight outline-none; & .code { @apply mr-[0.2em] align-[-0.08em] text-[1.4em] text-np-ink; } }
+  .stop__wx { @apply grid gap-x-6 gap-y-2 border border-dashed border-np-rule bg-np-paper p-3 @xl:grid-cols-[auto_1fr] @xl:items-center; }
+  .stop__temp { @apply font-sign text-[2.5rem]/none font-semibold tracking-normal; & small { @apply font-body text-base; } }
+  .stop__why { @apply font-medium; }
+  .stop--calm .stop__why, .stop--low .stop__why { @apply font-normal text-np-muted; }
+  .stop__live { @apply grid gap-2 empty:hidden; }
+  .facts {
+    @apply grid grid-cols-3 gap-2;
+    & dt { @apply text-xs text-np-muted; }
+    & dd { @apply font-semibold; }
+  }
+
+  /* Live rows: observation (raw report behind a disclosure), alerts and FAA programmes. */
+  .live { @apply flex items-start gap-2 text-sm text-np-muted; & b { @apply text-np-ink; } }
+  .live--alert { @apply rounded-sm px-3 py-2 text-np-ink; background: color-mix(in oklab, var(--risk) 12%, var(--color-np-card)); & .risk-icon { @apply mt-0.5; color: var(--risk); } }
+  details.live { @apply block; & summary { @apply cursor-pointer py-3; } }
+  .live__raw { @apply mt-2 grid gap-0.5 text-xs; & code { @apply font-mono wrap-anywhere text-np-ink; } }
+  .live--plan small { @apply whitespace-nowrap; }
+
+  /* ---------- Hour-by-hour strip (js/view.js hourlyStrip) ---------- */
+  .hours { @apply -mx-4 overflow-x-auto px-4; scrollbar-width: thin; }
+  .hours__list { @apply grid min-w-max auto-cols-[minmax(3rem,1fr)] grid-flow-col; }
+  .hour {
+    @apply relative grid grid-rows-[repeat(6,auto)_--spacing(3.5)] justify-items-center gap-0.75 px-0.5 pt-1 pb-2 text-xs;
+    & .wx { @apply size-6; }
+    &.is-here { background: color-mix(in oklab, var(--color-np-ink) 10%, transparent); }
+  }
+  .hour.is-here + .hour:not(.is-here), .hour:not(.is-here) + .hour.is-here { box-shadow: inset 1px 0 0 var(--color-np-ink); }
+  .hour__mark { @apply font-sign text-xs font-bold tracking-code whitespace-nowrap text-np-ink uppercase; }
+  .hour__time { @apply font-sign text-sm font-semibold text-np-muted; }
+  .hour__temp { @apply font-sign text-base font-semibold; }
+  .hour__pop {
+    @apply grid justify-items-center gap-0.5;
+    & i { @apply block size-6 rounded-lg; background: linear-gradient(to top, var(--color-np-muted) calc(var(--v) * 1%), var(--color-np-sunken) 0); }
+    & b { @apply font-normal text-np-muted; }
+  }
+  .hour__gust { @apply text-np-muted; }
+  /* The risk bar changes height as well as colour: 3, 8, 14px. */
+  .hour__risk { @apply h-0.75 w-full self-end rounded-sm opacity-55; background: var(--risk); }
+  .hour--elevated .hour__risk { @apply h-2 opacity-100; }
+  .hour--high .hour__risk { @apply h-3.5 opacity-100; }
+  .hours--plain .hour { grid-template-rows: none; }
+  .hours__legend { @apply sticky left-0 mt-2 flex flex-wrap justify-between gap-x-4 gap-y-1 text-xs text-np-muted; }
+  .hours__key::before {
+    content: ""; @apply mr-[0.4em] inline-block size-[0.8em] border-l border-np-ink align-[-1px];
+    background: color-mix(in oklab, var(--color-np-ink) 22%, transparent);
+  }
+
+  /* ---------- Route map (js/view.js routeMap): inline SVG ---------- */
+  .map { @apply block aspect-[16/10] w-full; }
+  .map__sea { fill: var(--color-map-sea); }
+  .map__land { fill: var(--color-map-land); }
+  .map__arc { @apply fill-none stroke-np-ink opacity-75; stroke-iconcap: round; }
+  .map__stop { fill: var(--risk); stroke: var(--color-np-card); }
+  .map__stop text { @apply fill-np-ink font-sign font-bold tracking-code; stroke: var(--color-map-sea); paint-order: stroke; }
+  .map__plane { @apply fill-np-ink stroke-np-card; }
+
+  .panel { @apply grid min-w-0 gap-3 border-2 border-np-ink bg-np-card p-4 shadow-np; & h2 { @apply text-base/tight; } }
+
+  /* Ink panel: dark in both editions. Its inside switches to the dark colour scheme, so every light-dark() token
+     (text, muted, risk hues, hairlines, focus ring) resolves to its night value on the ink. */
+  .ink { @apply rounded-xl bg-np-night text-np-on-night forced-colors:border forced-colors:border-[CanvasText]; }
+  .ink__in { color-scheme: dark; }
+  .ink .btn--ghost { @apply border-np-ink bg-transparent text-inherit hover:border-np-ink; }
+
+  /* ================= Trips ================= */
+  .tverdict--low { @apply risk-low; }
+  .tverdict--elevated { @apply risk-elevated; --shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-iconcap='round' stroke-iconjoin='round'%3E%3Cpath d='M12 3.5 21.5 20h-19z'/%3E%3Cpath d='M12 10v4.5M12 17.3h.01'/%3E%3C/svg%3E"); }
+  .tverdict--high { @apply risk-high; --shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-iconcap='round' stroke-iconjoin='round'%3E%3Cpath d='M8.2 3h7.6L21 8.2v7.6L15.8 21H8.2L3 15.8V8.2z'/%3E%3Cpath d='M12 7.5v5.5M12 16.3h.01'/%3E%3C/svg%3E"); }
+  /* Phones: the small shape sits beside the risk word instead of the big mark. */
+  .tverdict__word--shape::before {
+    @apply max-sm:size-6 max-sm:flex-none max-sm:bg-current max-sm:content-[''];
+    mask: var(--shape) center / contain no-repeat;
+  }
+
+  /* The journey strip: hours on top (flights line up with them), captions below; stops span both rows via subgrid. */
+  .jstop { @apply row-span-2 grid grid-rows-subgrid gap-y-3; }
+  .jstop--low, .jhour--low, .jkey--low { @apply risk-low; }
+  .jstop--elevated, .jhour--elevated, .jkey--elevated { @apply risk-elevated; }
+  .jstop--high, .jhour--high, .jkey--high { @apply risk-high; }
+  .jstop--unknown { @apply risk-unknown; }
+  .jstop__hours { background: color-mix(in oklab, var(--color-np-sunken) 60%, var(--color-np-card)); }
+  .jstop--elevated .jstop__hours, .jstop--high .jstop__hours { background: color-mix(in oklab, var(--risk) 13%, var(--color-np-card)); }
+  .jhour {
+    @apply relative grid min-w-9 grid-rows-[--spacing(11)_auto] items-end justify-items-center gap-1.5;
+    &:not(.is-here) .jhour__bar { @apply opacity-35; }
+    &.is-key .jhour__time { @apply font-bold text-np-ink; }
+    &.is-key .jhour__bar { box-shadow: 0 0 0 2px var(--color-np-card), 0 0 0 4px var(--color-np-ink); }
+  }
+  .jhour__bar { @apply h-2 w-5.5 rounded-lg forced-colors:forced-color-adjust-none; background: var(--risk); }
+  .jhour--elevated .jhour__bar { @apply h-5.5; }
+  .jhour--high .jhour__bar { @apply h-11; }
+  .jhour__mark {
+    @apply absolute bottom-[calc(100%+var(--spacing))] left-1/2 grid -translate-x-1/2 grid-rows-[1.1em_1.1em] justify-items-center font-sign text-xs/[1.1] font-bold tracking-code whitespace-nowrap text-np-ink uppercase empty:hidden;
+    /* Land always on the upper line, take-off on the lower, so labels on neighbouring hours never run together. */
+    & .m-land { @apply row-start-1; }
+    & .m-takeoff { @apply row-start-2; }
+  }
+  .jleg__line::after { content: ""; @apply absolute -top-1.5 -right-0.5 size-2 rotate-45 border-t-2 border-r-2 border-np-muted; }
+  .jkey { @apply inline-block w-3 rounded-sm forced-colors:forced-color-adjust-none; background: var(--risk); }
+  .jkey--low { @apply h-1.25; }
+  .jkey--elevated { @apply h-2.75; }
+  .jkey--high { @apply h-4.5; }
+  .jkey--ring { @apply mx-0.75 size-2.5; background: none; box-shadow: 0 0 0 2px var(--color-np-card), 0 0 0 4px var(--color-np-ink); }
+  .jkey--faded { @apply h-2.75 opacity-35; background: var(--color-np-muted); }
+
+  /* Stop card on Trips: the .stop card with a bigger code and temperature; the driver of the risk is in risk colour. */
+  .tcard { @apply flex flex-col gap-4 rounded-lg p-4 sm:p-6; }
+  .facts .is-driver { & dd { @apply font-bold text-(--risk); } & small { @apply text-inherit; } & .risk-icon { @apply mr-[0.2em] inline size-[1em] stroke-2 align-[-0.125em]; } }
+  .tcard__hours .hours { @apply -mx-4 px-4 sm:-mx-6 sm:px-6; }
+  .tcard:not(.stop--low) .stop__why { @apply font-medium; }
+
+  /* What changed since the last look. */
+  .since__close { @apply size-tap min-h-tap border-0 bg-transparent p-0 text-inherit shadow-none hover:translate-0 hover:bg-np-sunken hover:shadow-none; }
+
+  /* ================= Flights ================= */
+  .fl-card {
+    @apply grid gap-6 rounded-lg border border-line bg-np-card p-6 shadow-np lg:grid-cols-[minmax(0,1fr)_minmax(20rem,28rem)] lg:gap-x-8 lg:p-8;
+    grid-template-areas: "head" "progress" "stats" "map" "note";
+    @variant lg { grid-template-areas: "head map" "progress map" "stats map" "note note"; }
+    &:not(:has(.fl-map)) { @variant lg { grid-template-columns: 1fr; grid-template-areas: "head" "progress" "stats" "note"; } }
+  }
+  /* Live status: a word and a pulsing dot, monochrome. */
+  .fl-status {
+    @apply inline-flex min-h-tap flex-wrap items-center gap-x-[0.55em] gap-y-[0.25em] text-np-muted;
+    & i { @apply relative size-3 flex-none rounded-full bg-current forced-colors:bg-[CanvasText] forced-colors:forced-color-adjust-none; }
+    & i::after { content: ""; @apply absolute inset-0 rounded-[inherit] bg-current motion-safe:animate-ping-soft; }
+    &.is-stale i { @apply bg-transparent shadow-[inset_0_0_0_2px_currentColor]; }
+    &.is-stale i::after { @apply hidden; }
+  }
+  .fl-status--live { @apply text-np-ink; }
+  .fl-progress__track {
+    @apply relative -mt-5 h-1.5 rounded-full bg-np-sunken;
+    & i { @apply absolute inset-y-0 left-0 w-(--pct,0%) rounded-[inherit] bg-np-ink forced-colors:bg-[CanvasText] forced-colors:forced-color-adjust-none; }
+    &.is-idle { @apply h-0.5; background: repeating-linear-gradient(90deg, var(--color-np-ink) 0 8px, transparent 8px 16px); }
+  }
+  .fl-progress__plane { @apply absolute top-1/2 left-(--pct) size-11 -translate-1/2 fill-np-ink stroke-np-card stroke-plane; }
+  .fl-tag { @apply ml-[0.25em] rounded-full border border-line px-[0.6em] py-[0.05em] align-[0.15em] font-sign text-sm font-semibold tracking-caps not-italic uppercase; }
+
+  /* The weather verdict for the airports: calm is a quiet line, risk becomes a tinted banner. */
+  .fl-wx--low { @apply risk-calm; }
+  .fl-wx--elevated { @apply risk-elevated; }
+  .fl-wx--high { @apply risk-high; }
+  .fl-wx--unknown { @apply risk-unknown; }
+  .fl-wxline__now { @apply text-np-muted; }
+  .fl-wxline {
+    @apply grid grid-cols-[auto_minmax(0,1fr)] items-start gap-3;
+    & > .risk-icon { @apply mt-0.5 size-7 stroke-icon; color: var(--risk); }
+  }
+  .fl-wx--risk .fl-wxline {
+    @apply rounded-lg border border-l-6 px-6 py-4 forced-colors:border-[CanvasText];
+    background: color-mix(in oklab, var(--risk) 11%, var(--color-np-card));
+    border-color: color-mix(in oklab, var(--risk) 40%, transparent); border-left-color: var(--risk);
+    & > .risk-icon { @apply size-9 stroke-thin; }
+    & .fl-wxline__now { @apply text-np-ink; }
+  }
+  .fl-wxmore > summary {
+    @apply inline-flex min-h-tap cursor-pointer list-none items-center gap-2 rounded-full border border-line bg-np-card px-4 text-sm font-semibold hover:border-np-ink [&::-webkit-details-marker]:hidden;
+    &::after { content: ""; @apply size-[0.5em] translate-y-[-0.15em] rotate-45 border-r-2 border-b-2 border-current transition-[rotate]; }
+  }
+  .fl-wxmore[open] > summary::after { @apply translate-y-[0.1em] rotate-225; }
+
+  /* Nearby aircraft as a departure board: codes in signage, numbers lined up, sideways scroll on phones. */
+  .fl-board {
+    @apply -mx-4 max-h-120 overflow-auto; scrollbar-width: thin;
+    & table { @apply w-full min-w-76 tabular-nums; }
+    & th, & td { @apply h-tap border-t border-line px-2 text-right whitespace-nowrap max-xs:px-1; }
+    & th:first-child, & td:first-child { @apply pl-4; }
+    & th:last-child, & td:last-child { @apply pr-4; }
+    & th:first-child, & td:nth-child(2) { @apply text-left; }
+    & thead th { @apply sticky top-0 z-1 h-9 border-t-0 border-b border-b-np-ink bg-np-card font-sign text-sm font-semibold tracking-caps text-np-muted uppercase max-xs:tracking-[0.02em]; }
+    & thead small { @apply font-body text-xs tracking-normal normal-case; }
+    & tbody tr:first-child > * { @apply border-t-0; }
+    & td { @apply font-sign text-lg font-semibold max-xs:text-base; }
+    & tbody th { @apply font-sign text-xl font-bold tracking-code max-xs:text-lg; }
+    & tbody th a { @apply inline-flex min-h-tap items-center; }
+    & tbody th span { @apply text-np-muted; }
+    & tbody tr:hover { @apply bg-np-sunken; }
+  }
+}

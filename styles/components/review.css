@@ -1,0 +1,175 @@
+/* Reviewer console (review.html, js/review.js): a small help desk for the Both sides queue and the weird-news tips.
+   Monochrome on purpose: a status is a word in a neutral pill, never a risk colour. Text fields, keys and status pills
+   start from daisyUI (d-input, d-textarea, d-kbd, d-badge) themed onto the newsprint tokens in main.css. */
+@layer components {
+  .rv h4, .rv-dialog h2 { @apply m-0; }
+  .rv h4 { @apply font-bold; }
+  .rv-muted { @apply text-sm text-np-muted; }
+  .rv-hint { @apply text-xs font-normal text-np-muted; }
+  .rv-quiet { @apply text-sm text-np-muted; }
+  .rv-alert { @apply rounded-sm border-2 border-np-ink px-3 py-2 font-semibold text-np-ink before:font-bold before:content-['!_']; }
+
+  /* ---------- Gate (sign in, link sent, not a reviewer) ---------- */
+  .rv-gate__lede { @apply text-np-muted; }
+  .rv-gate__h2 { @apply mb-2 text-xl/tight; }
+  .rv-gate__sent, .rv-gate__form { @apply grid gap-3; }
+  .rv-gate__form .btn, .rv-gate .btn--ghost, .rv-gate .btn--text { @apply justify-self-start; }
+  .rv-sql { @apply m-0 overflow-x-auto rounded-sm bg-np-sunken p-3 font-mono text-sm/normal break-all whitespace-pre-wrap; }
+
+  /* ---------- Fields ---------- */
+  .rv-field { @apply grid min-w-0 gap-1; & label { @apply text-sm font-semibold; } }
+  .rv input:is([type="email"], [type="url"], [type="date"], [type="search"]), .rv textarea, .rv-dialog textarea {
+    @apply d-input h-auto min-h-tap w-full rounded-sm border-np-ink bg-np-paper px-3 py-2 text-base text-inherit shadow-none;
+    @apply focus:outline-3 focus:outline-offset-3 focus:outline-np-cobalt focus-within:outline-np-cobalt;
+  }
+  .rv textarea, .rv-dialog textarea { @apply d-textarea block resize-y leading-normal; }
+  .rv [aria-invalid="true"] { @apply border-np-ink shadow-[0_0_0_1px_var(--color-np-ink)]; }
+  .rv-err { @apply text-sm font-semibold before:content-['!_']; }
+  .rv-counter { @apply justify-self-end text-xs text-np-muted tabular-nums; &.is-over { @apply font-bold text-np-ink; } }
+  .rv-form, .rv-form__row { @apply grid gap-3; }
+  .rv-form__row { @apply sm:grid-cols-2; }
+  .rv-form__actions { @apply flex flex-wrap items-center gap-2; }
+  .rv-sides {
+    @apply m-0 flex flex-wrap gap-1 border-0 p-0;
+    & legend { @apply mb-1 p-0 text-sm font-semibold; }
+    & label { @apply relative; }
+    & input { @apply absolute inset-0 cursor-pointer opacity-0; }
+    & span { @apply inline-flex min-h-tap items-center rounded-full border border-np-ink px-4 text-sm; }
+    & input:checked + span { @apply border-np-ink bg-np-ink font-semibold text-np-paper; }
+    & input:focus-visible + span { @apply outline-3 outline-offset-2 outline-np-ink; }
+  }
+  .rv-btn--sm { @apply px-3 text-sm; }
+  .rv-btn--danger { @apply shadow-[inset_0_0_0_2px_var(--color-np-paper)]; }
+  .rv-keys kbd { @apply d-kbd h-auto min-h-0 min-w-0 rounded-lg border border-b-2 border-line bg-np-card px-1.5 py-0.5 font-body text-xs/none font-semibold text-np-ink shadow-none; }
+
+  /* ---------- Shell: sidebar, top bar, list and ticket panes ---------- */
+  .rv-nav__group { @apply px-2 pt-4 pb-1 text-xs font-bold tracking-label text-np-muted uppercase max-md:hidden; }
+  .rv-nav { @apply grid gap-0.5 max-md:flex max-md:gap-1; }
+  .rv-nav__item {
+    @apply flex min-h-tap w-full cursor-pointer items-center justify-between gap-2 rounded-sm border-0 bg-transparent px-3 text-left text-sm text-inherit hover:bg-np-sunken max-md:w-auto max-md:whitespace-nowrap;
+    &[aria-current="page"] { @apply bg-np-ink font-semibold text-np-paper; }
+  }
+  .rv-nav__count { @apply text-xl/none; }
+  .rv-panes[data-pane="list"] .rv-detail, .rv-panes[data-pane="detail"] .rv-list { @apply max-lg:hidden; }
+
+  /* ---------- List (the queue) ---------- */
+  .rv-list__head { @apply sticky top-0 z-1 flex items-center justify-between gap-3 border-b border-line bg-np-card p-3 md:p-4; }
+  .rv-list__title { @apply flex min-w-0 items-baseline gap-2 text-3xl/none whitespace-nowrap; }
+  .rv-new { @apply flex-none whitespace-nowrap; }
+  .rv-list__n { @apply text-xl text-np-muted; }
+  .rv-list > .rv-quiet { @apply px-4 pt-3; }
+  .rv-keys { @apply px-4 py-2 text-xs text-np-muted max-md:hidden; }
+  .rv-rows { @apply -outline-offset-3 focus-visible:rounded-none focus-visible:outline-2 focus-visible:outline-np-ink; }
+  .rv-row {
+    @apply grid cursor-pointer gap-1 border-b border-l-4 border-b-line border-l-transparent p-3 hover:bg-np-sunken md:px-4;
+    &.is-active { @apply bg-np-sunken; }
+    &[aria-selected="true"] { @apply border-l-np-ink; }
+  }
+  .rv-rows:focus-visible .rv-row.is-active { @apply shadow-[inset_0_0_0_2px_var(--color-np-ink)]; }
+  .rv-row__title { @apply leading-5 font-semibold; }
+  .rv-row__meta { @apply flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-np-muted; }
+  .rv-empty { @apply px-4 py-8 text-np-muted; }
+
+  /* Pills and chips: neutral by design. */
+  .rv-pill {
+    @apply d-badge h-auto min-h-6 rounded-full border-np-ink bg-transparent px-2 font-sign text-xs/none font-bold tracking-caps text-np-ink uppercase;
+  }
+  .rv-pill--published { @apply border-np-ink bg-np-ink text-np-paper; }
+  .rv-pill--rejected { @apply border-np-sunken bg-np-sunken text-np-muted line-through; }
+  .rv-pill--hidden, .rv-pill--withdrawn { @apply border-dashed; }
+  .rv-pill--withdrawn { @apply text-np-muted; }
+  .rv-chip { @apply inline-flex min-h-6 items-center rounded-sm bg-np-sunken px-2 text-sm text-np-ink; }
+  .rv-cov { @apply inline-flex gap-1; }
+  .rv-side-mark {
+    @apply inline-flex min-h-6 items-center gap-px rounded-sm border border-dashed border-np-ink px-1 font-sign text-sm/none font-bold text-np-muted;
+    & .icon { @apply size-[1em] stroke-bold; }
+    &.is-on { @apply border-solid text-np-ink; }
+  }
+  .rv-cov--lg .rv-side-mark { @apply min-h-7 px-2 text-base; }
+
+  /* ---------- Detail (the ticket) ---------- */
+  .rv-detail__empty { @apply grid min-h-[60vh] place-items-center p-6 text-center text-np-muted; }
+  .rv-ticket { @apply grid min-h-full grid-cols-[minmax(0,1fr)] content-start; }
+  .rv-ticket--assist { @apply wide:grid-cols-[minmax(0,1fr)_--spacing(80)]; }
+  .rv-ticket__main { @apply grid min-w-0 content-start gap-4 p-4 lg:p-6; }
+  .rv-ticket:not(.rv-ticket--assist) .rv-ticket__main { @apply wide:max-w-208; }
+  .rv-back { @apply justify-self-start lg:hidden; }
+  .rv-ticket__head { @apply grid gap-2; }
+  .rv-ticket__tags { @apply flex flex-wrap items-center gap-2 text-sm; }
+  .rv-ticket__title { @apply text-title tracking-[-0.01em] focus:outline-none; }
+  .rv-block {
+    @apply grid gap-3 rounded-md border border-line bg-np-card p-3 md:rounded-lg md:p-4;
+    & h3 { @apply text-xs/tight font-bold tracking-label text-np-muted uppercase focus:outline-none; }
+    & h3 .num { @apply ml-2 text-xl tracking-normal text-np-ink; }
+  }
+  .rv-block__head { @apply flex flex-wrap items-center justify-between gap-2; }
+  .rv-fact { @apply text-xl/7; }
+  .rv-group { @apply grid gap-2; & + .rv-group { @apply border-t border-line pt-3; } }
+  .rv-group__title { @apply flex items-baseline gap-2 font-sign text-base/none font-bold tracking-caps uppercase; & .num { @apply text-np-muted; } }
+  .rv-cards, .rv-cands { @apply grid gap-2; }
+  .rv-card { @apply grid gap-2 rounded-md border border-line bg-np-paper p-3 focus:outline-3 focus:outline-np-ink md:px-4; }
+  .rv-card__quote, .rv-tip__note { @apply m-0 border-l-3 border-np-ink pl-3; }
+  .rv-card__quote p, .rv-tip__note { @apply whitespace-pre-line; }
+  .rv-card__tools { @apply flex flex-wrap items-center justify-between gap-2; }
+  .rv-card__edit { @apply inline-flex gap-1; }
+  .rv-verify { @apply flex flex-wrap items-center gap-2; }
+  .rv-verify__out { @apply grid gap-1; }
+  .rv-badge { @apply inline-flex items-center gap-1 text-sm font-semibold; & .icon { @apply size-[1.1em] stroke-bold; } }
+  .rv-badge--not_found, .rv-badge--unreachable { @apply text-np-ink underline decoration-dashed underline-offset-[0.25em]; }
+  .rv-context {
+    & summary { @apply flex min-h-tap cursor-pointer list-none items-center gap-1 text-sm before:w-[1ch] before:font-bold before:content-['+'] [&::-webkit-details-marker]:hidden; }
+    &[open] summary { @apply before:content-['−']; }
+    & p { @apply rounded-sm bg-np-sunken px-3 py-2 text-sm text-np-muted; }
+  }
+  .rv-timeline { @apply grid gap-2; & li { @apply relative pl-4 text-sm before:absolute before:top-[0.5em] before:left-0.5 before:size-1.75 before:rounded-full before:bg-np-ink before:content-['']; } }
+  .rv-notes { @apply grid gap-2; }
+  .rv-note { @apply grid gap-1 rounded-md bg-np-sunken p-3; & > p:first-child { @apply whitespace-pre-line; } }
+  .rv-dl { @apply grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-sm; & dt { @apply font-semibold; } }
+  .rv-split { @apply grid gap-1; }
+
+  /* Sticky action bar along the bottom of the ticket. */
+  .rv-actions { @apply sticky bottom-0 z-2 flex flex-wrap items-center gap-2 border-t border-line bg-np-card px-4 py-3 shadow-np lg:px-6 wide:col-span-full; }
+  .rv-actions__why { @apply flex-[1_1_--spacing(56)] text-sm text-np-muted; }
+  .rv-actions .btn:disabled { @apply cursor-not-allowed opacity-45; }
+
+  /* ---------- Assistant ---------- */
+  .rv-assist, .rv-assist--off { @apply mx-4 mb-4 lg:mx-6 lg:mb-6 wide:sticky wide:top-6 wide:m-6 wide:ml-0 wide:max-h-[calc(100dvh-var(--spacing)*36)] wide:overflow-auto; }
+  .rv-assist { @apply grid content-start gap-3 rounded-lg border border-line bg-np-card p-4; }
+  .rv-assist > summary { @apply flex min-h-tap cursor-pointer list-none items-center justify-between after:font-sign after:text-xl/none after:font-bold after:content-['+'] [&::-webkit-details-marker]:hidden; }
+  .rv-assist[open] > summary { @apply after:content-['−']; }
+  .rv-assist__title { @apply font-sign text-xl/none font-bold tracking-caps uppercase; }
+  .rv-assist__lede { @apply rounded-sm border border-dashed border-np-ink px-3 py-2 text-sm; }
+  .rv-assist__left { @apply mb-1; }
+  .rv-assist__part { @apply grid gap-2 border-t border-line py-3; & h4 { @apply text-sm; } & > .btn { @apply justify-self-start; } }
+  .rv-assist .rv-form > .btn, .rv-suggest .btn { @apply justify-self-start; }
+  .rv-assist__out { @apply grid gap-2 empty:hidden; }
+  .rv-assist__sub { @apply text-xs font-bold tracking-label text-np-muted uppercase; }
+  .rv-assist--off { @apply px-4 py-3; }
+  .rv-issues { @apply grid gap-2; }
+  .rv-issue { @apply grid min-h-tap w-full cursor-pointer gap-0.5 rounded-sm border border-line bg-np-paper px-3 py-2 text-left text-sm text-inherit hover:border-np-ink; }
+  .rv-issue__field { @apply font-bold; }
+  .rv-suggest { @apply grid gap-1 rounded-md bg-np-sunken p-3; }
+  .rv-note-box { @apply text-sm; }
+  .rv-ideas { @apply grid gap-1; & li { @apply flex items-center justify-between gap-2 text-sm; } }
+  .rv-cand__add { @apply flex flex-wrap gap-1; }
+  .rv-loading { @apply flex items-center gap-2 text-sm text-np-muted; }
+  .rv-spin {
+    @apply size-4 flex-none animate-spin rounded-full border-2 border-line border-t-np-ink;
+    @variant motion-reduce { @apply border-t-line border-r-np-ink; }
+  }
+  .rv-elapsed { @apply ml-auto flex-none text-base whitespace-nowrap text-np-ink; }
+
+  /* ---------- Toasts and dialog ---------- */
+  .rv-toast { @apply flex animate-rise items-center justify-between gap-3 rounded-md bg-np-night py-2 pr-2 pl-4 text-sm text-np-on-night shadow-np-lg; }
+  .rv-toast--error { @apply font-semibold outline-2 -outline-offset-5 outline-np-on-night; & span::before { content: "! "; } }
+  .rv-toast__close { @apply size-tap flex-none cursor-pointer rounded-sm border-0 bg-transparent text-xl text-inherit focus-visible:outline-np-on-night; }
+  .rv-dialog { @apply m-auto w-[min(100%-2*var(--spacing)*4,--spacing(120))] rounded-lg border border-line bg-np-card p-0 text-np-ink shadow-np-lg backdrop:bg-np-night/55; }
+  .rv-dialog__form { @apply grid gap-3 p-6; }
+  .rv-dialog__title { @apply text-xl/tight; }
+  .rv-dialog__actions { @apply flex flex-wrap justify-end gap-2; }
+
+  /* ---------- Weird news: tips and picks ---------- */
+  .rv-row__title--url { @apply grid gap-0.5 wrap-anywhere; & .rv-muted { @apply text-xs font-normal; } }
+  .rv-row__note { @apply italic wrap-anywhere; }
+  .rv-tip__url, .rv-tip__note { @apply wrap-anywhere; }
+}
