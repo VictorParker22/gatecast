@@ -90,10 +90,14 @@
   .stv-body { display: grid; gap: clamp(1.25rem, 0.9rem + 1.5vw, 2.5rem); align-items: start; }
   @media (width >= theme(--breakpoint-lg)) {
     .stv-body { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }
+    /* The media stays in view while the words beside it scroll. */
+    .stv-media { position: sticky; top: 0; }
+    /* Text-led (no picture, no video): one column; the read-more button and the meter share a row. */
     .stv-story--text .stv-body { grid-template-columns: minmax(0, 1fr); }
-    .stv-story--text .stv-side { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }
-    .stv-story--text .stv-side > .stv-go, .stv-story--text .stv-side > .stv-block:last-child { grid-column: 2; }
-    .stv-story--text .stv-hook { grid-row: span 2; }
+    .stv-story--text .stv-side { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+    .stv-story--text .stv-side > * { grid-column: 1 / -1; }
+    .stv-story--text .stv-side > .stv-go { grid-column: 1; }
+    .stv-story--text .stv-side > .stv-block:last-child { grid-column: 2; }
   }
 
   /* The picture or video in a glass screen: an ink bezel, rounded glass with an inner shadow, scanlines and a glare
@@ -126,7 +130,7 @@
   .stv-words__h span { display: inline-block; padding: 4px --spacing(2.5); background: var(--color-np-night); color: var(--color-np-lime); font-family: var(--font-sign); font-weight: 800; font-size: var(--text-lg); letter-spacing: var(--tracking-caps); text-transform: uppercase; rotate: -2deg; }
   .stv-words__p { margin: 0; font-size: var(--text-tv-words); line-height: 1.6; color: var(--color-np-ink); max-width: 62ch; text-wrap: pretty; }
   .stv-words__by { margin: --spacing(3) 0 0; font-size: var(--text-sm); color: var(--color-np-muted); }
-  .stv-only { margin: 0; padding: --spacing(3.5) --spacing(4); border: 2px dashed var(--color-np-on-night-muted); color: var(--color-np-on-night); font-size: var(--text-base); line-height: 1.5; }
+  .stv-only { margin: 0; padding: --spacing(1) 0 --spacing(1) --spacing(4); border-left: 6px solid var(--color-np-sun); color: var(--color-np-on-night); font-size: var(--text-lg); line-height: 1.5; max-width: 52ch; }
 
   /* The way out: the big sun button to the original, and the credits. */
   .stv-go { display: grid; gap: --spacing(3); }
@@ -167,7 +171,11 @@
   .stv__dial-n { rotate: calc(-1 * var(--dial)); font-family: var(--font-pixel); font-size: var(--text-sub); line-height: 1; color: var(--color-np-sun); transition: rotate 300ms cubic-bezier(0.2, 1.4, 0.4, 1); }
 
   /* ---------- The station ident: static, then the title card ---------- */
-  .stv__fx { position: absolute; inset: 0; z-index: 5; pointer-events: none; opacity: 0; display: grid; place-items: center; overflow: hidden; }
+  /* The static and the ident play on the screen only: the bar and the deck stay put, like the set around a tube. */
+  .stv__bar { grid-row: 1; grid-column: 1; }
+  .stv__screen { grid-row: 2; grid-column: 1; }
+  .stv__deck { grid-row: 3; grid-column: 1; }
+  .stv__fx { grid-row: 2; grid-column: 1; position: relative; z-index: 5; pointer-events: none; opacity: 0; display: grid; place-items: center; overflow: hidden; }
   .stv__static { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; opacity: 0; }
   .stv.is-static .stv__fx, .stv.is-ident .stv__fx { opacity: 1; }
   .stv.is-static .stv__static { opacity: 0.92; }
@@ -205,6 +213,7 @@
     .stv__btn { padding: 0 --spacing(2.5); }
     .stv__copy span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
     .stv__knob-long { display: none; }
+    .stv__deck::before, .stv__deck::after { display: none; }
     .stv__knob { flex: 1 1 0; justify-content: center; }
     .stv-hero { box-shadow: 6px 6px 0 var(--color-np-cobalt); rotate: none; }
     .stv-hero__ch { display: none; }

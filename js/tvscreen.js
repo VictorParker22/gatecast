@@ -154,6 +154,7 @@ export function createStoryTV({ order, render, afterRender = () => {}, ident = (
     if (push) setUrl(id, 'push');
     dlg.classList.remove('is-closing', 'is-in');
     dlg.showModal();
+    screen.scrollTop = 0; // a closed dialog keeps its last scroll position
     // Focus goes to the headline, so a screen reader starts with what the story is.
     content.querySelector('#stv-h')?.focus({ preventScroll: true });
     $('#stv-status').textContent = '';

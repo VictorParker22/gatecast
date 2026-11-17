@@ -103,6 +103,6 @@ export function tvView(x, { locale = 'en-GB', timeZone, failed } = {}) {
     readMore: { href: x.url, label: `Read the full story at ${x.outlet}` },
     credits,
     // What the screen says it is showing, in plain words, when there is no summary.
-    only: x.pick && x.summary ? '' : `${media.kind === 'image' ? 'The headline and the outlet’s own preview picture' : media.kind === 'video' ? 'The headline and the video' : 'The headline'} are all we show here. The full story is at ${x.outlet}.`,
+    only: x.pick && x.summary ? '' : `We show ${media.kind === 'image' ? 'the headline and the outlet’s own preview picture' : media.kind === 'video' ? 'the headline and the video' : 'the headline'} here. The full story is at ${x.outlet}.`,
   };
 }
