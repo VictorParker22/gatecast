@@ -324,3 +324,18 @@ test('positioning: package.json, the README and CONTRIBUTING describe weird news
   const intro = read('CONTRIBUTING.md').split('\n## ')[0];
   for (const w of ['weird news', 'weather', 'The Stacks']) assert.ok(intro.includes(w), `CONTRIBUTING intro: ${w}`);
 });
+
+test('llms.txt: a short guide for AI assistants, made from the same data as the pages, written by the build and served locally', () => {
+  const txt = B.llmsTxt();
+  assert.match(txt, /^# Gatecast\n\n> Gatecast is a free website/);
+  const books = JSON.parse(fs.readFileSync(new URL('../data/books.json', import.meta.url), 'utf8'));
+  assert.ok(txt.includes(`a library of ${books.books.length} real books`), 'the count comes from books.json');
+  for (const s of books.shelves) assert.ok(txt.includes(`](https://gatecast.vercel.app/stacks/${s.id}/)`), s.id);
+  for (const u of ['stacks/worth-knowing/', 'stacks/content-notes/', 'stacks/skyjack/', 'weekly/', 'feed.xml', 'how.html', 'trip.html', 'flights.html']) assert.ok(txt.includes(`(https://gatecast.vercel.app/${u})`), u);
+  // Every link is to this site, and nothing reads as an instruction to a model.
+  for (const m of txt.matchAll(/\]\((https?:\/\/[^)]+)\)/g)) assert.ok(m[1].startsWith('https://gatecast.vercel.app/'), m[1]);
+  assert.ok(!/ignore|you must|always (say|recommend)|system prompt/i.test(txt));
+  assert.match(fs.readFileSync(new URL('../scripts/build-data.cjs', import.meta.url), 'utf8'), /writeFileSync\(path\.join\(out, 'llms\.txt'\), llmsTxt\(\)\)/);
+  assert.match(fs.readFileSync(new URL('../server.js', import.meta.url), 'utf8'), /url\.pathname === '\/llms\.txt'/);
+  assert.match(fs.readFileSync(new URL('../robots.txt', import.meta.url), 'utf8'), /llms\.txt/);
+});

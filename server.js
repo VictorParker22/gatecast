@@ -99,6 +99,7 @@ const server = http.createServer(async (req, res) => {
   }
   // The sitemap is written by the build step; locally it is made on request, dated today, from the same code.
   if (url.pathname === '/sitemap.xml') return send(200, site.sitemapXml(), TYPES['.xml'], { 'Cache-Control': 'public, max-age=0, must-revalidate' });
+  if (url.pathname === '/llms.txt') return send(200, site.llmsTxt(), 'text/plain; charset=utf-8', { 'Cache-Control': 'public, max-age=0, must-revalidate' });
   if (url.pathname === '/api/faa-plans') {
     try { return send(200, JSON.stringify(await api[url.pathname](url.searchParams)), TYPES['.json'], { 'Cache-Control': FAA_PLANS_CACHE }); }
     catch (err) { return send(502, JSON.stringify({ error: 'upstream unavailable' }), TYPES['.json'], { 'Cache-Control': 'no-store' }); }

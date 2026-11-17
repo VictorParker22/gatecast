@@ -17,7 +17,7 @@ const B = require('../scripts/build-data.cjs');
 const raw = JSON.parse(read('data/books.json'));
 const INTROS = JSON.parse(read('data/shelf-intros.json'));
 const data = S.stocked(raw);
-const NB = data.books.length, NS = data.shelves.length;
+const NB = data.books.length, NS = data.shelves.length, NG = S.GUIDES.length; // books, stocked shelves, the two guides
 const m = await S.loadModel();
 const pages = S.renderStacks(data, m);
 const byId = new Map(pages.map((p) => [p.id, p]));
@@ -35,11 +35,11 @@ const ld = (html) => [...html.matchAll(/<script type="application\/ld\+json">([\
 test('one page per book, per stocked shelf and an index, written to public/stacks/<id>/index.html', async () => {
   assert.ok(NB >= 58, 'at least the 58 books of the first six shelves');
   assert.ok(NS >= 6 && NS <= raw.shelves.length);
-  assert.equal(pages.length, NB + NS + 1);
+  assert.equal(pages.length, NB + NS + NG + 1);
   assert.equal(new Set(pages.map((p) => p.path)).size, pages.length, 'paths are unique');
   for (const s of data.shelves) assert.ok(!data.books.some((b) => b.id === s.id), `shelf id ${s.id} is not also a book id`);
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gatecast-stacks-'));
-  assert.equal(await S.writeStacksPages(dir, data), NB + NS + 1);
+  assert.equal(await S.writeStacksPages(dir, data), NB + NS + NG + 1);
   assert.ok(fs.existsSync(path.join(dir, 'stacks', 'index.html')));
   for (const b of data.books) assert.ok(fs.existsSync(path.join(dir, 'stacks', b.id, 'index.html')), b.id);
   for (const s of data.shelves) assert.ok(fs.existsSync(path.join(dir, 'stacks', s.id, 'index.html')), s.id);
@@ -269,7 +269,7 @@ test('sitemap: the pages, /stacks/, the stocked shelves and the books with a tak
   const xml = B.sitemapXml({ day: '2099-01-01', dateOf: (f) => (f === 'how.html' ? '2026-11-10' : null) });
   const urls = [...xml.matchAll(/<url><loc>([^<]+)<\/loc><lastmod>([^<]+)<\/lastmod><\/url>/g)].map((x) => ({ loc: x[1], lastmod: x[2] }));
   const listed = data.books.filter(S.indexable).length;
-  assert.equal(urls.length, B.SITEMAP_PAGES.length + 1 + NS + listed, 'pages, /stacks/, shelves and only the books with a take');
+  assert.equal(urls.length, B.SITEMAP_PAGES.length + 1 + NS + NG + listed, 'pages, /stacks/, shelves and only the books with a take');
   assert.equal(new Set(urls.map((u) => u.loc)).size, urls.length, 'no duplicates');
   const at = (loc) => urls.find((u) => u.loc === 'https://gatecast.vercel.app/' + loc);
   assert.equal(at('how.html').lastmod, '2026-11-10', 'a page: its last commit');
@@ -377,7 +377,7 @@ test('indexing: book pages are noindex, follow and left out of the sitemap until
   }
   for (const p of pages.filter((x) => !x.id || shelfIds.has(x.id))) assert.ok(!p.html.includes('name="robots"'), `${p.path} is indexed`);
   const locs = S.stacksSitemapEntries(data).map((e) => e.loc);
-  assert.deepEqual(locs, [S.pageUrl(null), ...data.shelves.map((s) => S.pageUrl(s.id)), ...withTakes.map((b) => S.pageUrl(b.id))]);
+  assert.deepEqual(locs, [S.pageUrl(null), ...data.shelves.map((s) => S.pageUrl(s.id)), ...S.GUIDES.map((g) => S.pageUrl(g.id)), ...withTakes.map((b) => S.pageUrl(b.id))]);
 
   // With a take of TAKE_MIN_WORDS words: indexed, in the sitemap, and the take is shown in its paragraphs.
   const b0 = data.books.find((b) => b.id === 'helter-skelter');
@@ -391,8 +391,8 @@ test('indexing: book pages are noindex, follow and left out of the sitemap until
   assert.equal((h.match(/<h1[\s>]/g) || []).length, 1);
   const entries = S.stacksSitemapEntries(withTake);
   assert.ok(entries.some((e) => e.loc === S.pageUrl(b0.id)), 'listed in the sitemap');
-  assert.equal(entries.length, 1 + NS + withTakes.length + 1);
-  assert.equal((B.sitemapXml({ data: withTake, dateOf: () => null }).match(/<url>/g) || []).length, B.SITEMAP_PAGES.length + 1 + NS + withTakes.length + 1);
+  assert.equal(entries.length, 1 + NS + NG + withTakes.length + 1);
+  assert.equal((B.sitemapXml({ data: withTake, dateOf: () => null }).match(/<url>/g) || []).length, B.SITEMAP_PAGES.length + 1 + NS + NG + withTakes.length + 1);
 
   // One word short: shown, but still noindex and unlisted.
   const short = TAKE.replace(/ more$/, '');
@@ -436,9 +436,9 @@ test('a shelf with no books yet has no page, is not listed and is not in the sit
   }
   const full = withFiction();
   const fp = S.renderStacks(full, m);
-  assert.equal(fp.length, full.books.length + raw.shelves.length + 1);
+  assert.equal(fp.length, full.books.length + raw.shelves.length + NG + 1);
   assert.ok(fp.some((p) => p.id === 'fantasy') && fp.some((p) => p.id === 'scifi'));
-  assert.equal(S.stacksSitemapEntries(full).length, 1 + raw.shelves.length + full.books.filter(S.indexable).length);
+  assert.equal(S.stacksSitemapEntries(full).length, 1 + raw.shelves.length + NG + full.books.filter(S.indexable).length);
   assert.equal(S.shelfIntro([]), '');
 });
 
@@ -469,4 +469,41 @@ test('buildData: approved books from lib/stacks-db.js join the static ones; bad 
     assert.equal(await S.buildData({ data: raw, m, env: {}, load: { loadStacksExtras: async () => ({ books: [], featured: null }) } }), raw);
     assert.equal(await S.buildData({ data: raw, m, env: { GATECAST_STACKS_DB: 'off' }, load }), raw);
   } finally { console.warn = quiet; }
+});
+
+test('the guides: every "Worth knowing" note of the true-story shelves and every content note, word for word, indexed and in the sitemap', () => {
+  assert.deepEqual(S.GUIDES.map((g) => g.id), ['worth-knowing', 'content-notes']);
+  const fiction = new Set(data.shelves.filter((sh) => sh.fiction).map((sh) => sh.id));
+  const esc = S.esc;
+  // Worth knowing: the true-story shelves only, each note exactly as the book page shows it.
+  const wk = byId.get('worth-knowing').html;
+  const disputed = data.books.filter((b) => b.caveat && !fiction.has(b.shelf));
+  assert.ok(disputed.length >= 20);
+  for (const b of disputed) {
+    assert.ok(wk.includes(`<h3 class="stk-item__title"><a class="inline-flex min-h-tap items-center" href="/stacks/${b.id}/">${esc(b.title)}</a></h3>`), `${b.id}: the shared title style, a 44px link`);
+    assert.ok(wk.includes(`<p class="stk-note stk-note--caveat"><strong>Worth knowing.</strong> ${esc(b.caveat)}</p>`), b.id);
+  }
+  for (const b of data.books.filter((x) => x.caveat && fiction.has(x.shelf))) assert.ok(!wk.includes(esc(b.caveat)), `${b.id}: an edition note of a fiction shelf is not a dispute`);
+  assert.equal((wk.match(/class="stk-note stk-note--caveat"/g) || []).length, disputed.length);
+  // Content notes: every shelf.
+  const cn = byId.get('content-notes').html;
+  const noted = data.books.filter((b) => b.contentNote);
+  for (const b of noted) assert.ok(cn.includes(`<p class="stk-note"><strong>Content note.</strong> ${esc(b.contentNote)}</p>`), b.id);
+  assert.equal((cn.match(/class="stk-note"/g) || []).length, noted.length);
+  for (const g of S.GUIDES) {
+    const h = byId.get(g.id).html;
+    assert.ok(g.title.length <= S.INTRO_TITLE_MAX && g.description.length <= S.DESC_MAX, g.id);
+    assert.ok(!/name="robots" content="noindex/.test(h), `${g.id} is indexed`);
+    assert.equal((h.match(/<h1[\s>]/g) || []).length, 1);
+    assert.ok(h.includes(`<li><span aria-current="page">${esc(g.h1)}</span></li>`), 'the last crumb is the heading, as on every /stacks/ page');
+    assert.ok(g.title.startsWith(g.h1), 'one name in the title and the heading');
+    assert.ok(h.includes(`<link rel="canonical" href="https://gatecast.vercel.app/stacks/${g.id}/">`));
+    assert.ok(!/<script(?![^>]*application\/ld\+json)[^>]*src=/.test(h), 'no script file');
+    const lds = [...h.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((x) => JSON.parse(x[1]));
+    assert.ok(lds.some((x) => x['@type'] === 'CollectionPage' && x.mainEntity.numberOfItems > 0));
+    assert.ok(S.stacksSitemapEntries(data).some((e) => e.loc === S.pageUrl(g.id) && /^\d{4}-\d{2}-\d{2}$/.test(e.lastmod)));
+    assert.ok(byId.get(null).html.includes(`<a href="/stacks/${g.id}/">${g.name}</a>`), 'linked from the index');
+  }
+  // A shelf or a book may not take a guide's id.
+  assert.throws(() => S.renderStacks({ ...raw, books: [...raw.books, { ...raw.books[0], id: 'content-notes' }] }, m), /content-notes/);
 });
