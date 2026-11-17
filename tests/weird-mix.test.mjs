@@ -216,3 +216,17 @@ test('The Conversation\'s Atom shape: headline, link and time only; nothing from
   const out = await respond(r, parseQuery(new URLSearchParams()), { fetchImpl: async () => { throw new Error('no page may be read'); }, lookupImpl, pageCache: false });
   assert.equal(out.items[0].image, null);
 });
+
+test('the shared round does not read disabled feeds; the debug round does', async () => {
+  const require = (await import('node:module')).createRequire(import.meta.url);
+  const weird = require('../lib/weird.js');
+  const seen = [];
+  const fetchImpl = async (url) => { seen.push(String(url)); return new Response('<rss><channel></channel></rss>', { status: 200, headers: { 'content-type': 'application/rss+xml' } }); };
+  const off = weird.SOURCES.filter((s) => !s.enabled);
+  if (!off.length) return; // nothing disabled to check
+  await weird.loadRound({ fetchImpl, readDisabled: false, dbPicks: [], picks: [] });
+  for (const s of off) assert.ok(!seen.includes(s.feed), `${s.name} must not be read in the shared round`);
+  seen.length = 0;
+  await weird.loadRound({ fetchImpl, readDisabled: true, dbPicks: [], picks: [] });
+  for (const s of off) assert.ok(seen.includes(s.feed), `${s.name} is read for debug`);
+});
