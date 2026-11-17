@@ -10,7 +10,9 @@ import { initSettings, store } from './shell.js';
 import {
   BOOKSHOP_AFFILIATE, BOOKSHOP_DISCLOSURE, authorLine, surname, filterView, statusText, pickRandom, spineStyle, balancedRows,
   bookBox, flightStart, parseHash, buildHash, stampCard, stampDate, worldcatUrl, bookshopUrl, openLibraryUrl, coverUrl, coverFor, needsCoverApi,
+  previewPlace, previewShift,
 } from './librarymodel.js';
+import { createPreview } from './librarypreview.js';
 import { bookLook, decideTier, stampText } from './stacks3d/model.js';
 import * as sound from './stacks3d/sound.js';
 
@@ -283,6 +285,9 @@ const front = $('bk-front');
 const back = $('bk-back');
 const turnBtn = $('bk-turn');
 const borrowBtn = $('bk-borrow');
+const pvBtn = $('bk-pv-btn');
+const pvRoot = $('bk-preview');
+const pv = createPreview(pvRoot);
 let timers = [];
 const later = (fn, ms) => { const t = setTimeout(fn, ms); timers.push(t); return t; };
 const clearTimers = () => { timers.forEach(clearTimeout); timers = []; };
@@ -348,6 +353,11 @@ function fillBook(book) {
   // The date-due slip (DOM shelves): earlier stamps from this device's card.
   $('bk-slip-title').textContent = book.title;
   setBorrowed(false);
+  // Preview: only for books with approved preview data.
+  resetPreview();
+  const has = pv.setBook(book, shelf.name);
+  pvBtn.hidden = !has;
+  dlg.classList.toggle('has-preview', has);
 }
 
 function setBorrowed(done) {
@@ -388,9 +398,14 @@ const EASE = {
   close: 'transform 520ms cubic-bezier(.55,0,.75,.2)',
 };
 
+// Height kept free under the book for the dialog's buttons. A book with a Preview has four, which take two rows on
+// a narrow phone (library.css, below 30rem): keep the second row free too.
+const PREVIEW_ROW = 50;
+const controlsH = (base, vw = window.innerWidth) => base + (!pvBtn.hidden && vw < 480 ? PREVIEW_ROW : 0);
+
 function placeBox() {
   const vw = dlg.clientWidth || window.innerWidth, vh = dlg.clientHeight || window.innerHeight;
-  const box = bookBox(vw, vh, { controls: vw < 736 ? 84 : 88 });
+  const box = bookBox(vw, vh, { controls: controlsH(vw < 736 ? 84 : 88, vw) });
   const o = state.open;
   o.box = box;
   bookEl.style.setProperty('--x', box.left + 'px');
@@ -460,6 +475,7 @@ function finish() {
   const o = state.open;
   if (!o) return;
   clearTimers();
+  resetPreview();
   state.open = null;
   o.spine?.classList.remove('is-out', 'is-fly');
   dlg.classList.remove('is-settled', 'is-turned', 'is-slip');
@@ -478,6 +494,7 @@ function closeBook(now = false) {
   if (o.flat || now) { finish(); return; }
   o.closing = true;
   clearTimers();
+  resetPreview();
   dlg.classList.remove('is-settled', 'is-slip');
   setTransform(away(o, o.face === 'back' ? -270 : 90), EASE.close);
   later(finish, 560);
@@ -486,8 +503,9 @@ function closeBook(now = false) {
 // Borrow: stamp the date-due slip and the library card.
 async function borrow() {
   const o = state.open;
-  if (!o || o.borrowed || o.closing) return;
+  if (!o || o.borrowed || o.closing || o.preview === 'pending') return;
   sound.unlock();
+  if (o.preview) closePreview(false);
   o.borrowed = true;
   const book = bookOf(o.id);
   const at = Date.now();
@@ -515,7 +533,14 @@ async function borrow() {
   } else { slipRows(at); done(); }
 }
 
-turnBtn.addEventListener('click', () => { sound.unlock(); if (state.open) turn(state.open.face === 'back' ? 'cover' : 'back'); });
+turnBtn.addEventListener('click', () => {
+  sound.unlock();
+  const o = state.open;
+  if (!o || o.preview === 'pending') return;
+  if (o.preview) { closePreview(false); turn('back'); return; }
+  turn(o.face === 'back' ? 'cover' : 'back');
+});
+pvBtn.addEventListener('click', () => { sound.unlock(); if (state.open?.preview) closePreview(); else openPreview(); });
 borrowBtn.addEventListener('click', borrow);
 $('bk-close').addEventListener('click', () => closeBook());
 dlg.addEventListener('cancel', (e) => { e.preventDefault(); closeBook(); });
@@ -526,10 +551,11 @@ dlg.addEventListener('click', (e) => {
 window.addEventListener('resize', () => {
   const o = state.open;
   if (!o || o.closing) return;
-  if (o.gl) { if (o.face === 'back') placeBack(); return; }
+  if (o.gl) { if (o.face === 'back') placeBack(); if (o.preview === true) requestAnimationFrame(placePreview); return; }
   if (o.flat) return;
   placeBox();
   setTransform(rest(o, o.face === 'back' ? -180 : -18));
+  if (o.preview === true) placePreview(false);
 });
 
 /* ---------- The book in 3D ---------- */
@@ -590,6 +616,7 @@ async function putBack3d() {
   const o = state.open;
   if (!o || o.closing) return;
   o.closing = true;
+  resetPreview();
   borrowOffPage();
   dlg.classList.remove('is-turned', 'is-settled');
   root.classList.remove('is-reading');
@@ -616,6 +643,77 @@ function pullOut(id, { fly = false } = {}) {
   } else openBook(id, s);
 }
 
+/* ---------- Preview: Watch and Look inside (js/librarypreview.js) ---------- */
+
+// Shows the Preview sheet. The book turns to its cover first (in 3D through the scene's own turn); on wide DOM
+// shelves it slides left to make room. Without motion the sheet takes the back cover's place in the flat card.
+async function openPreview() {
+  const o = state.open;
+  if (!o || o.closing || o.preview || pvBtn.hidden) return;
+  if (o.gl) {
+    o.preview = 'pending';
+    // Still flying in or turning: wait for the scene, then go on (unless the book was put back meanwhile).
+    while (s3d?.isBusy() && state.open === o && !o.closing) await new Promise((r) => setTimeout(r, 60));
+    if (state.open !== o || o.closing || !s3d) return;
+    dlg.classList.remove('is-turned');
+    borrowOffPage();
+    setFace('cover');
+    if (s3d.reading()?.face !== 'cover') await s3d.turn('cover');
+    if (state.open !== o || o.closing) return;
+    if (o.borrowed) setBorrowed(true);
+  } else if (!o.flat) {
+    clearTimers();
+    setFace('cover');
+  }
+  o.preview = true;
+  back.inert = true;
+  if (o.flat) bookEl.append(pvRoot);
+  dlg.classList.add('is-preview');
+  pvBtn.setAttribute('aria-pressed', 'true');
+  placePreview();
+  pv.show();
+}
+
+// Back to the book: the player and viewer are removed, focus returns to the Preview button.
+function closePreview(focus = true) {
+  const o = state.open;
+  if (!o || o.preview !== true) return;
+  resetPreview();
+  if (o.flat) back.inert = false;
+  else if (!o.gl) setTransform(rest(o, -18), EASE.turn);
+  else setFace('cover');
+  if (focus) pvBtn.focus({ preventScroll: true });
+}
+
+// Hides the sheet and puts it back in the dialog (the flat card borrows it), whatever state the book is in.
+function resetPreview() {
+  if (state.open) state.open.preview = false;
+  pv.hide();
+  dlg.classList.remove('is-preview');
+  pvBtn.setAttribute('aria-pressed', 'false');
+  if (pvRoot.parentNode !== dlg) dlg.insertBefore(pvRoot, $('bk-controls'));
+}
+
+// Places the sheet beside the book or over its lower part (previewPlace), above the dialog's buttons.
+function placePreview(animate = true) {
+  const o = state.open;
+  if (!o || !o.preview || o.flat) return;
+  const vw = dlg.clientWidth || window.innerWidth, vh = dlg.clientHeight || window.innerHeight;
+  const bottom = vh - $('bk-controls').offsetTop + 12;
+  let rect;
+  if (o.gl) rect = s3d.faceRect('box');
+  else {
+    const box = o.box;
+    const shift = previewShift(box, vw);
+    setTransform({ ...rest(o, -18), x: shift }, animate ? EASE.turn : null);
+    rect = { left: box.left + shift, top: box.top, width: box.W, height: box.H };
+  }
+  if (!rect) return;
+  const p = previewPlace(rect, vw, vh, { bottom });
+  pvRoot.dataset.mode = p.mode;
+  for (const [k, v] of Object.entries({ x: p.left, y: p.top, w: p.width, h: p.height })) pvRoot.style.setProperty('--pv-' + k, v + 'px');
+}
+
 /* ---------- Mounting the 3D room ---------- */
 
 function backdropUrl() {
@@ -639,7 +737,7 @@ async function mount3d() {
         const wide = window.innerWidth >= 1100;
         return Math.max(16, wide ? 16 : card.bottom + 8);
       },
-      safeBottom: () => (window.innerWidth < 736 ? 92 : 96),
+      safeBottom: () => controlsH(window.innerWidth < 736 ? 92 : 96),
       stampPause: Number(new URLSearchParams(location.search).get('stamppause')) || 160,
       on: {
         ready: () => { root.classList.add('s3d-ready'); },
@@ -665,7 +763,7 @@ async function mount3d() {
 
 // Back to the DOM shelves (WebGL lost or failed): same page, same state.
 function toDom() {
-  if (state.open?.gl) { state.open = null; if (dlg.open) dlg.close(); root.classList.remove('is-reading'); }
+  if (state.open?.gl) { resetPreview(); state.open = null; if (dlg.open) dlg.close(); root.classList.remove('is-reading'); }
   try { s3d?.destroy(); } catch {}
   s3d = null;
   root.classList.remove('s3d', 's3d-ready');

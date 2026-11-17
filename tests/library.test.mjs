@@ -13,9 +13,9 @@ const data = JSON.parse(readFileSync(new URL('../data/books.json', import.meta.u
 const books = require('../lib/books.js');
 const byId = (id) => data.books.find((b) => b.id === id);
 // The cover-lookup and bake tests start from the books as they were before any bake (a copy with `cover`
-// removed), so covers baked into the real file never change what those tests exercise.
+// and `preview` removed), so covers and previews in the real file never change what those tests exercise.
 const bare = structuredClone(data);
-for (const b of bare.books) delete b.cover;
+for (const b of bare.books) { delete b.cover; delete b.preview; }
 const bareById = (id) => bare.books.find((b) => b.id === id);
 
 /* ---------- The data ---------- */
@@ -461,4 +461,208 @@ test('rejected covers stay stand-ins: no baked cover for these books', () => {
     assert.equal(coverFor(byId(id), { [id]: { coverId: 5, olKey: '/works/OL1W' } }), null, `${id} ignores an API cover`);
   }
   assert.equal(NO_COVER.size, REJECTED.length);
+});
+
+/* ---------- Previews (Watch / Look inside) ---------- */
+
+const PV_WATCH = { kind: 'youtube', id: 'dQw4w9WgXcQ', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', title: 'An author on her book', channel: 'A Publisher', duration: '12:34', label: 'Author interview' };
+const PV_CSPAN = { kind: 'cspan', url: 'https://www.c-span.org/video/?123456-1/an-author-talk', title: 'Book TV talk', channel: 'C-SPAN', duration: '58:10', label: 'Author talk' };
+const PV_GB = { kind: 'googlebooks', volumeId: 'AbCdEfGh123' };
+const PV_IA = { kind: 'archive', identifier: 'someBook00auth' };
+const withPreview = (id, preview) => ({ ...structuredClone(byId(id)), preview });
+
+test('books.json previews: every one is valid, and the pinned no-cover books never get a video still', async () => {
+  const { previewErrors, previewFor, watchView } = await import('../js/librarymodel.js');
+  const withP = data.books.filter((b) => b.preview);
+  assert.ok(withP.length >= 30, `approved previews merged (${withP.length})`);
+  for (const b of withP) {
+    assert.deepEqual(previewErrors(b.preview), [], b.id);
+    assert.ok(previewFor(b), b.id);
+    if (NO_COVER.has(b.id)) assert.equal(watchView(b)?.poster ?? null, null, b.id);
+  }
+});
+
+test('preview link-outs: PBS and Criterion work like C-SPAN, only on their own host; duration is optional', async () => {
+  const { previewErrors, watchView, previewNote } = await import('../js/librarymodel.js');
+  const pbs = { kind: 'pbs', url: 'https://www.pbs.org/wgbh/americanexperience/films/poisoners/', title: 'A film', channel: 'PBS American Experience', label: 'Documentary' };
+  const cr = { kind: 'criterion', url: 'https://www.criterion.com/films/521-a-night-to-remember', title: 'A film page', channel: 'The Criterion Collection', label: 'Film trailer' };
+  for (const w of [pbs, cr]) assert.deepEqual(previewErrors({ watch: w }), [], w.kind);
+  assert.notDeepEqual(previewErrors({ watch: { ...pbs, url: 'https://www.criterion.com/films/1' } }), []);
+  assert.notDeepEqual(previewErrors({ watch: { ...cr, url: 'https://www.criterion.com.evil.example/x' } }), []);
+  assert.notDeepEqual(previewErrors({ watch: { ...pbs, duration: '1h' } }), []);
+  const v = watchView(withPreview('bad-blood', { watch: pbs }));
+  assert.equal(v.embed, null); assert.equal(v.poster, null); assert.equal(v.linkText, 'Watch on PBS'); assert.equal(v.duration, '');
+  assert.equal(v.playLabel, 'Watch on pbs.org: A film, PBS American Experience (opens a new tab)');
+  assert.equal(previewNote(withPreview('bad-blood', { watch: cr })), 'The Criterion link opens criterion.com in a new tab; nothing loads from it here.');
+});
+
+test('preview validation: well-formed watch and look data passes', async () => {
+  const { previewErrors } = await import('../js/librarymodel.js');
+  for (const p of [{ watch: PV_WATCH }, { look: PV_GB }, { watch: PV_CSPAN, look: PV_IA }, { watch: { ...PV_WATCH, url: 'https://youtu.be/dQw4w9WgXcQ' } },
+    { watch: { ...PV_WATCH, label: 'Film trailer', duration: '2:31' } }, { watch: { ...PV_WATCH, duration: '1:04:05' } }, { look: { kind: 'archive', identifier: 'a.b_c-d' } }]) {
+    assert.deepEqual(previewErrors(p), [], JSON.stringify(p));
+  }
+  const d = structuredClone(data);
+  d.books.find((b) => b.id === 'zodiac').preview = { watch: PV_WATCH, look: PV_GB };
+  assert.deepEqual(validate(d), []);
+});
+
+test('preview validation: rejects unknown kinds, bad ids, foreign links and anything extra', async () => {
+  const { previewErrors } = await import('../js/librarymodel.js');
+  const bad = [
+    null, [], {}, { watch: PV_WATCH, extra: 1 }, { watch: { ...PV_WATCH, kind: 'vimeo' } }, { look: { kind: 'kindle', id: 'x' } },
+    { watch: { ...PV_WATCH, id: 'abc' } }, { watch: { ...PV_WATCH, id: 'a'.repeat(21) } }, { watch: { ...PV_WATCH, id: 'abc def/ghi' } },
+    { watch: { ...PV_WATCH, id: '"><script>' } }, { watch: { ...PV_WATCH, url: 'https://evil.example/watch?v=dQw4w9WgXcQ' } },
+    { watch: { ...PV_WATCH, url: 'https://www.youtube.com/watch?v=OTHERvideo1' } }, { watch: { ...PV_WATCH, autoplay: true } },
+    { watch: { ...PV_WATCH, title: '' } }, { watch: { ...PV_WATCH, title: '<b>x</b>' } }, { watch: { ...PV_WATCH, channel: undefined } },
+    { watch: { ...PV_WATCH, duration: '12m' } }, { watch: { ...PV_WATCH, duration: '1:75' } }, { watch: { ...PV_WATCH, label: 'Must watch!' } },
+    { watch: { ...PV_CSPAN, url: 'http://www.c-span.org/video/?1' } }, { watch: { ...PV_CSPAN, url: 'https://c-span.org.evil.example/x' } },
+    { watch: { ...PV_CSPAN, id: 'x' } },
+    { look: { kind: 'googlebooks', volumeId: 'short' } }, { look: { kind: 'googlebooks', volumeId: 'a'.repeat(17) } }, { look: { kind: 'googlebooks', volumeId: 'AbCd/EfGh12' } },
+    { look: { ...PV_GB, isbn: '9780000000000' } }, { look: { kind: 'archive', identifier: 'ab' } }, { look: { kind: 'archive', identifier: 'a/b/c' } },
+    { look: { kind: 'archive', identifier: '../etc' } }, { look: { kind: 'archive', identifier: 'x'.repeat(101) } },
+  ];
+  for (const p of bad) assert.ok(previewErrors(p).length > 0, JSON.stringify(p));
+  const d = structuredClone(data);
+  d.books.find((b) => b.id === 'zodiac').preview = { watch: { ...PV_WATCH, id: 'no' } };
+  assert.match(validate(d).join(), /zodiac: preview\.watch\.id/);
+});
+
+test('preview tabs appear only for valid data, in the order Watch, Look inside', async () => {
+  const { previewTabs, previewFor } = await import('../js/librarymodel.js');
+  const ids = (b) => previewTabs(b).map((t) => t.label).join(',');
+  for (const b of data.books) assert.equal(ids(b) !== '', Boolean(previewFor(b)), b.id);
+  assert.equal(ids(withPreview('zodiac', { watch: PV_WATCH, look: PV_GB })), 'Watch,Look inside');
+  assert.equal(ids(withPreview('zodiac', { look: PV_IA })), 'Look inside');
+  assert.equal(ids(withPreview('zodiac', { watch: PV_CSPAN })), 'Watch');
+  // A broken half is dropped; the valid half stays. Nothing valid: no tabs at all.
+  assert.equal(ids(withPreview('zodiac', { watch: { ...PV_WATCH, id: 'x' }, look: PV_GB })), 'Look inside');
+  assert.equal(ids(withPreview('zodiac', { watch: { ...PV_WATCH, kind: 'vimeo' } })), '');
+  assert.equal(previewFor(withPreview('zodiac', { look: { kind: 'googlebooks', volumeId: 'x' } })), null);
+});
+
+test('facade before the click: no embed, no script, no iframe until Play or Look inside is opened', async () => {
+  const { watchView, lookView, previewRequests, PREVIEW_URLS } = await import('../js/librarymodel.js');
+  const b = withPreview('zodiac', { watch: PV_WATCH, look: PV_GB });
+  // The book open, Preview closed: nothing at all.
+  assert.deepEqual(previewRequests(b, { open: false, tab: 'watch', played: true, opened: true }), []);
+  // Preview open on Watch: the poster only, never the player.
+  assert.deepEqual(previewRequests(b, { open: true, tab: 'watch' }), ['https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg']);
+  assert.equal(watchView(b).embed, null);
+  assert.deepEqual(previewRequests(b, { open: true, tab: 'watch', played: true }), ['https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg', 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=1&rel=0']);
+  // Look inside: nothing until opened, then Google's script only.
+  assert.deepEqual(previewRequests(b, { open: true, tab: 'look' }), []);
+  assert.equal(lookView(b).script, null);
+  assert.deepEqual(previewRequests(b, { open: true, tab: 'look', opened: true }), [PREVIEW_URLS.gbScript]);
+  assert.equal(PREVIEW_URLS.gbScript, 'https://www.google.com/books/jsapi.js');
+  const ia = withPreview('stiff', { look: PV_IA });
+  assert.deepEqual(previewRequests(ia, { open: true, tab: 'look' }), []);
+  assert.deepEqual(previewRequests(ia, { open: true, tab: 'look', opened: true }), ['https://archive.org/embed/someBook00auth']);
+  // C-SPAN is never embedded: a link out, no request even after a click.
+  const cs = withPreview('bad-blood', { watch: PV_CSPAN });
+  assert.deepEqual(previewRequests(cs, { open: true, tab: 'watch', played: true }), []);
+  assert.equal(watchView(cs, { played: true }).embed, null);
+  assert.equal(watchView(cs).link, PV_CSPAN.url);
+  // Only youtube-nocookie.com embeds, with autoplay only because the reader pressed Play.
+  assert.match(watchView(b, { played: true }).embed, /^https:\/\/www\.youtube-nocookie\.com\/embed\/dQw4w9WgXcQ\?autoplay=1&rel=0$/);
+});
+
+test('watch facade words: play label for screen readers, credit, trailer note, durations', async () => {
+  const { watchView, durationWords } = await import('../js/librarymodel.js');
+  const v = watchView(withPreview('zodiac', { watch: PV_WATCH }));
+  assert.equal(v.playLabel, 'Play: An author on her book, 12 minutes 34 seconds, A Publisher');
+  assert.equal(v.credit, 'Video: A Publisher on YouTube');
+  assert.equal(v.note, '');
+  assert.equal(v.link, 'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+  assert.equal(watchView(withPreview('zodiac', { watch: { ...PV_WATCH, label: 'Film trailer' } })).note, 'This is the trailer for the film adaptation.');
+  assert.equal(durationWords('1:04:05'), '1 hour 4 minutes');
+  assert.equal(durationWords('2:31'), '2 minutes 31 seconds');
+  assert.equal(durationWords('1:00'), '1 minute');
+  assert.match(watchView(withPreview('bad-blood', { watch: PV_CSPAN })).playLabel, /^Watch on c-span\.org: Book TV talk, 58 minutes 10 seconds, C-SPAN \(opens a new tab\)$/);
+});
+
+test('the 8 pinned no-cover books stay picture-free: no video poster either, the rest of the preview works', async () => {
+  const { watchView, previewRequests } = await import('../js/librarymodel.js');
+  for (const id of NO_COVER) {
+    const b = withPreview(id, { watch: PV_WATCH, look: PV_GB });
+    assert.equal(b.cover, undefined, id);
+    assert.equal(coverFor(b, { [id]: { coverId: 5 } }), null, id);
+    assert.equal(watchView(b).poster, null, `${id}: no YouTube thumbnail`);
+    assert.deepEqual(previewRequests(b, { open: true, tab: 'watch' }), [], `${id}: nothing loads before Play`);
+    assert.ok(watchView(b, { played: true }).embed, `${id}: the video itself still plays on request`);
+  }
+  assert.equal(NO_COVER.size, 8);
+  assert.ok(watchView(withPreview('zodiac', { watch: PV_WATCH })).poster);
+});
+
+test('previewPlace: beside the book when there is room, otherwise full width over its lower part, above the buttons', async () => {
+  const { previewPlace, previewShift } = await import('../js/librarymodel.js');
+  // Desktop, 3D: the book left of centre.
+  const side = previewPlace({ left: 420, top: 120, width: 380, height: 560 }, 1440, 900, { bottom: 100 });
+  assert.equal(side.mode, 'side');
+  assert.equal(side.left, 832);
+  assert.ok(side.width <= 560 && side.left + side.width <= 1440 - 16);
+  assert.ok(side.top + side.height <= 800);
+  // Phone: full width less the gutters, starting over the book with its top still showing.
+  const over = previewPlace({ left: 16, top: 200, width: 358, height: 526 }, 390, 844, { bottom: 140 });
+  assert.equal(over.mode, 'over');
+  assert.deepEqual([over.left, over.width], [16, 358]);
+  assert.ok(over.top > 200 && over.top + over.height === 844 - 140);
+  assert.ok(over.height >= 420 || over.top === 16);
+  // Tablet: centred, no wider than 720.
+  const tab = previewPlace({ left: 330, top: 100, width: 360, height: 530 }, 1024, 768, { bottom: 100 });
+  assert.equal(tab.mode, 'over');
+  assert.equal(tab.width, 720);
+  assert.equal(tab.left, 152);
+  // DOM shelves: the book slides left so book + sheet sit centred; no slide when they cannot sit side by side.
+  const box = bookBox(1440, 900);
+  const shift = previewShift(box, 1440);
+  assert.ok(shift < 0);
+  assert.equal(previewPlace({ left: box.left + shift, top: box.top, width: box.W, height: box.H }, 1440, 900).mode, 'side');
+  assert.equal(previewShift(bookBox(390, 844), 390), 0);
+  for (const [vw, vh] of [[320, 568], [390, 844], [768, 1024], [1280, 720], [1920, 1080]]) {
+    const b = bookBox(vw, vh);
+    const s = previewShift(b, vw);
+    const p = previewPlace({ left: b.left + s, top: b.top, width: b.W, height: b.H }, vw, vh);
+    assert.ok(p.left >= 0 && p.left + p.width <= vw && p.top >= 16 && p.height > 0, `${vw}x${vh}`);
+    for (const k of ['left', 'top', 'width', 'height']) assert.ok(Number.isInteger(p[k]), `${vw}x${vh} ${k}`);
+  }
+});
+
+test('previews are wired with privacy in mind: no third-party script in the page, the how page says when they load', () => {
+  const html = readFileSync(new URL('../library.html', import.meta.url), 'utf8');
+  assert.ok(!/<script[^>]+src="https?:/.test(html), 'no external script tags');
+  assert.ok(!/youtube|ytimg|books\/jsapi|archive\.org\/embed/.test(html), 'no preview address in the markup');
+  assert.match(html, /role="tablist"/);
+  assert.match(html, /id="bk-pv-btn"[^>]*aria-pressed="false"[^>]*hidden/);
+  const how = readFileSync(new URL('../how.html', import.meta.url), 'utf8');
+  assert.match(how, /id="previews"/);
+  assert.match(how, /only when you press play/);
+  const js = readFileSync(new URL('../js/librarypreview.js', import.meta.url), 'utf8');
+  assert.ok(!/autoplay=1/.test(js), 'the embed address comes only from watchView after Play');
+});
+
+test('bake-covers keeps an approved preview in the file layout: one line per part, round-trips unchanged', () => {
+  const d = JSON.parse(readFileSync(new URL('../data/books.json', import.meta.url), 'utf8'));
+  for (const b of d.books) delete b.preview;
+  const raw = bakeTool.formatBooks(d);
+  d.books.find((b) => b.id === 'zodiac').preview = { watch: PV_WATCH, look: PV_GB };
+  const out = bakeTool.formatBooks(d);
+  assert.equal(bakeTool.formatBooks(JSON.parse(out)), out, 'stable');
+  assert.deepEqual(JSON.parse(out), d);
+  const lines = out.split('\n'), before = raw.split('\n');
+  assert.equal(lines.length - before.length, 4, 'four new lines');
+  const i = lines.findIndex((l) => l.startsWith('      "preview": {'));
+  assert.equal(lines[i + 1], '        "watch": { "kind": "youtube", "id": "dQw4w9WgXcQ", "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ", "title": "An author on her book", "channel": "A Publisher", "duration": "12:34", "label": "Author interview" },');
+  assert.equal(lines[i + 2], '        "look": { "kind": "googlebooks", "volumeId": "AbCdEfGh123" }');
+  assert.equal(lines[i + 3], '      }');
+  assert.deepEqual(validate(JSON.parse(out)), []);
+});
+
+test('the sheet says what loads from where, for this book only', async () => {
+  const { previewNote } = await import('../js/librarymodel.js');
+  assert.equal(previewNote(withPreview('zodiac', { watch: PV_WATCH, look: PV_GB })), 'The video still comes from YouTube; the video loads from YouTube only when you press play, and the pages load from Google Books only when you open them. That service then sees your request.');
+  assert.equal(previewNote(withPreview('stiff', { look: PV_IA })), 'The pages load from the Internet Archive only when you open them. That service then sees your request.');
+  assert.equal(previewNote(withPreview('helter-skelter', { watch: PV_WATCH })), 'The video loads from YouTube only when you press play. That service then sees your request.');
+  assert.equal(previewNote(withPreview('bad-blood', { watch: PV_CSPAN })), 'The C-SPAN link opens c-span.org in a new tab; nothing loads from it here.');
 });

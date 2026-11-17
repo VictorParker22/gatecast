@@ -1,9 +1,11 @@
-// The reviewer console's Weird news logic (js/reviewmodel.js): tips, picks and the paused hook checklist.
+// The reviewer console's Weird news logic (js/reviewmodel.js): tips, picks, the hook line (checklist, Claude's drafts)
+// and the click badge.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   VIEWS, CATEGORY_LABEL, PICK_LIMITS, pickErrors, cleanPick, pickBlock, picksForView, tipsForView, tipHost, pickFromTip,
   pickSaveError, pickTimeline, pickUrlProblem, matchesPick, matchesTip, hookChecks, HOOK_MAX, CLICKBAIT, topicsForView,
+  HOOK_LABEL, hookDraftRequest, hookSuggestions, hookDraftNotes, clicksLabel,
 } from '../js/reviewmodel.js';
 
 const GOOD = { url: 'https://www.upi.com/Odd_News/2026/11/13/sheep/6691794592131/?utm_source=rss', title: 'Sheep on the run for 45 days lassoed by teen', outlet: 'UPI', published: '2026-11-13', category: 'animals', rating: '4', note: 'Caught on horseback, with a lasso.' };
@@ -23,7 +25,10 @@ test('pick form checks mirror the database', () => {
   assert.deepEqual(Object.keys(e).sort(), ['category', 'note', 'outlet', 'published', 'rating', 'title', 'url']);
   assert.equal(pickErrors({ ...GOOD, title: 'x'.repeat(301) }).title, 'Keep the headline to 300 characters.');
   assert.equal(pickErrors({ ...GOOD, note: 'é'.repeat(PICK_LIMITS.note) }).note, undefined);
-  assert.equal(PICK_LIMITS.note, 200);
+  assert.equal(PICK_LIMITS.note, 140, 'the hook: the database allows 140 characters');
+  assert.equal(PICK_LIMITS.note, HOOK_MAX);
+  assert.match(pickErrors({ ...GOOD, note: 'x'.repeat(141) }).note, /hook to 140/);
+  assert.equal(pickErrors({ ...GOOD, note: `${'x'.repeat(70)}   ${'x'.repeat(69)}` }).note, undefined, 'counted as saved, spaces collapsed');
 });
 
 test('pick links: https to a public site', () => {
@@ -101,8 +106,7 @@ test('pick save errors and history', () => {
   assert.deepEqual(pickTimeline(null), []);
 });
 
-// PAUSED addition: the hook checklist is built and tested but no page uses it yet.
-test('hook checklist (paused): length is a hard rule, the rest are warnings', () => {
+test('hook checklist: length is a hard rule, the rest are warnings', () => {
   const ok = hookChecks('Forty-five days on the run. Then a teenager with a lasso.');
   assert.ok(ok.every((c) => c.ok));
   assert.deepEqual(ok.map((c) => [c.id, c.hard]), [['length', true], ['clickbait', false], ['caps', false], ['marks', false]]);
@@ -120,4 +124,43 @@ test('hook checklist (paused): length is a hard rule, the rest are warnings', ()
   assert.equal(hookChecks('Why? Nobody knows.')[3].ok, true);
   assert.equal(hookChecks('Why? Nobody knows!')[3].ok, false);
   assert.equal(hookChecks('')[0].ok, true);
+});
+
+test('the hook field: label, and what "Draft with Claude" sends', () => {
+  assert.equal(HOOK_LABEL, 'Hook (your words, shown under the headline)');
+  assert.deepEqual(hookDraftRequest({ title: '  Sheep  on the run ', outlet: ' UPI ', url: 'https://www.upi.com/x' }), {
+    ok: true, body: { action: 'draft_hook', title: 'Sheep on the run', outlet: 'UPI' },
+  }, 'the headline only: the link is not sent unless the reviewer asks for the page to be read');
+  assert.deepEqual(hookDraftRequest({ title: 'Sheep', outlet: 'UPI', url: ' https://www.upi.com/x ' }, { readPage: true }).body.url, 'https://www.upi.com/x');
+  assert.equal(hookDraftRequest({ title: '' }).ok, false);
+  assert.match(hookDraftRequest({ title: ' ' }).message, /headline first/);
+  assert.match(hookDraftRequest({ title: 'Sheep', url: 'http://a.com/x' }, { readPage: true }).message, /https link/);
+  assert.equal(hookDraftRequest({ title: 'h'.repeat(400) }).body.title.length, PICK_LIMITS.title);
+});
+
+test('Claude’s hook suggestions: at most three, each with its own checklist; notes say what was read', () => {
+  const r = { hooks: [{ text: ' Forty-five days on the run. ', basis: 'for 45 days' }, { text: 'Why? Who knows!', basis: '' }, { text: '' }, { text: 'c' }, { text: 'd' }, { nope: 1 }], dropped: 2, source: 'headline', fallback: true };
+  const list = hookSuggestions(r);
+  assert.equal(list.length, 3);
+  assert.equal(list[0].text, 'Forty-five days on the run.');
+  assert.equal(list[0].basis, 'for 45 days');
+  assert.ok(list[0].checks.every((c) => c.ok));
+  assert.equal(list[1].checks.find((c) => c.id === 'marks').ok, false, 'the reviewer sees what a suggestion fails');
+  assert.deepEqual(hookSuggestions(null), []);
+  const notes = hookDraftNotes(r);
+  assert.match(notes[0], /headline only/);
+  assert.ok(notes.some((n) => /2 suggestions .* left out/.test(n)));
+  assert.ok(notes.some((n) => /fallback/.test(n)));
+  const page = hookDraftNotes({ hooks: [], source: 'page', truncated: true, dropped: 0 });
+  assert.match(page[0], /story page \(its first part\)/);
+  assert.ok(page.some((n) => /no hook it could stand behind/.test(n)));
+  assert.ok(hookDraftNotes({ hooks: [{ text: 'x' }], source: 'headline', page_problem: { message: 'The page took too long.' } }).some((n) => /not read: The page took too long/.test(n)));
+});
+
+test('clicks badge: anonymous totals for the last 7 days', () => {
+  assert.equal(clicksLabel(0), 'No clicks in 7 days');
+  assert.equal(clicksLabel(1), '1 click in 7 days');
+  assert.equal(clicksLabel(1234), '1,234 clicks in 7 days');
+  assert.equal(clicksLabel(5, 30), '5 clicks in 30 days');
+  for (const unknown of [null, undefined, '', 'x', -1]) assert.equal(clicksLabel(unknown), '', String(unknown));
 });

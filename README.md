@@ -61,7 +61,7 @@ npm run ci          # npm test && npm run build
 
 ## Deployment
 
-The site is deployed on Vercel (`vercel.json`). Vercel runs `node scripts/build-data.cjs`, which downloads the airport list, writes the map outline, compiles the Tailwind stylesheets into `public/styles/site.css` and `console.css` (`scripts/build-css.cjs`), and assembles the static site in `public/`; the functions in `api/` serve the `/api` routes. The build step needs `npm ci` first (for `topojson-client`, `world-atlas` and the Tailwind CLI) and network access. `public/` is generated and not committed.
+The site is deployed on Vercel (`vercel.json`). Vercel runs `node scripts/build-data.cjs`, which downloads the airport list, writes the map outline, compiles the Tailwind stylesheets into `public/styles/site.css` and `console.css` (`scripts/build-css.cjs`), and assembles the static site in `public/`, including the plain `/stacks/` pages; the functions in `api/` serve the `/api` routes. The build step needs `npm ci` first (for `topojson-client`, `world-atlas` and the Tailwind CLI) and network access. `public/` is generated and not committed.
 
 ## Project structure
 
@@ -88,9 +88,10 @@ The site is deployed on Vercel (`vercel.json`). Vercel runs `node scripts/build-
 | `lib/live.js` | Server-side lookups: airport observations, FAA status and today's FAA plans (parser unit-tested), flight route and position, nearby aircraft |
 | `api/*.js` | Vercel functions wrapping `lib/live.js` |
 | `server.js` | Local static server exposing the same `/api` routes |
-| `scripts/build-data.cjs` | Build step: airport list with size ranking, map outline, `sitemap.xml` dated the build day, assembles `public/` |
+| `scripts/build-data.cjs` | Build step: airport list with size ranking, map outline, `sitemap.xml` (each page dated by its last git commit, or the build day without git; the `/stacks/` pages by the dates in `data/books.json`), assembles `public/` |
+| `scripts/build-stacks-pages.cjs`, `styles/components/stacks-pages.css` | The Stacks as plain, crawlable HTML: `/stacks/`, one page per shelf and per book, written into `public/stacks/` at build time from `data/books.json` (rendered on request by `server.js` locally). No JavaScript, no embeds. Book pages are `noindex, follow` and left out of the sitemap until the book has the owner's own `take` (see `docs/content-sources.md`, "The Stacks as plain pages") |
 | `how.html` | "How Gatecast works": how the brief and the verdicts are chosen, data sources and limits, what Gatecast never does, corrections |
-| `robots.txt` | Crawl rules: everything public allowed (OAI-SearchBot and PerplexityBot named), `/review.html` and `/api/` disallowed, sitemap line |
+| `robots.txt` | Crawl rules: everything public allowed (OAI-SearchBot and PerplexityBot named), including `/stacks/` and the three `/api/` endpoints the pages read (`/api/weird`, `/api/news`, `/api/book-covers`) so renderers see the real page; the rest of `/api/` disallowed. `review.html` is not blocked so crawlers see its `noindex, nofollow` header (`vercel.json`) |
 | `vendor/og/gatecast-og.png`, `docs/og/og-template.html` | The 1200×630 share image for Open Graph and Twitter cards, and the HTML it is rendered from |
 | `vendor/leaflet/` | Leaflet 1.9.4 (BSD-2-Clause), used only for the radar map |
 | `vendor/fonts/` | Inter and Barlow Condensed (SIL Open Font License), self-hosted |

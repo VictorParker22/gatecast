@@ -1,24 +1,47 @@
 // Build step: generates the two large data files and assembles the static site in public/
-// (pages, robots.txt, a sitemap.xml dated today, styles, scripts and vendor files including the share image),
-// and compiles the Tailwind stylesheets into public/styles/ (site.css and the page bundles; scripts/build-css.cjs).
+// (pages, robots.txt, sitemap.xml, styles, scripts and vendor files including the share image), writes the plain
+// /stacks/ pages from data/books.json (scripts/build-stacks-pages.cjs), and compiles the Tailwind stylesheets into
+// public/styles/ (site.css and the page bundles; scripts/build-css.cjs).
 // Airports come from mwgg/Airports (MIT), ranked with OurAirports (public domain); the land outline from Natural Earth via world-atlas.
 const fs = require('node:fs');
 const path = require('node:path');
 const topo = require('topojson-client');
+const { spawnSync } = require('node:child_process');
 const { buildCss } = require('./build-css.cjs');
+const stacks = require('./build-stacks-pages.cjs');
 
 const root = path.join(__dirname, '..');
 const out = path.join(root, 'public');
 const SRC = 'https://raw.githubusercontent.com/mwgg/Airports/master/airports.json';
 const SIZES = 'https://raw.githubusercontent.com/davidmegginson/ourairports-data/main/airports.csv';
-const SITE = 'https://gatecast.vercel.app/';
-// Public pages, in sitemap order. review.html is left out on purpose (noindex, disallowed in robots.txt).
+const SITE = stacks.SITE_ORIGIN + '/'; // one constant for the whole site (canonicals, JSON-LD, this sitemap)
+// Public pages, in sitemap order. review.html is left out on purpose (noindex).
 const SITEMAP_PAGES = ['', 'library.html', 'trip.html', 'flights.html', 'how.html'];
 const STATIC_FILES = ['index.html', 'library.html', 'flights.html', 'trip.html', 'review.html', 'how.html', 'robots.txt'];
+const today = () => new Date().toISOString().slice(0, 10);
 
-// sitemap.xml for the public pages, all with the build day as lastmod (YYYY-MM-DD, UTC).
-function sitemapXml(day = new Date().toISOString().slice(0, 10)) {
-  const urls = SITEMAP_PAGES.map((p) => `  <url><loc>${SITE}${p}</loc><lastmod>${day}</lastmod></url>`).join('\n');
+// The day (YYYY-MM-DD) of the last commit that touched a file, or null when git or its history is not available.
+// Vercel's Git deployments build from a shallow clone (the last few commits): a file untouched in that window gets the
+// date of the oldest commit there, which is newer than the truth but never in the future (set VERCEL_DEEP_CLONE=true
+// on the project for exact dates). A deploy without git (vercel deploy from a folder) falls back to the build day.
+function gitDate(file) {
+  try {
+    const r = spawnSync('git', ['log', '-1', '--format=%cs', '--', file], { cwd: root, encoding: 'utf8', timeout: 5000 });
+    const d = r.status === 0 ? r.stdout.trim() : '';
+    return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : null;
+  } catch { return null; }
+}
+
+// Every URL in the sitemap with a real lastmod: the pages from their last commit (build day without git), and the
+// /stacks/ pages from the dates in data/books.json (scripts/build-stacks-pages.cjs stacksSitemapEntries).
+function sitemapEntries({ day = today(), dateOf = gitDate, data } = {}) {
+  const pages = SITEMAP_PAGES.map((p) => ({ loc: SITE + p, lastmod: dateOf(p || 'index.html') || day }));
+  const books = stacks.stacksSitemapEntries(data).map((e) => ({ loc: e.loc, lastmod: e.lastmod || day }));
+  return [...pages, ...books];
+}
+
+function sitemapXml(opts = {}) {
+  const urls = sitemapEntries(opts).map((e) => `  <url><loc>${e.loc}</loc><lastmod>${e.lastmod}</lastmod></url>`).join('\n');
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;
 }
 
@@ -51,7 +74,9 @@ async function build() {
   for (const dir of ['styles', 'js', 'vendor', 'assets']) fs.cpSync(path.join(root, dir), path.join(out, dir), { recursive: true, filter: notSource });
   buildCss(path.join(out, 'styles'));
   for (const file of STATIC_FILES) fs.copyFileSync(path.join(root, file), path.join(out, file));
-  fs.writeFileSync(path.join(out, 'sitemap.xml'), sitemapXml());
+  const sitemap = sitemapXml();
+  fs.writeFileSync(path.join(out, 'sitemap.xml'), sitemap);
+  const stackPages = await stacks.writeStacksPages(out);
   fs.mkdirSync(path.join(out, 'data'), { recursive: true });
   fs.copyFileSync(path.join(root, 'data', 'books.json'), path.join(out, 'data', 'books.json'));
 
@@ -77,8 +102,8 @@ async function build() {
   let d = '';
   for (const poly of polys) for (const ring of poly) d += 'M' + ring.map(([x, y]) => (x + 180).toFixed(1) + ' ' + (90 - y).toFixed(1)).join('L') + 'Z';
   fs.writeFileSync(path.join(out, 'js', 'world.js'), '// Natural Earth 110m land (public domain), equirectangular 360x180\nexport const LAND_PATH="' + d + '";\n');
-  console.log('built public/: site.css ' + fs.statSync(path.join(out, 'styles', 'site.css')).size + ' bytes, ' + rows.length + ' airports, map outline ' + d.length + ' bytes, sitemap of ' + SITEMAP_PAGES.length + ' pages');
+  console.log('built public/: site.css ' + fs.statSync(path.join(out, 'styles', 'site.css')).size + ' bytes, ' + rows.length + ' airports, map outline ' + d.length + ' bytes, ' + stackPages + ' /stacks/ pages, sitemap of ' + (sitemap.match(/<url>/g) || []).length + ' URLs');
 }
 
 if (require.main === module) build().catch((err) => { console.error(err); process.exit(1); });
-module.exports = { sitemapXml, SITEMAP_PAGES };
+module.exports = { sitemapXml, sitemapEntries, gitDate, SITEMAP_PAGES, SITE };

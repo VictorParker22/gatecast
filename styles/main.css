@@ -28,7 +28,9 @@
 @source "../js/sky.js";
 @source "../js/motion.js";
 @source "../js/library.js";
+@source "../js/librarypreview.js";
 @source "../js/librarymodel.js";
+@source "../scripts/build-stacks-pages.cjs"; /* the plain /stacks/ pages (written at build time) */
 
 /* daisyUI 5, only for the reviewer console's form controls and badges (used from styles/console.css). Prefixed d- so it never collides with
    Gatecast's own .btn / .card / .chip; no stock themes (the "gatecast" theme below maps it onto the newsprint tokens). */
@@ -322,6 +324,15 @@
   --color-lib-glow: #FFC978;
   --color-lib-focus: #FFD23F;
   --color-lib-red-ink: #A3302C;
+  /* The book's Preview sheet (Watch / Look inside): the back cover's paper and type, so it reads as part of the
+     book (ink 15.9:1 and muted 8.2:1 on the paper; tab labels 11.2:1 on leather, 6.6:1 on brass), the video frame's near-black and its caption scrim. */
+  --color-lib-sheet: #F4ECD8;
+  --color-lib-sheet-ink: #15120E;
+  --color-lib-sheet-muted: #4A443A;
+  --color-lib-screen: #0D0A08;
+  --color-lib-scrim: rgb(13 10 8 / 0.78);
+  --shadow-lib-sheet: 0 2px 0 rgb(0 0 0 / 0.35), 0 16px 30px rgb(0 0 0 / 0.6); /* the sheet floating over the room */
+  --shadow-lib-knob: 0 4px 12px rgb(0 0 0 / 0.6);                              /* the round brass play button */
 }
 
 /* Decorative textures and the page frame: not utilities, but tokens the components read. */

@@ -208,7 +208,8 @@
       </div>
       <p class="front__empty" id="front-empty" hidden></p>
 
-      <!-- Favourites: readers' favourites only when there are real Weird-o-meter votes, else the editor's picks. -->
+      <!-- Favourites: the editor's picks in the editor's order; a story with 10+ Weird-o-meter votes this week ranks first
+           by the readers' votes, and the heading then says so (js/front.js renderFavs, js/frontmodel.js favourites). -->
       <section class="favs" id="favs" aria-labelledby="favs-h" hidden>
         <div class="sechead sechead--rule">
           <p class="sechead__kicker" id="favs-kicker"></p>
@@ -245,7 +246,7 @@
               <summary>Why am I seeing this?</summary>
               <div class="brief__about-body">
                 <p>The brief is picked from four things only: the place you chose (kept on this device), a saved trip on this device, official National Weather Service alerts for that place, and the US state it is in. Each item says which of them put it there.</p>
-                <p>Headlines, statehouse votes and Both sides are listed newest first, as published or recorded. They are never ranked by clicks or popularity, and Gatecast keeps no record of what you read.</p>
+                <p>Headlines, statehouse votes and Both sides are listed newest first, as published or recorded. They are never ranked by clicks or popularity, and clicks on them are not counted.</p>
                 <p><a href="how.html">How Gatecast works</a></p>
               </div>
             </details>
@@ -365,7 +366,7 @@
       <a class="badge" href="library.html">The Stacks library</a>
     </nav>
     <div class="site-footer__lines">
-      <p>Headlines and preview images belong to their publishers; we link to every original and copy none of their reporting. Gatecast is a planning aid, not an official source: check your airline for the status of your flight. <a href="how.html">How Gatecast works</a>.</p>
+      <p>Headlines and preview images belong to their publishers; we link to every original and copy none of their reporting. Gatecast is a planning aid, not an official source: check your airline for the status of your flight. <a href="/stacks/">The Stacks, as a list</a>. <a href="how.html">How Gatecast works</a>.</p>
       <p>Forecasts: <a href="https://open-meteo.com/" rel="noopener">Open-Meteo</a> (CC BY 4.0). Sky: Gatecast’s WebGL engine. Radar: <a href="https://www.rainviewer.com/" rel="noopener">RainViewer</a>. Map: © <a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a> contributors. Observations: NOAA. US status: FAA. Alerts: National Weather Service.</p>
     </div>
   </footer>

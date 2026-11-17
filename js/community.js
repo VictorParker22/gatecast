@@ -1,15 +1,19 @@
-// Reader votes (the Weird-o-meter) and guestbook tips, from the browser. Talks to the `community` Edge Function
-// in Supabase (supabase/functions/community; docs/community.md). Every call resolves; none throws.
+// Reader votes (the Weird-o-meter), reader favourites, guestbook tips and anonymous click counts, from the browser.
+// Talks to the `community` Edge Function in Supabase (supabase/functions/community; docs/community.md). Every call
+// resolves (or returns at once); none throws.
 //
 //   storyId(url)            -> Promise<string | null>   first 16 hex of SHA-256 of the normalised story URL
 //   loadRatings(urls)       -> Promise<{ [url]: { count, average | null, yours | null } }>   {} on failure
 //   rateStory(url, rating)  -> Promise<{ ok: true, count, average | null, yours } | { ok: false, error, retryAfter? }>
 //   sendTip({ url, note, website }) -> Promise<{ ok: true } | { ok: false, error }>
 //   yourVote(url)           -> Promise<number | null>   this browser's own vote, remembered locally
-//   loadFavourites()        -> Promise<[{ storyId, count, average | null }]>   PAUSED addition: reader favourites, best
-//                              first; [] on failure, and always [] until supabase/paused/weird_favourites.sql is applied
-//                              (up to 12 stories with at least 10 votes in the last 7 days; match them to items
-//                              with storyId(item.url))
+//   loadFavourites()        -> Promise<[{ storyId, count, average | null }]>   reader favourites, best first: up to 12
+//                              stories with at least 10 votes in the last 7 days, ranked by the database (average,
+//                              then votes); [] on failure. Match them to items with storyId(item.url)
+//   clickAllowed()          -> boolean   false when the browser sends Do Not Track or Global Privacy Control
+//   countClick(url)         -> boolean   fire-and-forget: adds one to that story's anonymous click total. Sends the
+//                              story's address and nothing else, never waits, never blocks the link; skipped when
+//                              clickAllowed() is false or the address is not a story link
 //
 // `average` stays null until 50 people have voted on a story. The normaliser and hash are the same as the
 // function's (supabase/functions/community/logic.mjs); tests/community.test.mjs checks that they agree.
@@ -129,7 +133,7 @@ export async function loadRatings(urls) {
   } catch { return {}; }
 }
 
-// PAUSED addition (see supabase/paused/weird_favourites.sql): not used by any page yet.
+// The front page's favourites row (js/front.js) and the console's preview of it.
 export async function loadFavourites() {
   try {
     const r = await call('favourites');
@@ -174,4 +178,45 @@ export async function sendTip({ url, note = '', website = '' } = {}) {
   const r = await call('tip', { method: 'POST', body: { url: String(url).trim(), note: String(note ?? '').trim(), website: String(website ?? '') } });
   if (r.ok && r.data?.ok === true) return { ok: true };
   return { ok: false, error: errorMessage(r.status, r.data) };
+}
+
+/* ---------- Clicks: anonymous totals per story ---------- */
+
+const DNT_ON = (v) => v === '1' || v === 'yes' || v === 1 || v === true;
+
+// The visitor asked not to be tracked: Global Privacy Control, or Do Not Track in any of its historical spellings.
+export function clickAllowed(nav = globalThis.navigator, win = globalThis) {
+  try {
+    if (nav?.globalPrivacyControl === true) return false;
+    return ![nav?.doNotTrack, win?.doNotTrack, nav?.msDoNotTrack].some(DNT_ON);
+  } catch { return false; }
+}
+
+// One click on a weird story's link. Never awaited and never throws, so the link opens as normal. Uses a keepalive
+// fetch (it outlives the page as the reader leaves for the outlet, and can carry the apikey and JSON the function
+// requires); sendBeacon is the fallback where keepalive fetch is missing. The body is the story's normalised
+// address (tracking parameters dropped) and nothing else; no referrer, no credentials. Returns whether it was sent.
+export function countClick(url, env = {}) {
+  try {
+    const nav = 'navigator' in env ? env.navigator : globalThis.navigator;
+    if (!clickAllowed(nav, 'window' in env ? env.window : globalThis)) return false;
+    const storyUrl = normaliseStoryUrl(url);
+    if (!storyUrl) return false;
+    const body = JSON.stringify({ storyUrl });
+    const send = 'fetch' in env ? env.fetch : globalThis.fetch;
+    if (typeof send === 'function') {
+      try {
+        const p = send(`${BASE}/click`, {
+          method: 'POST', keepalive: true, credentials: 'omit', referrerPolicy: 'no-referrer',
+          headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' }, body,
+        });
+        if (p && typeof p.catch === 'function') p.catch(() => {});
+        return true;
+      } catch { /* keepalive refused (body quota, old browser): try the beacon */ }
+    }
+    if (typeof nav?.sendBeacon === 'function' && typeof Blob === 'function') {
+      return nav.sendBeacon(`${BASE}/click`, new Blob([body], { type: 'application/json' })) === true;
+    }
+  } catch {}
+  return false;
 }

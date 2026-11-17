@@ -1,12 +1,15 @@
 // The reviewer console (review.html): sign in with an emailed link, then work the "Both sides" queue like a
 // small help desk. Views on the left, the queue in the middle, one topic on the right with its statements,
 // activity, internal notes and an assistant panel. The Weird news views hold the guestbook tips visitors send
-// and the editor's picks (public.weird_tips, public.weird_picks; docs/community.md).
+// and the editor's picks (public.weird_tips, public.weird_picks; docs/community.md): each pick's hook line, with a
+// live checklist and "Draft with Claude" (the assist function's draft_hook), each published pick's anonymous click
+// total for the last 7 days (weird_click_totals), and the front page's favourites row as visitors see it now.
 //
 // It talks to Supabase directly over REST, with no client library:
 //   sign-in   GoTrue: POST /auth/v1/otp (magic link), /auth/v1/token?grant_type=refresh_token, /auth/v1/logout
 //   data      PostgREST /rest/v1/* with the reviewer's access token; row rules and triggers decide what works
 //   assistant the assist Edge Function, POST /functions/v1/assist
+//   front     /api/weird (this site) and the community function's /favourites, for the favourites preview
 // The access and refresh tokens live in sessionStorage only (gone when the tab closes).
 // Pure rules (views, sorting, coverage, forms, replies) are in js/reviewmodel.js and tested there.
 import { SUPABASE_URL, SUPABASE_KEY } from './config.js';
@@ -19,8 +22,10 @@ import {
   issueTarget, draftNotes, assistTopic, NOT_CONFIGURED, remainingText, elapsed, verifyResult,
   CATEGORY_LABEL, PICK_STATUS_LABEL, TIP_STATUS_LABEL, PICK_LIMITS, WEIRD_OFF, pickErrors,
   cleanPick, pickBlock, picksForView, tipsForView, tipHost, pickFromTip, pickSaveError, pickTimeline,
+  HOOK_LABEL, HOOK_GUIDANCE, hookChecks, hookDraftRequest, hookSuggestions, hookDraftNotes, clicksLabel,
 } from './reviewmodel.js';
-import { normaliseStoryUrl } from './community.js';
+import { normaliseStoryUrl, storyId, loadFavourites } from './community.js';
+import { cleanWeird, favourites, favCaption, favVotes } from './frontmodel.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const KEY = 'gatecast:review-session';
@@ -48,7 +53,14 @@ const S = {
   assistOpen: null, // null: open on wide screens, closed on narrow ones
   // Weird news. weirdOff: a sentence when the migration is not applied. pickDraft: half-typed pick form values.
   tips: [], picks: [], weirdOff: null, weirdError: null, pickDraft: null, editPick: false, pickActivity: {}, pickActivityOn: true,
+  // hook: the pick form's "Draft with Claude" (suggestions are only ever inserted by a click, never saved by it).
+  hook: { busy: false, started: 0, reply: null, error: '', readPage: false },
+  // clicks: pick id -> clicks in the last 7 days (published picks), clicksOn: false until the migration is applied.
+  clicks: {}, clicksOn: true,
+  // favRow: the front page's favourites row as visitors see it now (null while loading), favsOpen: the panel.
+  favRow: null, favsOpen: !PHONE.matches,
 };
+const freshHook = () => ({ busy: false, started: 0, reply: null, error: '', readPage: false });
 
 /* ---------- Session ---------- */
 
@@ -164,6 +176,35 @@ async function loadWeird() {
   if (t.ok && Array.isArray(t.data)) S.tips = t.data;
   if (p.ok && Array.isArray(p.data)) S.picks = p.data;
   S.weirdError = !t.ok ? t.error : !p.ok ? p.error : null;
+  await loadClicks();
+}
+
+// Anonymous clicks per published pick over the last 7 days (public.weird_click_totals; reviewers only). Picks are
+// matched to the click totals by story id, the same id the front page counts clicks by.
+async function loadClicks() {
+  if (!S.clicksOn) return;
+  const pub = S.picks.filter((p) => p.status === 'published');
+  if (!pub.length) { S.clicks = {}; return; }
+  const pairs = await Promise.all(pub.map(async (p) => [p.id, await storyId(p.url)]));
+  const ids = [...new Set(pairs.map(([, id]) => id).filter(Boolean))];
+  const r = await db('rpc/weird_click_totals', { method: 'POST', body: { ids, days: 7 } });
+  if (!r.ok) { if (isMissingFeature(r.status, r.data)) S.clicksOn = false; return; }
+  const byStory = Object.fromEntries((Array.isArray(r.data) ? r.data : []).map((x) => [x.story_id, x.clicks]));
+  S.clicks = Object.fromEntries(pairs.map(([pid, sid]) => [pid, sid ? (byStory[sid] ?? 0) : null]));
+}
+
+// The favourites row exactly as the front page builds it: the same stories (/api/weird), the same reader favourites
+// (the community function) and the same rule (js/frontmodel.js favourites). Read-only; it never changes the order.
+async function loadFavRow() {
+  try {
+    const res = await fetch('api/weird?limit=30', { headers: { Accept: 'application/json' } });
+    const items = cleanWeird(res.ok ? await res.json() : null).items;
+    const [favs, ids] = await Promise.all([
+      loadFavourites(),
+      Promise.all(items.map(async (x) => [x.url, await storyId(x.url)])).then(Object.fromEntries),
+    ]);
+    S.favRow = { ok: true, ...favourites(items, favs, ids) };
+  } catch { S.favRow = { ok: false }; }
 }
 
 async function loadPickActivity(id) {
@@ -408,10 +449,35 @@ function tipRow(t) {
   return `<span class="rv-row__title rv-row__title--url">${esc(tipHost(t.url))}<span class="rv-muted">${esc(path.slice(0, 80))}${path.length > 80 ? '…' : ''}</span></span>
     <span class="rv-row__meta"><span>sent ${esc(relTime(t.created_at))}</span>${t.note ? `<span class="rv-row__note">“${esc(t.note.slice(0, 90))}${t.note.length > 90 ? '…' : ''}”</span>` : '<span>no note</span>'}</span>`;
 }
+// A published pick's clicks in the last 7 days, as a small badge; '' when unknown or not published.
+const clicksBadge = (p) => {
+  const label = p.status === 'published' && S.clicksOn ? clicksLabel(S.clicks[p.id]) : '';
+  return label ? `<span class="rv-clicks num">${esc(label)}</span>` : '';
+};
 function pickRow(p) {
   return `<span class="rv-row__title">${esc(p.title)}</span>
     <span class="rv-row__meta">${pickPill(p.status)}<span>${esc(p.outlet)}</span><span>${esc(CATEGORY_LABEL[p.category] || p.category)}</span>
-      ${p.published ? `<span>${esc(fmtDate(p.published))}</span>` : ''}${p.rating ? `<span>weird ${esc(p.rating)}/5</span>` : ''}</span>`;
+      ${p.published ? `<span>${esc(fmtDate(p.published))}</span>` : ''}${p.rating ? `<span>weird ${esc(p.rating)}/5</span>` : ''}${clicksBadge(p)}</span>`;
+}
+
+// The front page's favourites row, as visitors see it now: a small panel above the picks.
+function favPanelHTML() {
+  const f = S.favRow;
+  let body;
+  if (!f) body = '<p class="rv-quiet">Loading the front page’s row…</p>';
+  else if (!f.ok) body = '<p class="rv-quiet">Couldn’t load the front page’s stories just now.</p>';
+  else if (f.mode === 'none') body = '<p class="rv-quiet">The row is hidden: no published pick follows the lead, and no story has 10 reader votes this week.</p>';
+  else {
+    const cap = favCaption(f);
+    body = `<p class="rv-favs__cap"><strong>${esc(cap.title)}</strong>${cap.how ? ` — ${esc(cap.how)}` : ''}</p>
+      <ol class="rv-favs__list">${f.list.map((x) => `<li><span class="rv-favs__h">${esc(x.title)}</span>
+        <span class="rv-muted">${esc(x.outlet)} · ${x.by === 'readers' ? esc(favVotes(x).toLowerCase()) : 'your order'}</span>${x.note ? `<span class="rv-favs__hook">${esc(x.note)}</span>` : ''}</li>`).join('')}</ol>`;
+  }
+  return `<details class="rv-favs" id="favs-panel"${S.favsOpen ? ' open' : ''}>
+    <summary><span class="rv-favs__title">Reader favourites</span><span class="rv-muted">on the front page now</span></summary>
+    ${body}
+    <p class="rv-quiet">Your published picks in the site’s order (highest weird rating first; the lead is not repeated), until a story gets 10 Weird-o-meter votes in a week: then readers’ votes put it first. Clicks never change the order.</p>
+  </details>`;
 }
 const pickPill = (s) => `<span class="rv-pill rv-pill--${esc(s)}">${esc(PICK_STATUS_LABEL[s] || s)}</span>`;
 
@@ -437,6 +503,7 @@ function renderList() {
       ${isTopics ? '<button type="button" class="btn btn--primary rv-new" id="new-topic">New topic</button>' : ''}
       ${S.view === 'picks' && !S.weirdOff ? '<button type="button" class="btn btn--primary rv-new" id="new-pick">New pick</button>' : ''}
     </div>
+    ${S.view === 'picks' && !S.weirdOff ? favPanelHTML() : ''}
     ${S.view === 'votes' && !S.features.notes ? '<p class="rv-quiet">Until the reviewer-console migration is applied, this shows only what visitors see: nothing while the switch is off.</p>' : ''}
     ${list.length ? `<p class="rv-keys" id="list-keys"><kbd>j</kbd> <kbd>k</kbd> or <kbd>↑</kbd> <kbd>↓</kbd> to move, <kbd>Enter</kbd> to open</p>
     <ul class="rv-rows" id="rows" role="listbox" tabindex="0" aria-labelledby="list-title" aria-describedby="list-keys"${S.active >= 0 ? ` aria-activedescendant="row-${S.active}"` : ''}>
@@ -460,7 +527,7 @@ async function select(id, { focus = true } = {}) {
   S.selected = id;
   S.creating = false;
   S.editTopic = false; S.editStatement = null; S.topicDraft = null; S.prefill = null; S.editValues = null; S.noteDraft = ''; S.draftUrl = null;
-  S.editPick = false; S.pickDraft = null;
+  S.editPick = false; S.pickDraft = null; S.hook = freshHook();
   setPane('detail');
   renderList();
   renderDetail();
@@ -898,7 +965,7 @@ async function setStatus(status, { ok, verb }) {
 }
 
 async function act(name, btn) {
-  if (/^(tip|pick)-|^(edit|cancel)-pick$/.test(name)) return weirdAct(name);
+  if (/^(tip|pick|hook)-|^(edit|cancel)-pick$/.test(name)) return weirdAct(name, btn);
   const t = topic(S.selected);
   switch (name) {
     case 'back': setPane('list'); S.creating = false; renderDetail(); $('#rows')?.focus(); return;
@@ -1068,7 +1135,7 @@ function tipDetail(t) {
     <section class="rv-block" aria-labelledby="tip-note-title">
       <h3 id="tip-note-title">Note from the visitor</h3>
       ${t.note ? `<p class="rv-tip__note">${esc(t.note)}</p>` : '<p class="rv-quiet">No note.</p>'}
-      <p class="rv-muted">Visitors’ words are never published. A pick’s note is always yours.</p>
+      <p class="rv-muted">Visitors’ words are never published. A pick’s hook is always written or approved by a reviewer.</p>
     </section>
   </div>
   <div class="rv-actions" role="group" aria-label="Tip actions">
@@ -1094,13 +1161,49 @@ function pickForm(p, { create = false } = {}) {
       ${field('pk-category', 'Category', `<select id="pk-category" name="category" aria-describedby="pk-category-err">${Object.entries(CATEGORY_LABEL).map(([k, l]) => opt(k, l, v.category)).join('')}</select>`)}
       ${field('pk-rating', 'Your weird rating', `<select id="pk-rating" name="rating" aria-describedby="pk-rating-err">${opt('', 'Unrated', v.rating)}${[1, 2, 3, 4, 5].map((n) => opt(n, `${n} of 5: ${RATING_WORD[n]}`, v.rating)).join('')}</select>`)}
     </div>
-    ${field('pk-note', 'Editor’s note', `<textarea id="pk-note" name="note" rows="2" aria-describedby="pk-note-err pk-note-n">${esc(v.note)}</textarea>`, { hint: 'optional, your own words, one line; never the article’s text', counterId: counterHTML('pk-note-n', v.note, PICK_LIMITS.note) })}
+    <div class="rv-hook">
+      ${field('pk-note', esc(HOOK_LABEL), `<textarea id="pk-note" name="note" rows="2" aria-describedby="pk-note-err pk-note-n pk-hook-checks">${esc(v.note)}</textarea>`, { hint: 'optional, one line; never the article’s text', counterId: counterHTML('pk-note-n', v.note, PICK_LIMITS.note) })}
+      <p class="rv-muted">${esc(HOOK_GUIDANCE)}</p>
+      ${hookChecksHTML(v.note)}
+      <div class="rv-hook__draft">
+        <button type="button" class="btn btn--ghost rv-btn--sm" data-act="hook-draft"${S.hook.busy ? ' disabled' : ''}>Draft with Claude</button>
+        <label class="rv-check"><input type="checkbox" id="pk-hook-read"${S.hook.readPage ? ' checked' : ''}> Let Claude read the story page</label>
+      </div>
+      <div class="rv-hook__out" id="pk-hook-out" aria-live="polite">${hookOutHTML()}</div>
+    </div>
     <div class="rv-form__actions">
       <button type="submit" class="btn btn--primary">${create ? 'Save draft' : 'Save pick'}</button>
       <button type="button" class="btn btn--ghost" data-act="cancel-pick">Cancel</button>
     </div>
   </form>`;
 }
+
+// The hook's live checklist (js/reviewmodel.js hookChecks): the length is a hard rule (the database enforces it);
+// clickbait, capitals and marks are warnings the reviewer may overrule.
+const MARK_WARN = '<span class="rv-check-mark" aria-hidden="true">!</span>';
+function hookChecksHTML(text) {
+  return `<ul class="rv-checks" id="pk-hook-checks" aria-label="Hook checklist">${hookChecks(text).map((c) => `<li class="rv-check-item${c.ok ? ' is-ok' : c.hard ? ' is-bad' : ' is-warn'}">
+      ${c.ok ? ICON_YES : c.hard ? ICON_NO : MARK_WARN}<span>${esc(c.label)}${c.detail ? ` <span class="rv-muted">${esc(c.detail)}</span>` : ''}</span>
+      <span class="sr-only">${c.ok ? 'passes' : c.hard ? 'must be fixed before saving' : 'warning'}</span></li>`).join('')}</ul>`;
+}
+
+// "Draft with Claude": waiting, an error, or up to three suggestions to click into the field. Nothing is saved
+// until the reviewer presses Save.
+function hookOutHTML() {
+  const h = S.hook;
+  if (h.busy) return waiting(h.started, 'Asking Claude for hook lines.');
+  if (h.error) return `<p class="rv-err">${esc(h.error)}</p>`;
+  if (!h.reply) return '';
+  const list = hookSuggestions(h.reply);
+  const notes = hookDraftNotes(h.reply);
+  return `${list.length ? `<p class="rv-assist__sub">Claude suggests. Click one to put it in the field, edit it, then save the pick.</p>
+    <ul class="rv-hooks">${list.map((x, i) => `<li><button type="button" class="rv-hook__pick" data-act="hook-use" data-i="${i}">
+        <span class="rv-hook__text">${esc(x.text)}</span>
+        <span class="rv-muted">${x.basis ? `From: “${esc(x.basis)}”` : ''}${x.checks.every((c) => c.ok) ? '' : ` · ${esc(x.checks.filter((c) => !c.ok).map((c) => c.label).join('; '))}`}</span>
+        <span class="sr-only">Use this hook</span></button></li>`).join('')}</ul>` : ''}
+    ${notes.length ? `<ul class="rv-hook__notes">${notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}`;
+}
+const renderHookOut = () => { const el = $('#pk-hook-out'); if (el) el.innerHTML = hookOutHTML(); const b = $('[data-act="hook-draft"]'); if (b) b.disabled = S.hook.busy; };
 
 function newPickDetail() {
   return `<div class="rv-ticket rv-ticket--new"><div class="rv-ticket__main">
@@ -1135,7 +1238,8 @@ function pickDetail(p) {
       ${S.editPick ? pickForm(p) : `
         <p>${href ? ext(href, `Read it at ${p.outlet}`) : 'No valid link'}</p>
         <dl class="rv-dl">
-          <dt>Note</dt><dd>${p.note ? esc(p.note) : '<span class="rv-quiet">No note.</span>'}</dd>
+          <dt>Hook</dt><dd>${p.note ? esc(p.note) : '<span class="rv-quiet">No hook.</span>'}</dd>
+          ${p.status === 'published' && S.clicksOn && clicksLabel(S.clicks[p.id]) ? `<dt>Clicks</dt><dd>${esc(clicksLabel(S.clicks[p.id]))} <span class="rv-muted">(anonymous totals, from the front page)</span></dd>` : ''}
           <dt>Your rating</dt><dd>${p.rating ? `${esc(p.rating)} of 5: ${esc(RATING_WORD[p.rating])}` : 'Unrated'}</dd>
           <dt>Link</dt><dd class="rv-tip__url">${esc(p.url)}</dd>
         </dl>`}
@@ -1158,7 +1262,7 @@ async function submitPick(form) {
   const r = create ? await change('weird_picks', 'POST', body) : await change(`weird_picks?id=eq.${S.selected}`, 'PATCH', body);
   btn.disabled = false;
   if (!r.ok) return toast(`Couldn’t save the pick: ${pickSaveError(r.status, r.data)}`, { error: true });
-  S.pickDraft = null; S.editPick = false;
+  S.pickDraft = null; S.editPick = false; S.hook = freshHook();
   toast(create ? 'Pick saved as a draft. Publish it when it is ready.' : 'Pick saved');
   await loadWeird();
   if (create) {
@@ -1189,7 +1293,7 @@ async function setTipStatus(tip, status) {
   return true;
 }
 
-async function weirdAct(name) {
+async function weirdAct(name, btn) {
   const tip = S.view === 'tips' ? S.tips.find((x) => x.id === S.selected) : null;
   const pick = S.view === 'picks' ? pickById(S.selected) : null;
   switch (name) {
@@ -1204,7 +1308,7 @@ async function weirdAct(name) {
         await select(existing.id);
         return;
       }
-      S.creating = true; S.selected = null; S.active = -1; S.editPick = false; S.pickDraft = pickFromTip(tip);
+      S.creating = true; S.selected = null; S.active = -1; S.editPick = false; S.pickDraft = pickFromTip(tip); S.hook = freshHook();
       setPane('detail');
       renderAll();
       $('#pk-title')?.focus();
@@ -1224,9 +1328,21 @@ async function weirdAct(name) {
       ($('#detail-title') || $('#rows'))?.focus();
       return;
     }
-    case 'edit-pick': S.editPick = true; S.pickDraft = null; renderDetail(); $('#pk-url')?.focus(); return;
+    case 'edit-pick': S.editPick = true; S.pickDraft = null; S.hook = freshHook(); renderDetail(); $('#pk-url')?.focus(); return;
+    case 'hook-draft': return draftHook();
+    case 'hook-use': {
+      const x = hookSuggestions(S.hook.reply)[Number(btn?.dataset.i)];
+      const ta = $('#pk-note');
+      if (!x || !ta) return;
+      ta.value = x.text;
+      S.pickDraft = { ...(S.pickDraft || {}), note: x.text };
+      syncHookField(ta);
+      ta.focus();
+      toast('Hook inserted. Edit it if you like, then save the pick. Nothing is saved until you do.');
+      return;
+    }
     case 'cancel-pick':
-      S.pickDraft = null;
+      S.pickDraft = null; S.hook = freshHook();
       if (S.creating) { S.creating = false; setPane('list'); renderDetail(); $('#new-pick')?.focus(); return; }
       S.editPick = false; renderDetail(); $('#pick-story-title')?.focus(); return;
     case 'pick-publish':
@@ -1261,6 +1377,30 @@ async function weirdAct(name) {
   }
 }
 
+// The counter and the checklist under the hook field, after typing or inserting a suggestion.
+function syncHookField(ta) {
+  const out = document.getElementById('pk-note-n');
+  if (out) { const c = counter(ta.value, PICK_LIMITS.note); out.textContent = c.text; out.classList.toggle('is-over', c.over); }
+  const list = document.getElementById('pk-hook-checks');
+  if (list) list.outerHTML = hookChecksHTML(ta.value);
+}
+
+// Ask the assistant for up to three hook lines from the headline (and the story page, if the reviewer ticked it).
+async function draftHook() {
+  const form = $('#pick-form');
+  if (!form || S.hook.busy) return;
+  const req = hookDraftRequest(Object.fromEntries(new FormData(form)), { readPage: S.hook.readPage });
+  if (!req.ok) { S.hook = { ...S.hook, reply: null, error: req.message }; renderHookOut(); (S.hook.readPage ? $('#pk-url') : $('#pk-title'))?.focus(); return; }
+  if (S.assist.off || S.assist.claudeOff) { S.hook = { ...S.hook, reply: null, error: S.assist.off || S.assist.claudeOff }; renderHookOut(); return; }
+  S.hook = { ...S.hook, busy: true, started: Date.now(), reply: null, error: '' };
+  renderHookOut(); tick(true);
+  const { out, data } = await assist(req.body);
+  S.hook = { ...S.hook, busy: false, reply: out.kind === 'ok' ? data : null, error: out.kind === 'ok' ? '' : out.message };
+  retick();
+  renderHookOut();
+  if (out.kind === 'ok') $('.rv-hook__pick')?.focus();
+}
+
 /* ---------- Events ---------- */
 
 function wire() {
@@ -1279,7 +1419,7 @@ function wire() {
   const listPane = $('#list-pane');
   listPane.addEventListener('click', (e) => {
     if (e.target.closest('#new-pick')) {
-      S.creating = true; S.selected = null; S.pickDraft = null; S.editPick = false;
+      S.creating = true; S.selected = null; S.pickDraft = null; S.editPick = false; S.hook = freshHook();
       setPane('detail'); renderList(); renderDetail(); $('#pk-url')?.focus();
       return;
     }
@@ -1305,6 +1445,7 @@ function wire() {
     e.preventDefault();
     setActive(n);
   });
+  listPane.addEventListener('toggle', (e) => { if (e.target.id === 'favs-panel') S.favsOpen = e.target.open; }, true);
   listPane.addEventListener('focusin', (e) => { if (e.target.id === 'rows' && S.active < 0 && rows().length) setActive(0); });
 
   const detail = $('#detail');
@@ -1325,6 +1466,8 @@ function wire() {
   detail.addEventListener('toggle', (e) => { if (e.target.id === 'assist') S.assistOpen = e.target.open; }, true);
   detail.addEventListener('input', (e) => {
     const el = e.target;
+    if (el.id === 'pk-hook-read') { S.hook.readPage = el.checked; return; }
+    if (el.id === 'pk-note') syncHookField(el);
     const pickForm = el.form?.id === 'pick-form';
     const max = pickForm ? { title: PICK_LIMITS.title, note: PICK_LIMITS.note }[el.name]
       : { title: LIMITS.title, neutral_fact: LIMITS.neutral_fact, quote: LIMITS.quote, body: LIMITS.note }[el.name];
@@ -1366,6 +1509,8 @@ async function start() {
   if (!me.data?.length) return showGate('not-reviewer', { email: S.user.email });
 
   await Promise.all([loadTopics(), loadVotes(), loadCollector(), detectFeatures(), loadWeird()]);
+  // The favourites preview comes from the public site and the community function; the console does not wait for it.
+  loadFavRow().then(() => { const el = $('#favs-panel'); if (el) el.outerHTML = favPanelHTML(); });
   $('#gate').hidden = true;
   $('#app').hidden = false;
   $('#who').textContent = S.user.email || '';

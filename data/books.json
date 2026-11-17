@@ -34,7 +34,10 @@
       "contentNote": "Describes a real killing.",
       "caveat": "Berendt has acknowledged compressing the timeline and placing himself in scenes he did not witness.",
       "olWork": null, "olEdition": "OL1396531M", "olVerified": false,
-      "cover": { "id": 8231883, "olKey": "/works/OL3524935W", "year": 1785, "checked": "2026-11-16" }
+      "cover": { "id": 8231883, "olKey": "/works/OL3524935W", "year": 1785, "checked": "2026-11-16" },
+      "preview": {
+        "watch": { "kind": "cspan", "url": "https://www.c-span.org/video/?89415-1/midnight-garden-good-evil", "title": "Midnight in the Garden of Good and Evil (Booknotes, 1997)", "channel": "C-SPAN Booknotes", "label": "Author interview" }
+      }
     },
     {
       "id": "the-devil-in-the-white-city", "shelf": "crime", "title": "The Devil in the White City", "authors": ["Erik Larson"], "year": 2003,
@@ -43,7 +46,10 @@
       "contentNote": "Describes real murders.",
       "caveat": "Historians say the “murder castle” legend and the large victim counts often given for Holmes come from sensational newspapers of the time; his confirmed victims are far fewer. Some scenes are reconstructed.",
       "olWork": "OL20262W", "olEdition": null, "olVerified": false, "isbn13": "9780375725609",
-      "cover": { "id": 541027, "olKey": "/works/OL20262W", "year": 2003, "checked": "2026-11-16" }
+      "cover": { "id": 541027, "olKey": "/works/OL20262W", "year": 2003, "checked": "2026-11-16" },
+      "preview": {
+        "watch": { "kind": "cspan", "url": "https://www.c-span.org/video/?178161-1/the-devil-white-city", "title": "The Devil in the White City (Booknotes, 14 Sep 2003)", "channel": "C-SPAN Booknotes", "label": "Author interview" }
+      }
     },
     {
       "id": "killers-of-the-flower-moon", "shelf": "crime", "title": "Killers of the Flower Moon", "authors": ["David Grann"], "year": 2017,
@@ -51,7 +57,10 @@
       "tags": ["Oklahoma", "Osage Nation", "Early FBI"],
       "contentNote": "Describes real murders.",
       "olWork": "OL17778665W", "olEdition": null, "olVerified": false,
-      "cover": { "id": 8055064, "olKey": "/works/OL17778665W", "year": 2017, "checked": "2026-11-16" }
+      "cover": { "id": 8055064, "olKey": "/works/OL17778665W", "year": 2017, "checked": "2026-11-16" },
+      "preview": {
+        "watch": { "kind": "youtube", "id": "AKjvrSS-UXU", "title": "David Grann, author of “Killers of the Flower Moon,” takes questions from readers", "channel": "PBS NewsHour", "label": "Author interview" }
+      }
     },
     {
       "id": "the-suspicions-of-mr-whicher", "shelf": "crime", "title": "The Suspicions of Mr Whicher", "authors": ["Kate Summerscale"], "year": 2008,
@@ -59,7 +68,10 @@
       "tags": ["Victorian England", "Scotland Yard", "Detectives"],
       "contentNote": "Describes the real killing of a child.",
       "olWork": null, "olEdition": null, "olVerified": false,
-      "cover": { "id": 10302466, "olKey": "/works/OL20935037W", "year": 2008, "checked": "2026-11-16" }
+      "cover": { "id": 10302466, "olKey": "/works/OL20935037W", "year": 2008, "checked": "2026-11-16" },
+      "preview": {
+        "watch": { "kind": "youtube", "id": "I8dsPPNKwIM", "title": "#JLF 2015: The Suspicions of Mr. Whicher", "channel": "Jaipur Literature Festival", "label": "Author talk" }
+      }
     },
     {
       "id": "say-nothing", "shelf": "crime", "title": "Say Nothing", "authors": ["Patrick Radden Keefe"], "year": 2018,
@@ -68,7 +80,10 @@
       "contentNote": "Describes abduction, killings and political violence.",
       "caveat": "It names living people in connection with allegations they deny, among them Gerry Adams, and draws on the contested Boston College oral-history tapes.",
       "olWork": "OL20153382W", "olEdition": null, "olVerified": false,
-      "cover": { "id": 9242450, "olKey": "/works/OL20153382W", "year": 2018, "checked": "2026-11-16" }
+      "cover": { "id": 9242450, "olKey": "/works/OL20153382W", "year": 2018, "checked": "2026-11-16" },
+      "preview": {
+        "watch": { "kind": "cspan", "url": "https://www.c-span.org/program/book-tv/say-nothing/522593", "title": "Say Nothing (Book TV, 8 Mar 2019)", "channel": "C-SPAN Book TV", "label": "Author talk" }
+      }
     },
     {
       "id": "homicide", "shelf": "crime", "title": "Homicide: A Year on the Killing Streets", "authors": ["David Simon"], "year": 1991,
@@ -83,7 +98,10 @@
       "tags": ["Alabama", "Harper Lee", "Trial"],
       "contentNote": "Describes real killings.",
       "olWork": null, "olEdition": null, "olVerified": false,
-      "cover": { "id": 8793545, "olKey": "/works/OL20149335W", "year": 2019, "checked": "2026-11-16" }
+      "cover": { "id": 8793545, "olKey": "/works/OL20149335W", "year": 2019, "checked": "2026-11-16" },
+      "preview": {
+        "watch": { "kind": "cspan", "url": "https://www.c-span.org/program/book-tv/furious-hours/526552", "title": "Furious Hours (Book TV; Cep in conversation with Patrick Radden Keefe)", "channel": "C-SPAN Book TV", "label": "Author talk" }
+      }
     },
     {
       "id": "we-keep-the-dead-close", "shelf": "crime", "title": "We Keep the Dead Close", "authors": ["Becky Cooper"], "year": 2020,
@@ -91,7 +109,10 @@
       "tags": ["Harvard", "1969", "Cold case"],
       "contentNote": "Describes a real killing and sexual assault.",
       "olWork": null, "olEdition": null, "olVerified": false,
-      "cover": { "id": 10162654, "olKey": "/works/OL20850962W", "year": 2020, "checked": "2026-11-16" }
+      "cover": { "id": 10162654, "olKey": "/works/OL20850962W", "year": 2020, "checked": "2026-11-16" },
+      "preview": {
+        "watch": { "kind": "youtube", "id": "miU0bsU4Csc", "title": "Becky Cooper presents \"We Keep the Dead Close\" with Patrick Radden Keefe", "channel": "Harvard Book Store", "label": "Author talk" }
+      }
     },
 
     {
@@ -141,7 +162,10 @@
       "contentNote": "Discusses real murders, poverty and abuse.",
       "caveat": "Some historians of the case dispute her argument that several of the women were not working as prostitutes.",
       "olWork": null, "olEdition": null, "olVerified": false,
-      "cover": { "id": 9171763, "olKey": "/works/OL20521315W", "year": 2019, "checked": "2026-11-16" }
+      "cover": { "id": 9171763, "olKey": "/works/OL20521315W", "year": 2019, "checked": "2026-11-16" },
+      "preview": {
+        "watch": { "kind": "youtube", "id": "7tYIvojUik8", "title": "The 2019 Baillie Gifford Prize Winner: Hallie Rubenhold", "channel": "The Baillie Gifford Prize", "label": "Author interview" }
+      }
     },
     {
       "id": "lost-girls", "shelf": "serial", "title": "Lost Girls", "authors": ["Robert Kolker"], "year": 2013,
@@ -150,7 +174,10 @@
       "contentNote": "Describes real disappearances and killings, and sex work.",
       "caveat": "The book came out ten years before a suspect was charged in 2023, so it does not cover him or the case against him.",
       "olWork": null, "olEdition": null, "olVerified": false,
-      "cover": { "id": 7267112, "olKey": "/works/OL16809804W", "year": 2013, "checked": "2026-11-16" }
+      "cover": { "id": 7267112, "olKey": "/works/OL16809804W", "year": 2013, "checked": "2026-11-16" },
+      "preview": {
+        "watch": { "kind": "youtube", "id": "ZSgeN_Ylv0Y", "title": "Lost Girls: Author delves into the lives of Long Island serial killer's victims", "channel": "CBS News", "label": "Author interview" }
+      }
     },
     {
       "id": "wicked-beyond-belief", "shelf": "serial", "title": "Wicked Beyond Belief", "authors": ["Michael Bilton"], "year": 2003,
@@ -184,13 +211,19 @@
       "tags": ["Italy", "Journalism", "Cold case"],
       "contentNote": "Describes real violent crimes.",
       "caveat": "It points to people as possible suspects who have never been charged with the murders.",
-      "olWork": null, "olEdition": "OL24238097M", "olVerified": false
+      "olWork": null, "olEdition": "OL24238097M", "olVerified": false,
+      "preview": {
+        "watch": { "kind": "youtube", "id": "sXtZL9bQr-Q", "title": "Douglas Preston discusses The Monster of Florence", "channel": "The Poisoned Pen Bookstore", "label": "Author interview" }
+      }
     },
     {
       "id": "the-lost-city-of-z", "shelf": "unsolved", "title": "The Lost City of Z", "authors": ["David Grann"], "year": 2009,
       "description": "In 1925 the British explorer Percy Fawcett walked into the Amazon looking for a lost city he called Z, and never came out. Grann follows his trail, the many people who vanished looking for him, and what archaeologists have found since.",
       "tags": ["Amazon", "Explorers", "1920s"],
-      "olWork": "OL11930023W", "olEdition": null, "olVerified": false
+      "olWork": "OL11930023W", "olEdition": null, "olVerified": false,
+      "preview": {
+        "watch": { "kind": "cspan", "url": "https://www.c-span.org/program/book-tv/the-lost-city-of-z/202171", "title": "The Lost City of Z (Book TV)", "channel": "C-SPAN Book TV", "label": "Author talk" }
+      }
     },
     {
       "id": "dead-mountain", "shelf": "unsolved", "title": "Dead Mountain", "authors": ["Donnie Eichar"], "year": 2013,
@@ -199,7 +232,10 @@
       "contentNote": "Describes real deaths.",
       "caveat": "Its explanation is one of several. A Russian inquiry in 2019–20 and a 2021 scientific study favour a slab avalanche.",
       "olWork": null, "olEdition": null, "olVerified": false,
-      "cover": { "id": 12724349, "olKey": "/works/OL19972114W", "year": 2013, "checked": "2026-11-16" }
+      "cover": { "id": 12724349, "olKey": "/works/OL19972114W", "year": 2013, "checked": "2026-11-16" },
+      "preview": {
+        "watch": { "kind": "youtube", "id": "yrnyAWu5j4w", "title": "Dead Mountain | Donnie Eichar | Talks at Google", "channel": "Talks at Google", "label": "Author talk" }
+      }
     },
     {
       "id": "skyjack", "shelf": "unsolved", "title": "Skyjack", "authors": ["Geoffrey Gray"], "year": 2011,
@@ -235,7 +271,10 @@
       "tags": ["Inventors", "1913", "Disappearance"],
       "contentNote": "Describes a death.",
       "caveat": "Brunt offers a speculative solution that has not been confirmed.",
-      "olWork": null, "olEdition": null, "olVerified": false
+      "olWork": null, "olEdition": null, "olVerified": false,
+      "preview": {
+        "watch": { "kind": "cspan", "url": "https://www.c-span.org/program/american-history-tv/the-mysterious-case-of-rudolf-diesel/632458", "title": "The Mysterious Case of Rudolf Diesel (Corner Bookstore, NYC)", "channel": "C-SPAN American History TV / Book TV", "label": "Author talk" }
+      }
     },
 
     {
@@ -244,7 +283,10 @@
       "tags": ["Manias", "Money", "Crowds"],
       "caveat": "Historians say Mackay exaggerated several episodes, tulip mania among them.",
       "olWork": null, "olEdition": null, "olVerified": false,
-      "cover": { "id": 8804986, "olKey": "/works/OL20159667W", "year": 2003, "checked": "2026-11-16" }
+      "cover": { "id": 8804986, "olKey": "/works/OL20159667W", "year": 2003, "checked": "2026-11-16" },
+      "preview": {
+        "look": { "kind": "archive", "identifier": "memoirsextraord11mackgoog" }
+      }
     },
     {
       "id": "a-night-to-remember", "shelf": "history", "title": "A Night to Remember", "authors": ["Walter Lord"], "year": 1955,
@@ -252,7 +294,10 @@
       "tags": ["Titanic", "1912", "Survivors"],
       "contentNote": "Describes mass loss of life.",
       "olWork": null, "olEdition": null, "olVerified": false,
-      "cover": { "id": 15026510, "olKey": "/works/OL43289064W", "year": 1956, "checked": "2026-11-16" }
+      "cover": { "id": 15026510, "olKey": "/works/OL43289064W", "year": 1956, "checked": "2026-11-16" },
+      "preview": {
+        "watch": { "kind": "criterion", "url": "https://www.criterion.com/films/521-a-night-to-remember", "title": "A Night to Remember (1958), Criterion Collection film page", "channel": "The Criterion Collection", "label": "Film trailer" }
+      }
     },
     {
       "id": "the-professor-and-the-madman", "shelf": "history", "title": "The Professor and the Madman", "authors": ["Simon Winchester"], "year": 1998,
@@ -260,7 +305,10 @@
       "tags": ["Dictionaries", "Victorian", "Words"],
       "contentNote": "Describes a killing and serious mental illness.",
       "olWork": null, "olEdition": null, "olVerified": false,
-      "cover": { "id": 37557, "olKey": "/works/OL1840019W", "year": 1998, "checked": "2026-11-16" }
+      "cover": { "id": 37557, "olKey": "/works/OL1840019W", "year": 1998, "checked": "2026-11-16" },
+      "preview": {
+        "watch": { "kind": "cspan", "url": "https://www.c-span.org/program/booknotes/the-professor-and-the-madman/174151", "title": "The Professor and the Madman (Booknotes, 8 Nov 1998)", "channel": "C-SPAN Booknotes", "label": "Author interview" }
+      }
     },
     {
       "id": "the-ghost-map", "shelf": "history", "title": "The Ghost Map", "authors": ["Steven Johnson"], "year": 2006,
@@ -268,7 +316,10 @@
       "tags": ["London", "Cholera", "Maps"],
       "contentNote": "Describes an epidemic and many deaths.",
       "olWork": "OL8552834W", "olEdition": "OL17211890M", "olVerified": false,
-      "cover": { "id": 1989039, "olKey": "/works/OL2668651W", "year": 2006, "checked": "2026-11-16" }
+      "cover": { "id": 1989039, "olKey": "/works/OL2668651W", "year": 2006, "checked": "2026-11-16" },
+      "preview": {
+        "watch": { "kind": "youtube", "id": "KvHL0dHj3RM", "title": "Steven Johnson: A guided tour of the Ghost Map", "channel": "TED", "label": "Author talk" }
+      }
     },
     {
       "id": "dead-wake", "shelf": "history", "title": "Dead Wake", "authors": ["Erik Larson"], "year": 2015,
@@ -276,7 +327,10 @@
       "tags": ["Lusitania", "1915", "The sea"],
       "contentNote": "Describes mass loss of life.",
       "olWork": null, "olEdition": null, "olVerified": false,
-      "cover": { "id": 7317226, "olKey": "/works/OL17077268W", "year": 2015, "checked": "2026-11-16" }
+      "cover": { "id": 7317226, "olKey": "/works/OL17077268W", "year": 2015, "checked": "2026-11-16" },
+      "preview": {
+        "watch": { "kind": "cspan", "url": "https://www.c-span.org/program/book-tv/dead-wake/395236", "title": "Dead Wake (Book TV, Mar 2015)", "channel": "C-SPAN Book TV", "label": "Author talk" }
+      }
     },
     {
       "id": "the-radium-girls", "shelf": "history", "title": "The Radium Girls", "authors": ["Kate Moore"], "year": 2016,
@@ -291,7 +345,10 @@
       "description": "A tour of remedies people once trusted, from mercury and arsenic to radium tonics, bloodletting and electric belts. A doctor and a historian explain why each seemed like a good idea.",
       "tags": ["Medicine", "Remedies", "Funny"],
       "olWork": null, "olEdition": null, "olVerified": false,
-      "cover": { "id": 12041321, "olKey": "/works/OL19718854W", "year": 2017, "checked": "2026-11-16" }
+      "cover": { "id": 12041321, "olKey": "/works/OL19718854W", "year": 2017, "checked": "2026-11-16" },
+      "preview": {
+        "watch": { "kind": "cspan", "url": "https://www.c-span.org/video/?437389-2/quackery", "title": "Dr. Lydia Kang Discusses Quackery (16 Nov 2017)", "channel": "C-SPAN Book TV", "label": "Author talk" }
+      }
     },
     {
       "id": "a-time-to-dance-a-time-to-die", "shelf": "history", "title": "A Time to Dance, a Time to Die", "authors": ["John Waller"], "year": 2008,
@@ -305,14 +362,20 @@
       "tags": ["Surgery", "Victorian", "Germs"],
       "contentNote": "Graphic descriptions of surgery and infection.",
       "olWork": null, "olEdition": null, "olVerified": false,
-      "cover": { "id": 14431289, "olKey": "/works/OL19718770W", "year": 2017, "checked": "2026-11-16" }
+      "cover": { "id": 14431289, "olKey": "/works/OL19718770W", "year": 2017, "checked": "2026-11-16" },
+      "preview": {
+        "watch": { "kind": "cspan", "url": "https://www.c-span.org/program/history-bookshelf/the-butchering-art/490254", "title": "The Butchering Art (History Bookshelf)", "channel": "C-SPAN American History TV", "label": "Author talk" }
+      }
     },
     {
       "id": "fordlandia", "shelf": "history", "title": "Fordlândia", "authors": ["Greg Grandin"], "year": 2009,
       "description": "In 1928 Henry Ford set out to grow rubber in the Brazilian Amazon and built an American company town to do it, with square dances and a ban on drink. Grandin tells how the jungle and the workers resisted.",
       "tags": ["Amazon", "Henry Ford", "1920s"],
       "olWork": null, "olEdition": null, "olVerified": false,
-      "cover": { "id": 8208526, "olKey": "/works/OL5702124W", "year": 2009, "checked": "2026-11-16" }
+      "cover": { "id": 8208526, "olKey": "/works/OL5702124W", "year": 2009, "checked": "2026-11-16" },
+      "preview": {
+        "watch": { "kind": "cspan", "url": "https://www.c-span.org/program/book-tv/fordlandia/209875", "title": "Fordlandia (Book TV, 2009)", "channel": "C-SPAN Book TV", "label": "Author talk" }
+      }
     },
 
     {
@@ -329,14 +392,20 @@
       "tags": ["The body", "Forensics", "Funny"],
       "contentNote": "Frank descriptions of human remains.",
       "olWork": "OL7986135W", "olEdition": "OL24936497M", "olVerified": false,
-      "cover": { "id": 1726839, "olKey": "/works/OL7986135W", "year": 2003, "checked": "2026-11-16" }
+      "cover": { "id": 1726839, "olKey": "/works/OL7986135W", "year": 2003, "checked": "2026-11-16" },
+      "preview": {
+        "watch": { "kind": "cspan", "url": "https://www.c-span.org/program/book-tv/stiff-the-curious-lives-of-human-cadavers/197319", "title": "Stiff: The Curious Lives of Human Cadavers (Book TV)", "channel": "C-SPAN Book TV", "label": "Author talk" }
+      }
     },
     {
       "id": "spook", "shelf": "science", "title": "Spook", "authors": ["Mary Roach"], "year": 2005,
       "description": "Roach looks at people who tried to find scientific evidence of life after death, from weighing the soul to testing mediums, and reports what they found and how they went looking.",
       "tags": ["Afterlife", "Experiments", "Funny"],
       "olWork": null, "olEdition": null, "olVerified": false,
-      "cover": { "id": 247995, "olKey": "/works/OL7986134W", "year": 2005, "checked": "2026-11-16" }
+      "cover": { "id": 247995, "olKey": "/works/OL7986134W", "year": 2005, "checked": "2026-11-16" },
+      "preview": {
+        "watch": { "kind": "cspan", "url": "https://www.c-span.org/program/book-tv/bookexpo-america-interview/145335", "title": "BookExpo America Interview (Mary Roach, first aired 5 Jun 2005)", "channel": "C-SPAN Book TV", "label": "Author interview" }
+      }
     },
     {
       "id": "the-poisoners-handbook", "shelf": "science", "title": "The Poisoner’s Handbook", "authors": ["Deborah Blum"], "year": 2010,
@@ -344,14 +413,20 @@
       "tags": ["New York", "Forensics", "1920s"],
       "contentNote": "Describes real poisonings and deaths.",
       "olWork": "OL15451748W", "olEdition": null, "olVerified": false,
-      "cover": { "id": 6608485, "olKey": "/works/OL15299710W", "year": 2010, "checked": "2026-11-16" }
+      "cover": { "id": 6608485, "olKey": "/works/OL15299710W", "year": 2010, "checked": "2026-11-16" },
+      "preview": {
+        "watch": { "kind": "pbs", "url": "https://www.pbs.org/wgbh/americanexperience/films/poisoners/", "title": "The Poisoner's Handbook — American Experience (PBS)", "channel": "PBS American Experience", "label": "Documentary" }
+      }
     },
     {
       "id": "the-disappearing-spoon", "shelf": "science", "title": "The Disappearing Spoon", "authors": ["Sam Kean"], "year": 2010,
       "description": "Stories behind the periodic table: the people who found the elements, their feuds and accidents, and the elements that turned up in wars and medicine. The title comes from a gallium spoon that melts in hot tea.",
       "tags": ["Chemistry", "Elements", "Stories"],
       "olWork": null, "olEdition": "OL24909020M", "olVerified": false,
-      "cover": { "id": 10069131, "olKey": "/works/OL15368067W", "year": 2010, "checked": "2026-11-16" }
+      "cover": { "id": 10069131, "olKey": "/works/OL15368067W", "year": 2010, "checked": "2026-11-16" },
+      "preview": {
+        "watch": { "kind": "youtube", "id": "HL5kxO5T3Zo", "title": "Mini-interview with author Sam Kean at AMSE: The Disappearing Spoon", "channel": "American Museum of Science and Energy", "label": "Author interview" }
+      }
     },
     {
       "id": "the-immortal-life-of-henrietta-lacks", "shelf": "science", "title": "The Immortal Life of Henrietta Lacks", "authors": ["Rebecca Skloot"], "year": 2010,
@@ -359,14 +434,20 @@
       "tags": ["Medicine", "Consent", "Family"],
       "contentNote": "Discusses cancer, racism in medicine and consent.",
       "olWork": null, "olEdition": null, "olVerified": false,
-      "cover": { "id": 8364866, "olKey": "/works/OL13850788W", "year": 2009, "checked": "2026-11-16" }
+      "cover": { "id": 8364866, "olKey": "/works/OL13850788W", "year": 2009, "checked": "2026-11-16" },
+      "preview": {
+        "watch": { "kind": "cspan", "url": "https://www.c-span.org/video/?292685-7/the-immortal-life-henrietta-lacks", "title": "The Immortal Life of Henrietta Lacks (Virginia Festival of the Book, 2010)", "channel": "C-SPAN Book TV", "label": "Author talk" }
+      }
     },
     {
       "id": "gulp", "shelf": "science", "title": "Gulp", "authors": ["Mary Roach"], "year": 2013,
       "description": "The science of eating and digestion, from professional tasters and pet-food labs to stomach acid and what happens further down.",
       "tags": ["The body", "Food", "Funny"],
       "olWork": "OL17060785W", "olEdition": "OL25630031M", "olVerified": false,
-      "cover": { "id": 7353240, "olKey": "/works/OL17060785W", "year": 2013, "checked": "2026-11-16" }
+      "cover": { "id": 7353240, "olKey": "/works/OL17060785W", "year": 2013, "checked": "2026-11-16" },
+      "preview": {
+        "watch": { "kind": "youtube", "id": "0lW2NZo4kME", "title": "Mary Roach - Gulp: Adventures on the Alimentary Canal - April 24, 2014", "channel": "The Kansas City Public Library", "label": "Author talk" }
+      }
     },
     {
       "id": "the-tale-of-the-dueling-neurosurgeons", "shelf": "science", "title": "The Tale of the Dueling Neurosurgeons", "authors": ["Sam Kean"], "year": 2014,
@@ -374,21 +455,30 @@
       "tags": ["The brain", "History", "Medicine"],
       "contentNote": "Describes brain injuries.",
       "olWork": null, "olEdition": null, "olVerified": false,
-      "cover": { "id": 8999819, "olKey": "/works/OL17340176W", "year": 2014, "checked": "2026-11-16" }
+      "cover": { "id": 8999819, "olKey": "/works/OL17340176W", "year": 2014, "checked": "2026-11-16" },
+      "preview": {
+        "watch": { "kind": "cspan", "url": "https://www.c-span.org/program/book-tv/the-tale-of-the-dueling-neurosurgeons/381131", "title": "The Tale of the Dueling Neurosurgeons (National Press Club Book Fair, 18 Nov 2014)", "channel": "C-SPAN Book TV", "label": "Author interview" }
+      }
     },
     {
       "id": "an-immense-world", "shelf": "science", "title": "An Immense World", "authors": ["Ed Yong"], "year": 2022,
       "description": "How other animals sense the world: birds that see ultraviolet, fish that feel electric fields, creatures that find their way by magnetism. Yong explains what each sense would be like from the inside.",
       "tags": ["Animals", "Senses", "Nature"],
       "olWork": null, "olEdition": null, "olVerified": false,
-      "cover": { "id": 12835209, "olKey": "/works/OL25815646W", "year": 2022, "checked": "2026-11-16" }
+      "cover": { "id": 12835209, "olKey": "/works/OL25815646W", "year": 2022, "checked": "2026-11-16" },
+      "preview": {
+        "watch": { "kind": "youtube", "id": "KGWCtpZ1L44", "title": "\"An Immense World\": Ed Yong on How Animal Senses Reveal the Hidden Realms Around Us", "channel": "Democracy Now!", "label": "Author interview" }
+      }
     },
     {
       "id": "parasite-rex", "shelf": "science", "title": "Parasite Rex", "authors": ["Carl Zimmer"], "year": 2000,
       "description": "Parasites that rewire their hosts’ behaviour, change their bodies or live inside them for decades. Zimmer argues they are among the most successful creatures on Earth and have shaped evolution.",
       "tags": ["Parasites", "Evolution", "Nature"],
       "olWork": null, "olEdition": null, "olVerified": false,
-      "cover": { "id": 427918, "olKey": "/works/OL2699775W", "year": 2000, "checked": "2026-11-16" }
+      "cover": { "id": 427918, "olKey": "/works/OL2699775W", "year": 2000, "checked": "2026-11-16" },
+      "preview": {
+        "watch": { "kind": "youtube", "id": "PurpaN30Wn0", "title": "Parasite tales: The jewel wasp's zombie slave - Carl Zimmer", "channel": "TED-Ed", "label": "Author lesson" }
+      }
     },
 
     {
@@ -422,35 +512,50 @@
       "contentNote": "Describes allegations of abuse.",
       "caveat": "The Church of Scientology disputes the book’s account.",
       "olWork": null, "olEdition": "OL25424776M", "olVerified": false,
-      "cover": { "id": 7254471, "olKey": "/works/OL16802212W", "year": 2013, "checked": "2026-11-16" }
+      "cover": { "id": 7254471, "olKey": "/works/OL16802212W", "year": 2013, "checked": "2026-11-16" },
+      "preview": {
+        "watch": { "kind": "cspan", "url": "https://www.c-span.org/program/book-tv/going-clear/299603", "title": "Going Clear (Book TV, 2013)", "channel": "C-SPAN Book TV", "label": "Author talk" }
+      }
     },
     {
       "id": "the-confidence-game", "shelf": "cults", "title": "The Confidence Game", "authors": ["Maria Konnikova"], "year": 2016,
       "description": "Why do clever people fall for cons? Konnikova, a psychologist and writer, walks through each stage of a swindle and the habits of mind that make it work on us.",
       "tags": ["Psychology", "Scams", "Persuasion"],
       "olWork": null, "olEdition": "OL27200537M", "olVerified": false, "isbn13": "9780525427414",
-      "cover": { "id": 12516374, "olKey": "/works/OL20020475W", "year": 2016, "checked": "2026-11-16" }
+      "cover": { "id": 12516374, "olKey": "/works/OL20020475W", "year": 2016, "checked": "2026-11-16" },
+      "preview": {
+        "watch": { "kind": "youtube", "id": "lSJhIkfyTRo", "title": "‘We are all susceptible’ to getting grifted, says con artist psychologist", "channel": "NBC News", "label": "Author interview" }
+      }
     },
     {
       "id": "bad-blood", "shelf": "cults", "title": "Bad Blood", "authors": ["John Carreyrou"], "year": 2018,
       "description": "Theranos said it could run hundreds of tests from a drop of blood. It could not; Carreyrou, the reporter who broke the story, shows how the company kept investors and patients believing, and how employees helped expose it.",
       "tags": ["Silicon Valley", "Fraud", "Reporting"],
       "olWork": "OL17892614W", "olEdition": null, "olVerified": false,
-      "cover": { "id": 12735651, "olKey": "/works/OL17892614W", "year": 2018, "checked": "2026-11-16" }
+      "cover": { "id": 12735651, "olKey": "/works/OL17892614W", "year": 2018, "checked": "2026-11-16" },
+      "preview": {
+        "watch": { "kind": "youtube", "id": "rM7CwmKZaaw", "title": "John Carreyrou, \"Bad Blood\"", "channel": "Politics and Prose", "label": "Author talk" }
+      }
     },
     {
       "id": "the-road-to-jonestown", "shelf": "cults", "title": "The Road to Jonestown", "authors": ["Jeff Guinn"], "year": 2017,
       "description": "A history of Peoples Temple from Indiana to California to Guyana, where more than 900 people died in November 1978. Guinn draws on survivors’ accounts and documents released since.",
       "tags": ["Peoples Temple", "Guyana", "1978"],
       "contentNote": "Describes abuse and mass death, including the deaths of children.",
-      "olWork": null, "olEdition": "OL27231016M", "olVerified": false
+      "olWork": null, "olEdition": "OL27231016M", "olVerified": false,
+      "preview": {
+        "watch": { "kind": "cspan", "url": "https://www.c-span.org/program/book-tv/the-road-to-jonestown/475503", "title": "The Road to Jonestown (San Antonio Book Festival, Apr 2017)", "channel": "C-SPAN Book TV", "label": "Author talk" }
+      }
     },
     {
       "id": "the-wizard-of-lies", "shelf": "cults", "title": "The Wizard of Lies", "authors": ["Diana B. Henriques"], "year": 2011,
       "description": "How Bernard Madoff ran the largest Ponzi scheme on record for decades, who trusted him and lost everything, and why regulators missed the warnings.",
       "tags": ["Wall Street", "Fraud", "2008"],
       "olWork": null, "olEdition": null, "olVerified": false,
-      "cover": { "id": 8567950, "olKey": "/works/OL19652763W", "year": 2011, "checked": "2026-11-16" }
+      "cover": { "id": 8567950, "olKey": "/works/OL19652763W", "year": 2011, "checked": "2026-11-16" },
+      "preview": {
+        "watch": { "kind": "youtube", "id": "nStwx7-as2Q", "title": "The Wizard of Lies: Interview with Diana Henriques (HBO)", "channel": "HBO", "duration": "2:41", "label": "Author interview" }
+      }
     },
     {
       "id": "the-man-in-the-rockefeller-suit", "shelf": "cults", "title": "The Man in the Rockefeller Suit", "authors": ["Mark Seal"], "year": 2011,

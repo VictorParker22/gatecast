@@ -273,6 +273,66 @@
   .lib-dlg.is-flat .lib-back__desc { font-size: var(--text-note); line-height: 1.55; }
   .lib-dlg.is-flat #bk-turn { @apply hidden; }
   .lib-dlg.is-flat .lib-slip { @apply bottom-22; }
+  /* Preview (Watch / Look inside): a sheet of the back cover's paper beside the book, or over its lower part when
+     there is no room beside it (js/library.js places it through --pv-* from previewPlace in librarymodel.js). Its tabs
+     are leather and turn brass when chosen, like the shelf chips. Without motion it is a third panel in the flat card,
+     under the cover on phones. Nothing in it loads from YouTube, Google or the Internet Archive before a click. */
+  .lib-preview { @apply fixed z-1 flex flex-col gap-3 overflow-y-auto rounded-lg text-lib-sheet-ink shadow-lib-sheet; left: var(--pv-x, --spacing(4)); top: var(--pv-y, --spacing(4)); width: var(--pv-w, auto); max-height: var(--pv-h, 80vh); overscroll-behavior: contain; padding: clamp(--spacing(3.5), 3%, --spacing(5.5)); background: var(--color-lib-sheet) var(--tex-paper) center / 420px; }
+  .lib-preview[hidden] { @apply hidden; }
+  .lib-preview[data-tab="look"] { height: var(--pv-h, auto); }
+  .lib-dlg.is-preview .lib-preview { animation: lib-sheet-in 0.3s ease both; }
+  @keyframes lib-sheet-in { from { opacity: 0; transform: translateY(--spacing(2)); } }
+  .lib-preview__kicker { @apply font-pixel text-lg leading-none text-lib-sheet-muted; }
+  .lib-preview__title { @apply -mt-1.5 font-slab text-2xl leading-tight wrap-anywhere; }
+  .lib-tabs { @apply flex flex-wrap gap-2 pb-2 border-b-2 border-dashed border-lib-sheet-muted; }
+  .lib-tab { @apply relative inline-flex items-center gap-2 min-h-tap px-4 cursor-pointer rounded-md border-2 border-lib-sheet-ink font-sign font-extrabold text-note leading-none tracking-code uppercase text-lib-cream; background: var(--color-lib-leather) var(--tex-leather) center / 180px; background-blend-mode: overlay; box-shadow: inset 0 1px 0 rgb(255 230 190 / 0.18), inset 0 -2px 0 rgb(0 0 0 / 0.4); }
+  .lib-tab:hover { filter: brightness(1.12); }
+  .lib-tab[hidden] { @apply hidden; }
+  .lib-tab svg { @apply size-4 stroke-current; fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+  .lib-tab[aria-selected="true"] { @apply border-lib-brass-edge text-lib-ink; background: linear-gradient(180deg, var(--color-lib-brass-1), var(--color-lib-brass-2) 55%, var(--color-lib-brass-3)); box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.55), inset 0 -3px 0 var(--color-lib-ink); }
+  .lib-preview > * { @apply shrink-0; }
+  .lib-preview__panel { @apply flex flex-col gap-2; }
+  .lib-preview #pv-look { @apply flex-1 shrink min-h-0; }
+  .lib-preview__panel[hidden] { @apply hidden; }
+  .lib-preview__small { @apply text-xs leading-normal text-lib-sheet-muted; }
+  .lib-preview__small a, .lib-watch__cap a { @apply text-lib-sheet-ink underline underline-offset-2; }
+  .lib-preview__small a:hover, .lib-watch__cap a:hover { @apply text-np-cobalt; }
+  .lib-watch { @apply grid gap-2 m-0; }
+  .lib-watch__frame { @apply relative aspect-video overflow-hidden rounded-md border-2 border-lib-sheet-ink bg-lib-screen; }
+  .lib-watch__play { @apply absolute inset-0 grid place-items-center size-full p-0 m-0 border-0 cursor-pointer bg-transparent; }
+  .lib-watch__play:focus-visible { outline-offset: -5px; }
+  .lib-watch__poster, .lib-watch__player { @apply absolute inset-0 size-full border-0 object-cover; }
+  .lib-watch__standin { @apply absolute inset-0 grid place-content-center gap-1 p-4 text-center text-lib-cream; background: var(--color-lib-leather) var(--tex-leather) center / 180px; background-blend-mode: overlay; }
+  .lib-watch__standin b { @apply font-slab font-normal text-2xl leading-tight; }
+  .lib-watch__standin span { @apply font-pixel text-lg leading-none; }
+  .lib-watch__knob { @apply relative grid place-items-center size-16 rounded-full border-2 border-lib-brass-edge text-lib-ink shadow-lib-knob; background: radial-gradient(circle at 35% 30%, var(--color-lib-brass-1), var(--color-lib-brass-2) 60%, var(--color-lib-brass-3)); transition: transform 0.12s ease; }
+  .lib-watch__knob svg { @apply size-7 ml-1; fill: currentColor; }
+  .lib-watch__play:hover .lib-watch__knob { transform: scale(1.06); }
+  .lib-watch__dur { @apply absolute right-2 bottom-2 px-1.5 pt-0.5 rounded-sm font-pixel text-lg leading-none text-lib-cream bg-lib-scrim; }
+  .lib-watch__out { @apply relative; }
+  /* No video still (link-outs, and the books that never show a picture): the title sits at the top of the stand-in
+     and the button in the lower part, so the two never overlap. */
+  .lib-watch__frame:not(:has(.lib-watch__poster)) { width: 100%; min-height: --spacing(56); }
+  .lib-watch__frame:not(:has(.lib-watch__poster)) .lib-watch__standin { place-content: start center; padding-top: --spacing(5); }
+  .lib-watch__frame:not(:has(.lib-watch__poster)) .lib-watch__standin b { @apply text-xl line-clamp-2; }
+  .lib-watch__play:not(:has(.lib-watch__poster)) { align-items: end; padding-bottom: --spacing(6); }
+  .lib-watch__cap { @apply grid gap-1 text-sm leading-snug; }
+  .lib-watch__label { @apply justify-self-start px-2 py-0.5 border-2 border-lib-sheet-ink font-sign font-bold text-xs tracking-caps uppercase; }
+  .lib-watch__title { @apply font-semibold text-note; }
+  .lib-watch__meta, .lib-watch__note { @apply text-caption text-lib-sheet-muted; }
+  .lib-watch__note { @apply italic; }
+  .lib-look { @apply grid gap-2 flex-1 min-h-0; grid-template-rows: minmax(--spacing(80), 1fr) auto; }
+  .lib-look__frame { @apply relative min-h-80 overflow-hidden rounded-md border-2 border-lib-sheet-ink bg-np-card; color-scheme: light; }
+  .lib-look__facade, .lib-look__msg { @apply absolute inset-0 grid place-content-center justify-items-center gap-3 p-6 text-center text-sm leading-normal text-lib-sheet-ink; }
+  .lib-look__facade p, .lib-look__msg p { @apply max-w-72 text-pretty; }
+  .lib-look__msg b { @apply font-slab font-normal text-xl; }
+  .lib-look__viewer, .lib-look__frame iframe { @apply absolute inset-0 size-full border-0; }
+  #bk-pv-btn[aria-pressed="true"] { filter: brightness(0.93); transform: translateY(1px); box-shadow: inset 0 2px 6px rgb(0 0 0 / 0.45), 0 3px 8px rgb(0 0 0 / 0.5); }
+  #bk-pv-btn svg { @apply size-4.5 stroke-current; fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+  html:has(.lib-dlg.is-preview) .lib-cardwrap { @apply opacity-0 invisible; transition: opacity 0.3s ease, visibility 0s 0.3s; }
+  .lib-dlg.is-flat .lib-preview { @apply relative inset-auto min-w-0 p-0 overflow-visible rounded-none shadow-none animate-none; flex: 1 1 --spacing(80); width: auto; height: auto; max-height: none; background: none; }
+  .lib-dlg.is-flat.is-preview .lib-face--back { @apply hidden; }
+  .lib-dlg.is-flat .lib-look { grid-template-rows: minmax(--spacing(100), 1fr) auto; }
   @media (max-width: 1099px) {
     .lib-hero { grid-template-columns: minmax(0, 1fr) max-content; @apply gap-y-4 gap-x-5; }
     .lib-cardwrap { @apply w-75; }
@@ -303,19 +363,28 @@
     .lib-brass--leather > span { @apply py-0 px-2.5; font-size: var(--text-base); }
     .is-reading .lib-page .site-nav, .is-reading body .site-nav { @apply invisible; }
   }
+  /* A book with a Preview has four buttons (three in the flat card, which has no Turn it over); below 30rem four no
+     longer fit one row, so Preview gets its own row above the others (js/library.js keeps it free: controlsH). */
+  @media (width < theme(--breakpoint-xs)) {
+    .lib-dlg.has-preview:not(.is-flat) .lib-dlg__controls { @apply flex-wrap gap-y-1.5; }
+    .lib-dlg.has-preview:not(.is-flat) .lib-dlg__controls::before { content: ""; flex-basis: 100%; order: -1; }
+    .lib-dlg.has-preview:not(.is-flat) #bk-pv-btn { order: -2; }
+  }
   @media (width < theme(--breakpoint-nav)) {
     .lib-footer { @apply pb-6; }
   }
   @media (prefers-reduced-motion: reduce) {
-    .lib-spine, .lib-brass, .lib-chip, .lib-dlg__scrim, .lib-gl, .lib-slip { transition: none !important; }
-    .lib-spine.is-fly, .lib-card__list li.is-fresh .lib-stamp, .is-bump, .lib-slip.is-stamping .lib-slip__stamp { animation: none !important; }
+    .lib-spine, .lib-brass, .lib-chip, .lib-dlg__scrim, .lib-gl, .lib-slip, .lib-watch__knob { transition: none !important; }
+    .lib-spine.is-fly, .lib-card__list li.is-fresh .lib-stamp, .is-bump, .lib-slip.is-stamping .lib-slip__stamp, .lib-dlg.is-preview .lib-preview { animation: none !important; }
+    .lib-watch__play:hover .lib-watch__knob, #bk-pv-btn[aria-pressed="true"] { transform: none; }
     .lib-spine:hover, .lib-spine:focus-visible { --lift: 0px; --grow: 1; }
     .lib-brass:hover, .lib-brass:active, .lib-chip:hover, .lib-chip:active { transform: none; }
   }
   @media (forced-colors: active) {
     .lib-title { color: CanvasText; background: none; -webkit-text-stroke: 0; filter: none; }
     .lib-title::after { @apply hidden; }
-    .lib-spine, .lib-brass, .lib-chip, .lib-toggle { border-color: ButtonText; }
+    .lib-spine, .lib-brass, .lib-chip, .lib-toggle, .lib-tab { border-color: ButtonText; }
+    .lib-tab[aria-selected="true"] { outline: 3px solid Highlight; }
     .lib-chip[aria-pressed="true"] { outline: 3px solid Highlight; }
     .lib-label span { clip-path: none; border: 1px solid CanvasText; }
   }

@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  cleanItem, cleanWeird, catCounts, splitFront, gridFor, favourites, PAGE, catLabel, stickerTone, metaLine, shortMeta,
+  cleanItem, cleanWeird, catCounts, splitFront, gridFor, favourites, favCaption, favVotes, storyFor, FAV_MIN_VOTES, PAGE, catLabel, stickerTone, metaLine, shortMeta,
   ratingLabel, monogram, dayOfYear, editionLine, starPolygon, tickerSeconds, nextStreak, streakDigits, meterAngle, meterNote, tipUrl,
 } from '../js/frontmodel.js';
 
@@ -66,19 +66,64 @@ test('lead, Also odd and grid never repeat a story; category filters show every 
   assert.deepEqual(splitFront([]), { lead: null, also: [], rest: [] });
 });
 
-test('favourites: readers only from real votes (10+ in the past week), else the editor’s picks, else nothing', () => {
-  const now = Date.parse('2026-11-16T12:00:00Z');
-  const items = Array.from({ length: 8 }, (_, i) => cleanItem(item(i + 1, { published: '2026-11-14T12:00:00Z', pick: i === 3 || i === 5 })));
-  assert.deepEqual(favourites(items, {}, now).list.map((x) => x.id), ['s4', 's6']);
-  assert.equal(favourites(items, {}, now).mode, 'editor');
-  const ratings = { [items[2].url]: { count: 12, average: null }, [items[4].url]: { count: 60, average: 4.2 }, [items[6].url]: { count: 9, average: null }, [items[0].url]: { count: 99, average: 5 } };
-  const r = favourites(items, ratings, now);
+test('favourites: the editor’s order until a story has 10 votes this week, then readers’ votes rank first', () => {
+  const items = Array.from({ length: 8 }, (_, i) => cleanItem(item(i + 1, { pick: i === 0 || i === 3 || i === 5 || i === 6 })));
+  const ids = Object.fromEntries(items.map((x, i) => [x.url, (i + 1).toString(16).padStart(16, '0')]));
+  const id = (n) => ids[items[n - 1].url];
+
+  // No votes: the editor's picks after the lead, in the order the server sent them.
+  const ed = favourites(items, [], ids);
+  assert.equal(ed.mode, 'editor');
+  assert.deepEqual(ed.list.map((x) => x.id), ['s4', 's6', 's7'], 'the lead (s1) is never repeated');
+  assert.ok(ed.list.every((x) => x.by === 'editor'));
+  assert.deepEqual(favourites(items, undefined, undefined).list.map((x) => x.id), ['s4', 's6', 's7']);
+
+  // Stories with 10+ votes this week come first, in the database's order (average, then votes); then the editor's.
+  const favs = [
+    { storyId: id(5), count: 64, average: 4.6 }, // not a pick: any weird story on the page can rank
+    { storyId: id(6), count: 12, average: null },
+    { storyId: id(1), count: 99, average: 5 }, // the lead: left out
+    { storyId: id(2), count: 9, average: null }, // under 10 (a bad reply): never a reader favourite
+    { storyId: 'ffffffffffffffff', count: 40, average: null }, // not on the page
+  ];
+  const r = favourites(items, favs, ids);
   assert.equal(r.mode, 'readers');
-  assert.deepEqual(r.list.map((x) => x.id), ['s5', 's3'], 'average first, then count; under 10 votes and the lead are left out');
+  assert.deepEqual(r.list.map((x) => [x.id, x.by]), [['s5', 'readers'], ['s6', 'readers'], ['s4', 'editor']]);
+  assert.equal(r.list[0].votes, 64);
+  assert.equal(r.list[0].average, 4.6);
   assert.equal(r.list[1].average, null, 'no average is invented under 50 votes');
-  const old = items.map((x) => ({ ...x, ms: now - 9 * 864e5 }));
-  assert.equal(favourites(old, ratings, now).mode, 'editor', 'votes older than a week do not count');
-  assert.equal(favourites(items.map((x) => ({ ...x, pick: false })), {}, now).mode, 'none');
+  assert.equal(favourites(items, [{ storyId: id(3), count: 20, average: 4.1 }], ids).list[0].average, null, 'an average below 50 votes is never shown');
+  assert.equal(favourites(items, favs, ids, 1).list.length, 1);
+  assert.equal(FAV_MIN_VOTES, 10);
+
+  // Nothing to show: no picks, no votes.
+  assert.equal(favourites(items.map((x) => ({ ...x, pick: false })), [], ids).mode, 'none');
+  assert.equal(favourites(items.map((x) => ({ ...x, pick: false })), [{ storyId: id(3), count: 10, average: null }], ids).mode, 'readers');
+  assert.equal(favourites([], favs, ids).mode, 'none');
+});
+
+test('favourites caption: honest about who ranked the row', () => {
+  const items = Array.from({ length: 6 }, (_, i) => cleanItem(item(i + 1, { pick: i === 2 || i === 4 })));
+  const ids = Object.fromEntries(items.map((x, i) => [x.url, String(i).padStart(16, '0')]));
+  const ed = favCaption(favourites(items, [], ids));
+  assert.equal(ed.title, 'Editor’s favourites');
+  assert.equal(ed.how, '');
+  assert.match(ed.kicker, /EDITOR'S ORDER/);
+  const mixed = favCaption(favourites(items, [{ storyId: ids[items[1].url], count: 10, average: null }], ids));
+  assert.equal(`${mixed.title} — ${mixed.how}`, 'Reader favourites — ranked by Weird-o-meter votes');
+  assert.match(mixed.kicker, /THEN THE EDITOR'S PICKS/);
+  const all = favCaption(favourites(items.map((x) => ({ ...x, pick: false })), [{ storyId: ids[items[1].url], count: 10, average: null }], ids));
+  assert.doesNotMatch(all.kicker, /EDITOR/);
+  assert.equal(favVotes({ by: 'readers', votes: 12, average: null }), '12 VOTES THIS WEEK');
+  assert.equal(favVotes({ by: 'readers', votes: 64, average: 4.62 }), '64 VOTES THIS WEEK · AVERAGE 4.6 OF 5');
+  assert.equal(favVotes({ by: 'editor' }), '');
+});
+
+test('clicks are counted only for links to the page’s own weird stories', () => {
+  const urls = new Set(['https://www.upi.com/Odd_News/2026/11/13/story-1/']);
+  assert.equal(storyFor('https://www.upi.com/Odd_News/2026/11/13/story-1/', urls), 'https://www.upi.com/Odd_News/2026/11/13/story-1/');
+  for (const other of ['https://www.upi.com/', 'https://gatecast.vercel.app/#believe', 'how.html', '', null, undefined]) assert.equal(storyFor(other, urls), null, String(other));
+  assert.equal(storyFor('https://www.upi.com/Odd_News/2026/11/13/story-1/', null), null);
 });
 
 test('labels, stickers and datelines', () => {

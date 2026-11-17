@@ -1,19 +1,32 @@
-# Gatecast: every public page may be crawled. The reviewer console and the live-data API are not pages.
+# Gatecast: every public page may be crawled, including the plain book pages under /stacks/. The live-data API is
+# not a set of pages, but the three endpoints the front page and The Stacks read are allowed so a search engine's
+# renderer sees the same page a reader does (their JSON is kept out of the index by an X-Robots-Tag noindex header,
+# vercel.json). The reviewer console is not blocked here on purpose: it sends X-Robots-Tag noindex, nofollow, and a
+# crawler blocked by robots.txt would never see that header.
 User-agent: *
 Allow: /
-Disallow: /review.html
+Allow: /stacks/
+Allow: /api/weird
+Allow: /api/news
+Allow: /api/book-covers
 Disallow: /api/
 
-# Search and citation crawlers (ChatGPT search, Perplexity): welcome, with the same limits.
-# A named group replaces the * group for that crawler, so the limits are repeated here.
+# Search and citation crawlers (ChatGPT search, Perplexity): welcome, with the same rules.
+# A named group replaces the * group for that crawler, so the rules are repeated here.
 User-agent: OAI-SearchBot
 Allow: /
-Disallow: /review.html
+Allow: /stacks/
+Allow: /api/weird
+Allow: /api/news
+Allow: /api/book-covers
 Disallow: /api/
 
 User-agent: PerplexityBot
 Allow: /
-Disallow: /review.html
+Allow: /stacks/
+Allow: /api/weird
+Allow: /api/news
+Allow: /api/book-covers
 Disallow: /api/
 
 Sitemap: https://gatecast.vercel.app/sitemap.xml
