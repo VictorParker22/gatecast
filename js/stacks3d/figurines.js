@@ -20,19 +20,20 @@
 export const FIGURINE_DIR = 'assets/figurines/';
 
 export const FIGURINES = {
-  crime: { file: 'crime.glb', height: 0.13, maxW: 0.22, scale: 1, y: 0, x: 0, rotY: 0.3, front: -0.5, mirror: true }, // magnifying glass on case folders
-  serial: { file: 'serial.glb', height: 0.13, maxW: 0.2, scale: 1, y: 0, x: 0, rotY: 0.3, front: -0.5, mirror: true }, // 1950s typewriter
-  unsolved: { file: 'unsolved.glb', height: 0.13, maxW: 0.18, scale: 1, y: 0, x: 0, rotY: 0.3, front: -0.5, mirror: true }, // ship's compass in an open mahogany box
-  history: { file: 'history.glb', height: 0.19, maxW: 0.13, scale: 1, y: 0, x: 0, rotY: 0, front: -0.5, mirror: false }, // hourglass
-  science: { file: 'science.glb', height: 0.21, maxW: 0.13, scale: 1, y: 0, x: 0, rotY: 0.4, front: -0.5, mirror: true }, // brass microscope
-  cults: { file: 'cults.glb', height: 0.15, maxW: 0.19, scale: 1, y: 0, x: 0, rotY: 0.3, front: -0.5, mirror: true }, // magician's top hat with cards
-  fantasy: { file: 'fantasy.glb', height: 0.2, maxW: 0.21, scale: 1, y: 0, x: 0, rotY: 0.4, front: -0.5, mirror: true }, // bronze dragon on old books
-  scifi: { file: 'scifi.glb', height: 0.22, maxW: 0.14, scale: 1, y: 0, x: 0, rotY: 0.2, front: -0.5, mirror: true }, // retro tin rocket
+  crime: { file: 'crime.glb', height: 0.19, maxW: 0.2, scale: 1, y: 0, x: 0, rotY: 0.3, front: -0.5, mirror: true }, // magnifying glass on case folders
+  serial: { file: 'serial.glb', height: 0.17, maxW: 0.2, scale: 1, y: 0, x: 0, rotY: 0.3, front: -0.5, mirror: true }, // 1950s typewriter
+  unsolved: { file: 'unsolved.glb', height: 0.16, maxW: 0.19, scale: 1, y: 0, x: 0, rotY: 0.3, front: -0.5, mirror: true }, // ship's compass in an open mahogany box
+  history: { file: 'history.glb', height: 0.25, maxW: 0.15, scale: 1, y: 0, x: 0, rotY: 0, front: -0.5, mirror: false }, // hourglass
+  science: { file: 'science.glb', height: 0.27, maxW: 0.16, scale: 1, y: 0, x: 0, rotY: 0.4, front: -0.5, mirror: true }, // brass microscope
+  cults: { file: 'cults.glb', height: 0.2, maxW: 0.2, scale: 1, y: 0, x: 0, rotY: 0.3, front: -0.5, mirror: true }, // magician's top hat with cards
+  fantasy: { file: 'fantasy.glb', height: 0.26, maxW: 0.2, scale: 1, y: 0, x: 0, rotY: 0.4, front: -0.5, mirror: true }, // bronze dragon on old books
+  scifi: { file: 'scifi.glb', height: 0.28, maxW: 0.15, scale: 1, y: 0, x: 0, rotY: 0.2, front: -0.5, mirror: true }, // retro tin rocket
 };
 // Any shelf without an entry (a shelf added later) gets these, with the default file name.
 export const FIGURINE_DEFAULT = { file: null, height: 0.16, maxW: 0.18, scale: 1, y: 0, x: 0, rotY: 0.3, front: 0, mirror: true };
-// How far from the middle of the cornice a figurine stands (m); the cornice's top is ±0.365 wide.
-export const FIGURINE_INSET = 0.235;
+// How far from the middle of the cornice a figurine stands (m); the cornice's top is ±0.365 wide, and the Book of
+// the Week's plinth at most ±0.16 (index.js): a figurine up to 0.2 m wide clears it on the bay they share.
+export const FIGURINE_INSET = 0.265;
 // A file bigger than this is not used (bytes): the perf budget is ~400 KB per figurine.
 export const FIGURINE_MAX_BYTES = 600 * 1024;
 
@@ -52,7 +53,7 @@ export function figurineFor(shelfId, { tryAll = false, table = FIGURINES } = {})
   return {
     url: FIGURINE_DIR + file,
     height: num(t.height, 0.16, 0.03, 0.34),
-    maxW: num(t.maxW, 0.18, 0.03, 0.3),
+    maxW: num(t.maxW, 0.18, 0.03, 0.2),
     scale: num(t.scale, 1, 0.1, 3),
     y: num(t.y, 0, -0.1, 0.2),
     x: num(t.x, 0, -0.2, 0.2),

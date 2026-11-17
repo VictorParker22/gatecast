@@ -31,7 +31,7 @@ const OPEN_PITCH = -0.38, OPEN_TURN = 0.34;
 // The Book of the Week's copy on its stand has its own key (the same book also stands on its shelf).
 const FEAT = '\u2605featured';
 const FEAT_Z = -0.11; // the stand and the figurines, on the cornice: a little behind its middle (the top runs -0.305..0.045)
-const FEAT_SIZE = 1.18; // the showpiece is a touch bigger than a shelf copy
+const FEAT_SIZE = 1.25; // the showpiece is bigger than a shelf copy
 const FEAT_LEAN = 0.16; // ~9°, leaning back on its easel
 
 // A soft beam from the spotlight down onto the stand: brighter near the lamp, fading toward the book and at the edges.
@@ -42,7 +42,7 @@ const BEAM = {
   fragmentShader: `varying vec2 vUv; varying float vFacing; uniform float time, strength;
     void main(){ float along = smoothstep(0.0, 0.35, vUv.y) * (0.35 + 0.65 * vUv.y);
       float edge = pow(vFacing, 2.2); float shimmer = 0.9 + 0.1 * sin(time * 0.7 + vUv.x * 12.0);
-      gl_FragColor = vec4(vec3(1.0, 0.82, 0.55), along * edge * 0.16 * strength * shimmer); }`,
+      gl_FragColor = vec4(vec3(1.0, 0.82, 0.55), along * edge * 0.1 * strength * shimmer); }`,
 };
 
 export function loadImage(url, cors = false, timeout = 8000) {
@@ -531,7 +531,7 @@ export async function mount(opts) {
     group.position.set(0, BAY.cornice, FEAT_Z);
     world.add(group);
     // The stand: a dark plinth with a brass top and a brass lip that holds the book.
-    const plinthW = Math.max(0.24, d + 0.07), plinthD = 0.15;
+    const plinthW = Math.max(0.24, d + 0.05), plinthD = 0.15;
     part(group, woodGeo(plinthW, 0.034, plinthD, 991), darkWoodMat, 0, 0.017, 0);
     part(group, keep(new THREE.BoxGeometry(plinthW - 0.012, 0.006, plinthD - 0.012)), brassMat, 0, 0.037, 0);
     part(group, keep(new THREE.BoxGeometry(d * 0.92, 0.014, 0.008)), brassMat, 0, 0.047, 0.03);
@@ -542,7 +542,7 @@ export async function mount(opts) {
     }
     // The plaque, engraved like the shelf plates, leaning on the front of the plinth.
     const text = 'Book of the Week';
-    const ps = P.plateSize(text, 0.032);
+    const ps = P.plateSize(text, 0.04);
     const pw = Math.min(plinthW - 0.02, ps.worldW), ph = ps.worldH * (pw / ps.worldW);
     const pl = P.paintPlate(text, pw, ph, { h: high ? 96 : 64, brass: brassImg });
     const plaqueMat = keep(new THREE.MeshStandardMaterial({ map: tex(pl.map), roughnessMap: tex(pl.pbr, { srgb: false }), metalnessMap: tex(pl.pbr, { srgb: false }), roughness: 1, metalness: 1, envMapIntensity: 1.6, color: 0xd8c8a8 }));
@@ -574,14 +574,14 @@ export async function mount(opts) {
     const spot = new THREE.SpotLight(0xffcf8a, high ? 7 : 6, 0, 0.3, 0.75, 2);
     scene.add(spot); scene.add(spot.target);
     const beamMat = keep(new THREE.ShaderMaterial({ ...BEAM, uniforms: THREE.UniformsUtils.clone(BEAM.uniforms), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
-    const beamH = 0.62;
-    const beamGeo = new THREE.CylinderGeometry(0.035, d * 0.95, beamH, 28, 1, true);
+    const beamH = 0.44;
+    const beamGeo = new THREE.CylinderGeometry(0.03, d * 0.85, beamH, 28, 1, true);
     beamGeo.translate(0, beamH / 2, 0);
     const beam = new THREE.Mesh(keep(beamGeo), beamMat);
     beam.position.set(0, 0.05, 0.02); beam.renderOrder = 3; beam.frustumCulled = false;
     group.add(beam);
-    const glow = new THREE.Sprite(keep(new THREE.SpriteMaterial({ map: tex(P.glowCanvas(128, 'rgba(255,214,150,1)')), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: high ? 0.42 : 0.6 })));
-    glow.scale.set(h * 2.1, h * 2.1, 1); glow.position.set(0, 0.05 + h * 0.5, -0.06);
+    const glow = new THREE.Sprite(keep(new THREE.SpriteMaterial({ map: tex(P.glowCanvas(128, 'rgba(255,214,150,1)')), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: high ? 0.3 : 0.45 })));
+    glow.scale.set(h * 1.7, h * 1.7, 1); glow.position.set(0, 0.05 + h * 0.5, -0.07);
     group.add(glow);
     const rec = {
       id: FEAT, featured: true, book, look, mesh, slot, holder, slide, tilt, spineMat, bay: { index: 0 },
@@ -652,7 +652,7 @@ export async function mount(opts) {
       for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
         if (!m) continue;
         if (m.transmission) { m.transmission = 0; } // no extra transmission pass
-        if ('envMapIntensity' in m) m.envMapIntensity = 1.35;
+        if ('envMapIntensity' in m) m.envMapIntensity = 1.8;
         for (const k of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap']) if (m[k]) { m[k].anisotropy = maxAniso; keep(m[k]); }
         keep(m);
       }

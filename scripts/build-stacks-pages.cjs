@@ -1,6 +1,7 @@
 // The Stacks as plain pages: one static HTML page per book (/stacks/<book-id>/), per shelf (/stacks/<shelf-id>/)
 // and an index (/stacks/), written into public/ by the build step (scripts/build-data.cjs) and rendered on request
-// by server.js locally. Everything on them comes from data/books.json: our descriptions, the "Worth knowing" caveats
+// by server.js locally. Everything on them comes from data/books.json (and, at build time, the books authors and
+// publishers put forward that the editor approved; see buildData): our descriptions, the "Worth knowing" caveats
 // and content notes, which until now only the 3D library (library.html) showed, through JavaScript. The pages need
 // no script at all (the only inline scripts are the colour-scheme line every page has and JSON-LD), load nothing
 // from three.js, cannon or gsap, and embed nothing: a cover is the only third-party file (Open Library, hotlinked,
@@ -38,6 +39,46 @@ async function loadModel() {
   return { ...lib, bookLook: s3d.bookLook };
 }
 const readData = () => JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+// Only shelves that have books get pages (a shelf added before its books are merged stays out, as in the library).
+const stocked = (data) => {
+  const has = new Set(data.books.map((b) => b.shelf));
+  return data.shelves.every((sh) => has.has(sh.id)) ? data : { ...data, shelves: data.shelves.filter((sh) => has.has(sh.id)) };
+};
+
+// The build's data: books.json plus the approved books from the database (lib/stacks-db.js:
+// loadStacksExtras({ url, key, fetchImpl, timeoutMs }) -> { books, featured }, never throws; mergeBooks(static,
+// extras)). Each extra book must pass the library's own validate() on its own and not reuse an id, or it is left out
+// with a warning; a missing module, no network or no key means the static books only. GATECAST_STACKS_DB=off skips
+// the database. No Book of the Week here: it would go stale between deploys.
+async function buildData({ data = readData(), m = null, env = process.env, load = null } = {}) {
+  if (env.GATECAST_STACKS_DB === 'off') return data;
+  let extras = null, db = null;
+  try {
+    db = load || require('../lib/stacks-db.js');
+    extras = await db.loadStacksExtras({
+      url: env.SUPABASE_URL || 'https://hfdwmzuedjcsaxgzhzmu.supabase.co',
+      key: env.SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_a2KiR862D8VC63YjqFIYSQ_U5YnwpMJ',
+      timeoutMs: 8000,
+    });
+  } catch (err) {
+    console.warn('stacks pages: approved books not loaded (' + String((err && err.message) || err).split('\n')[0] + '); static books only');
+    return data;
+  }
+  const extra = Array.isArray(extras && extras.books) ? extras.books : [];
+  if (!extra.length) return data;
+  m ||= await loadModel();
+  const ids = new Set([...data.books.map((b) => b.id), ...data.shelves.map((sh) => sh.id)]);
+  const ok = [];
+  for (const b of extra) {
+    const errs = b && typeof b === 'object' && typeof b.id === 'string' && !ids.has(b.id) ? m.validate({ ...data, books: [b] }) : ['missing or clashing id'];
+    if (errs.length) { console.warn(`stacks pages: left out approved book ${b && b.id}: ${errs.join('; ')}`); continue; }
+    ids.add(b.id); ok.push(b);
+  }
+  if (!ok.length) return data;
+  let merged = null;
+  try { if (typeof db.mergeBooks === 'function') merged = db.mergeBooks(data, { books: ok, featured: null }); } catch {}
+  return merged && Array.isArray(merged.books) && Array.isArray(merged.shelves) ? merged : { ...data, books: [...data.books, ...ok] };
+}
 
 /* ---------- Small pure helpers ---------- */
 
@@ -72,7 +113,8 @@ const newest = (dates) => dates.filter(Boolean).sort().pop() || null;
 
 // Sitemap entries for /stacks/, each shelf and each indexable book (see TAKE_MIN_WORDS), dated from the data (not
 // the build day). A shelf's date is its newest book's, listed or not, since the shelf page shows every book.
-function stacksSitemapEntries(data = readData()) {
+function stacksSitemapEntries(all = readData()) {
+  const data = stocked(all);
   const byShelf = (id) => data.books.filter((b) => b.shelf === id);
   const books = data.books.filter(indexable).map((b) => ({ loc: pageUrl(b.id), lastmod: bookLastmod(b, data) }));
   const shelves = data.shelves.map((s) => ({ loc: pageUrl(s.id), lastmod: newest([data.checked, ...byShelf(s.id).map((b) => bookLastmod(b, data))]) }));
@@ -102,9 +144,10 @@ const UI_TEXT = [
   'book on this shelf', 'books on this shelf', ', first published in', ', first published between', 'and',
   'Open this shelf in The Stacks', 'The books', 'Other shelves',
   'All shelves and books', 'Every shelf and book in The Stacks, as a plain list.',
-  'Shelves of real books on true crime, unsolved mysteries, weird history, strange science, cults and cons, picked by our editor and described in our own words.',
-  'Open the 3D library', 'Every shelf and book in The Stacks: real books on true crime, unsolved mysteries, weird history, strange science, cults and cons, described in our own words.',
+  'Real books on true crime, unsolved mysteries, weird history, strange science, cults and cons, beside classic fantasy and science fiction, picked by our editor and described in our own words.',
+  'Open the 3D library', 'Every shelf and book in The Stacks: real books on true crime, unsolved mysteries, weird history, strange science, cults and cons, and classic fantasy and science fiction, described in our own words.',
   'Titles, authors and dates are checked by our editor. Descriptions are written by us. Covers and records:', 'Open Library', 'How Gatecast works',
+  'Suggested by the author', 'Suggested by the publisher',
   'Where a book has a cover, your browser loads it from Open Library. Links to WorldCat, Bookshop.org, Open Library, YouTube, C-SPAN, PBS, Criterion, Google Books and the Internet Archive go to those sites; nothing from them loads here until you follow one.',
 ];
 
@@ -316,7 +359,8 @@ function bookPage(book, data, m) {
       <div class="stk-book__body">
         <p class="stk-kicker"><a href="${pagePath(shelf.id)}">${esc(shelf.name)}</a></p>
         <h1 id="book-title" class="stk-title">${esc(book.title)}</h1>
-        <p class="stk-byline">by ${esc(by)}</p>
+        <p class="stk-byline">by ${esc(by)}</p>${m.originNote && m.originNote(book) ? `
+        <p class="stk-origin">${esc(m.originNote(book))}</p>` : ''}
         <dl class="stk-facts">
           <div><dt>First published</dt><dd>${book.year}</dd></div>
           <div><dt>Shelf</dt><dd><a href="${pagePath(shelf.id)}">${esc(shelf.name)}</a></dd></div>
@@ -360,6 +404,7 @@ ${previewHtml(book, m)}
 
 // "10 books on this shelf, first published between 1966 and 2019." Only counts and years from the data.
 function shelfIntro(books) {
+  if (!books.length) return '';
   const years = books.map((b) => b.year);
   const lo = Math.min(...years), hi = Math.max(...years);
   const n = `${books.length} ${books.length === 1 ? 'book on this shelf' : 'books on this shelf'}`;
@@ -425,7 +470,7 @@ function indexPage(data, m) {
     <section class="stk-head" aria-labelledby="stacks-title">
       <p class="stk-kicker">All shelves and books</p>
       <h1 id="stacks-title" class="stk-title">The Stacks</h1>
-      <p class="stk-lede">Shelves of real books on true crime, unsolved mysteries, weird history, strange science, cults and cons, picked by our editor and described in our own words.</p>
+      <p class="stk-lede">Real books on true crime, unsolved mysteries, weird history, strange science, cults and cons, beside classic fantasy and science fiction, picked by our editor and described in our own words.</p>
       <p class="stk-intro">Every shelf and book in The Stacks, as a plain list.</p>
       <div class="stk-actions"><a class="btn btn--primary" href="/library.html">Open the 3D library</a></div>
       <ul class="stk-shelves" aria-label="Shelves">
@@ -434,7 +479,7 @@ function indexPage(data, m) {
     </section>
 
 ${shelves}`;
-  const description = 'Every shelf and book in The Stacks: real books on true crime, unsolved mysteries, weird history, strange science, cults and cons, described in our own words.';
+  const description = 'Every shelf and book in The Stacks: real books on true crime, unsolved mysteries, weird history, strange science, cults and cons, and classic fantasy and science fiction, described in our own words.';
   const ld = {
     '@context': 'https://schema.org', '@type': 'CollectionPage',
     name: 'The Stacks', description, url: pageUrl(null), inLanguage: 'en',
@@ -451,7 +496,8 @@ ${shelves}`;
 
 // The <noscript> list for library.html's #lib-bays: every shelf and book, linked to its plain page. Printed by
 // `node scripts/build-stacks-pages.cjs --noscript` to paste into the page (library.html is hand-written).
-function noscriptHtml(data, m) {
+function noscriptHtml(all, m) {
+  const data = stocked(all);
   const shelves = data.shelves.map((s) => `          <li><a href="/stacks/${s.id}/">${esc(s.name)}</a>
             <ul>
 ${data.books.filter((b) => b.shelf === s.id).map((b) => `              <li><a href="/stacks/${b.id}/">${esc(b.title)}</a>, ${esc(m.authorLine(b.authors))} (${b.year})</li>`).join('\n')}
@@ -470,7 +516,8 @@ ${shelves}
 /* ---------- Everything ---------- */
 
 // Every page as { id, path, file, html }: the index, the shelves, the books. Throws if an id would collide.
-function renderStacks(data, m) {
+function renderStacks(all, m) {
+  const data = stocked(all);
   const ids = [...data.shelves.map((s) => s.id), ...data.books.map((b) => b.id)];
   const dup = ids.find((id, i) => ids.indexOf(id) !== i);
   if (dup) throw new Error(`stacks pages: "${dup}" is used by more than one shelf or book`);
@@ -483,8 +530,9 @@ function renderStacks(data, m) {
 }
 
 // The build step: write public/stacks/**. Returns the number of pages written.
-async function writeStacksPages(outDir, data = readData()) {
+async function writeStacksPages(outDir, given) {
   const m = await loadModel();
+  const data = given || await buildData({ m });
   const errors = m.validate(data);
   if (errors.length) throw new Error('data/books.json does not validate:\n' + errors.join('\n'));
   const pages = renderStacks(data, m);
@@ -504,7 +552,7 @@ async function pageFor(urlPath) {
   if (!mm) return null;
   modelPromise ||= loadModel();
   const m = await modelPromise;
-  const data = readData();
+  const data = stocked(readData()); // locally the static books only (no database call per request)
   const id = mm[1] || null;
   if (!id) return indexPage(data, m);
   const shelf = data.shelves.find((s) => s.id === id);
@@ -515,7 +563,7 @@ async function pageFor(urlPath) {
 
 module.exports = {
   SITE_ORIGIN, OG_IMAGE, OG_ALT, DESC_MAX, MORE_ON_SHELF, TAKE_MIN_WORDS, UI_TEXT, wordCount, takeParagraphs, indexable,
-  loadModel, readData, esc, pagePath, pageUrl, firstSentence, metaDescription, bookLastmod, stacksSitemapEntries, siblings, shelfIntro,
+  loadModel, readData, buildData, stocked, esc, pagePath, pageUrl, firstSentence, metaDescription, bookLastmod, stacksSitemapEntries, siblings, shelfIntro,
   bookPage, shelfPage, indexPage, renderStacks, writeStacksPages, pageFor, noscriptHtml,
 };
 
