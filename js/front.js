@@ -112,6 +112,7 @@ function tvHTML(x, c) {
   return `<article class="stv-story stv-story--${v.media} stv-tone--${tone}${v.hook ? ' has-hook' : ''}${v.summary ? ' has-words' : ''}">
     <header class="stv-hero stv-block" style="--i:0">
       <p class="stv-hero__tags"><span class="sticker sticker--${tone} stv-hero__cat">${esc(v.kicker)}</span>${v.pick ? '<span class="stv-hero__pick">Editor’s pick</span>' : ''}<span class="stv-hero__ch">${esc(channelLabel(c.number))}</span></p>
+      <span class="stv-hero__burst" aria-hidden="true"><span class="stv-hero__burst-ink burst" style="--burst:${starPolygon(18, 40)}"></span><span class="stv-hero__burst-t">${x.pick ? '<small>Editor’s</small>Pick' : `<small>Straight from</small>${esc(monogram(x.outlet))}`}</span></span>
       <h2 class="stv-h" id="stv-h" tabindex="-1">${esc(v.title)}</h2>
       <p class="stv-lower"><span class="stv-lower__out">${esc(x.outlet)}</span><span class="stv-lower__date">${esc(v.date)}</span></p>
     </header>

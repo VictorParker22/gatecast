@@ -119,8 +119,10 @@ export function createStoryTV({ order, render, afterRender = () => {}, ident = (
     await staticBurst(canvas, kind === 'open' ? 260 : 220);
     if (skipped) return;
     dlg.classList.remove('is-static');
+    const ms = kind === 'open' ? 780 : 520;
+    dlg.style.setProperty('--ident', `${ms}ms`);
     dlg.classList.add('is-ident');
-    await wait(kind === 'open' ? 900 : 560);
+    await wait(ms);
     if (skipped) return;
     dlg.classList.remove('is-ident');
     dlg.classList.add('is-in');

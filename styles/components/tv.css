@@ -73,7 +73,15 @@
   .stv-hero__cat { font-size: var(--text-base); padding: 4px --spacing(2.5); }
   .stv-hero__pick { display: inline-flex; align-items: center; padding: 3px --spacing(2); background: var(--color-np-night); color: var(--color-np-sun); font-family: var(--font-sign); font-weight: 800; font-size: var(--text-sm); letter-spacing: var(--tracking-caps); text-transform: uppercase; rotate: 2deg; }
   .stv-hero__ch { margin-left: auto; font-family: var(--font-pixel); font-size: var(--text-xl); line-height: 1; color: var(--color-np-muted); }
-  .stv-h { margin: 0; font-family: var(--font-slab); font-weight: 400; font-size: var(--text-tv-head); line-height: 1.04; letter-spacing: var(--tracking-slab); color: var(--color-np-ink); text-wrap: balance; overflow-wrap: anywhere; max-width: 24ch; }
+  /* A starburst in the hero's free corner (wide screens only): "Editor's pick", or "Straight from" the outlet. */
+  .stv-hero__burst { display: none; }
+  @media (width >= theme(--breakpoint-lg)) {
+    .stv-hero__burst { display: block; position: absolute; right: clamp(1.5rem, 3vw, 3.5rem); top: 50%; width: 9.5rem; height: 9.5rem; translate: 0 -40%; rotate: 12deg; }
+  }
+  .stv-hero__burst-ink { position: absolute; inset: 0; background: var(--color-np-lime); clip-path: var(--burst); filter: drop-shadow(4px 4px 0 var(--color-np-ink)); }
+  .stv-hero__burst-t { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; font-family: var(--font-sign); font-weight: 800; font-size: var(--text-burst-sm); line-height: 0.92; text-transform: uppercase; color: var(--color-np-on-lime); }
+  .stv-hero__burst-t small { display: block; font-size: var(--text-sm); font-weight: 800; color: var(--color-np-on-lime); letter-spacing: var(--tracking-caps); }
+  .stv-h { margin: 0; font-family: var(--font-slab); font-weight: 400; font-size: var(--text-tv-head); line-height: 1.04; letter-spacing: var(--tracking-slab); color: var(--color-np-ink); text-wrap: balance; overflow-wrap: anywhere; max-width: 22ch; }
   /* The lower third: the outlet on cobalt and the date in pixel type on ink, like a broadcast caption. */
   .stv-lower { display: inline-flex; flex-wrap: wrap; margin: clamp(0.75rem, 0.5rem + 1vw, 1.5rem) 0 0; box-shadow: 5px 5px 0 var(--color-np-shadow-ink); max-width: 100%; }
   .stv-lower__out { padding: --spacing(1.5) --spacing(3); background: var(--color-np-cobalt); color: var(--color-np-on-cobalt); font-family: var(--font-sign); font-weight: 800; font-size: var(--text-xl); line-height: 1.1; letter-spacing: var(--tracking-caps); text-transform: uppercase; }
@@ -172,7 +180,7 @@
   .stv__card-ch { padding: 2px --spacing(2); background: var(--color-np-night); color: var(--color-np-sun); font-family: var(--font-pixel); font-size: var(--text-sub); line-height: 1; }
   .stv__card-t { font-family: var(--font-slab); font-size: var(--text-tv-card); line-height: 0.92; text-transform: uppercase; overflow-wrap: anywhere; }
   .stv__card-sub { font-family: var(--font-sign); font-weight: 800; font-size: var(--text-base); letter-spacing: var(--tracking-label); text-transform: uppercase; }
-  .stv.is-ident .stv__card { animation: stv-card 900ms var(--ease-out) forwards; }
+  .stv.is-ident .stv__card { animation: stv-card var(--ident, 780ms) var(--ease-out) forwards; }
   @keyframes stv-card {
     0% { opacity: 0; transform: scale(1.7) rotate(-10deg); }
     16% { opacity: 1; transform: scale(0.94) rotate(2deg); }
