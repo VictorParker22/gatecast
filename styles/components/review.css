@@ -172,4 +172,38 @@
   .rv-row__title--url { @apply grid gap-0.5 wrap-anywhere; & .rv-muted { @apply text-xs font-normal; } }
   .rv-row__note { @apply italic wrap-anywhere; }
   .rv-tip__url, .rv-tip__note { @apply wrap-anywhere; }
+  .rv-clicks { @apply rounded-sm border border-dashed border-np-ink px-1.5 text-np-ink; }
+
+  /* The hook field: its live checklist, "Draft with Claude" and the suggestions to click in. Monochrome: a passing
+     check is a tick, a failing one a "!" in bold (a hard rule underlined too), never a risk colour. */
+  .rv-hook { @apply grid gap-2; }
+  .rv-checks { @apply grid gap-1 text-sm; }
+  .rv-check-item {
+    @apply flex items-start gap-1.5 text-np-muted;
+    & .icon { @apply mt-0.5 size-[1.1em] flex-none stroke-bold; }
+    & .rv-check-mark { @apply w-[1.1em] flex-none text-center font-bold; }
+    &.is-warn, &.is-bad { @apply font-semibold text-np-ink; }
+    &.is-bad > span:first-of-type { @apply underline decoration-2 underline-offset-[0.2em]; }
+  }
+  .rv-hook__draft { @apply flex flex-wrap items-center gap-x-4 gap-y-2; }
+  .rv-check { @apply inline-flex min-h-tap cursor-pointer items-center gap-2 text-sm; & input { @apply size-4.5 accent-np-ink; } }
+  .rv-hook__out { @apply grid gap-2 empty:hidden; }
+  .rv-hooks { @apply grid gap-2; }
+  .rv-hook__pick {
+    @apply grid min-h-tap w-full cursor-pointer gap-0.5 rounded-sm border border-line bg-np-paper px-3 py-2 text-left text-sm text-inherit hover:border-np-ink;
+  }
+  .rv-hook__text { @apply text-base font-semibold text-np-ink; }
+  .rv-hook__notes { @apply grid gap-1 text-sm text-np-muted; }
+
+  /* The front page's favourites row, previewed above the picks. */
+  .rv-favs {
+    @apply mx-3 mt-3 grid gap-2 rounded-md border border-line bg-np-paper p-3 md:mx-4;
+    & > summary { @apply flex min-h-tap cursor-pointer list-none flex-wrap items-center gap-x-2 after:ml-auto after:font-sign after:text-xl/none after:font-bold after:content-['+'] [&::-webkit-details-marker]:hidden; }
+    &[open] > summary { @apply after:content-['−']; }
+  }
+  .rv-favs__title { @apply font-sign text-base/none font-bold tracking-caps uppercase; }
+  .rv-favs__cap { @apply text-sm; }
+  .rv-favs__list { @apply grid list-decimal gap-2 pl-5 text-sm; & li { @apply pl-1; } & li > span { @apply block; } }
+  .rv-favs__h { @apply font-semibold; }
+  .rv-favs__hook { @apply italic text-np-muted; }
 }

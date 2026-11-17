@@ -55,7 +55,12 @@ function formatBook(b) {
     const parts = keys.filter((k) => k in b).map((k) => { used.add(k); return `${JSON.stringify(k)}: ${inline(b[k])}`; });
     if (parts.length) lines.push(parts.join(', '));
   }
-  for (const k of Object.keys(b)) if (!used.has(k)) lines.push(`${JSON.stringify(k)}: ${inline(b[k])}`);
+  for (const k of Object.keys(b)) if (!used.has(k) && k !== 'preview') lines.push(`${JSON.stringify(k)}: ${inline(b[k])}`);
+  // An approved preview (see previewErrors in js/librarymodel.js): one line per part, so adding one is a small diff.
+  if (b.preview && typeof b.preview === 'object') {
+    const parts = Object.entries(b.preview).map(([k, v]) => `        ${JSON.stringify(k)}: ${inline(v)}`);
+    lines.push('"preview": {\n' + parts.join(',\n') + '\n      }');
+  }
   return '    {\n' + lines.map((l) => '      ' + l).join(',\n') + '\n    }';
 }
 

@@ -1,20 +1,23 @@
-// Reviewer assistant for the "Both sides" console (review.html). See docs/assist.md.
+// Reviewer assistant for the reviewer console (review.html): the "Both sides" queue and the weird-news picks' hook
+// lines. See docs/assist.md.
 //
 // Runs inside Supabase, where the Anthropic key is stored as a secret; the browser never sees it.
 // Deployed with verify_jwt on, so Supabase rejects calls without a valid JWT before this code runs.
 // This code then checks that the caller is a signed-in user who is listed in public.reviewers.
 //
-// POST /functions/v1/assist   { action: "check_topic" | "verify_quote" | "draft_from_source" | "status", ... }
+// POST /functions/v1/assist   { action: "check_topic" | "verify_quote" | "draft_from_source" | "draft_hook" | "status", ... }
 //
-// Advisory only: it writes nothing to the database, and every quote it drafts is re-checked word for word
-// against the page it fetched. The pure logic is in logic.mjs (tested from Node in tests/assist.test.mjs).
+// Advisory only: it writes nothing to the database, every quote it drafts is re-checked word for word against the
+// page it fetched, and every hook line it drafts is re-checked against the house rules (length, clickbait, capitals,
+// marks, numbers not in the headline or page) before the reviewer sees it. The pure logic is in logic.mjs (tested from Node in tests/assist.test.mjs).
 
 import Anthropic from 'npm:@anthropic-ai/sdk@1.8.0';
 import {
   addressesAllowed, bearerToken, capText, checkTopicContent, CHECK_TOPIC_SCHEMA, checkUrl, claudeRequest,
   CLAUDE_ACTIONS, contentKind, corsHeaders, createRateLimiter, DRAFT_SCHEMA, draftContent, FETCH_MAX_BYTES,
-  FETCH_MAX_REDIRECTS, FETCH_MESSAGES, FETCH_TIMEOUT_MS, findVerbatim, htmlToText, normalizeText, RATE_LIMIT,
-  readable, readClaudeReply, shapeCheckResult, shapeDraftResult, usageSummary, validateRequest,
+  FETCH_MAX_REDIRECTS, FETCH_MESSAGES, FETCH_TIMEOUT_MS, findVerbatim, hookContent, HOOK_PAGE_MAX_CHARS, HOOK_SCHEMA,
+  htmlToText, normalizeText, RATE_LIMIT, readable, readClaudeReply, shapeCheckResult, shapeDraftResult, shapeHookResult,
+  usageSummary, validateRequest,
 } from './logic.mjs';
 
 const SB_URL = Deno.env.get('SUPABASE_URL') ?? '';
@@ -44,6 +47,7 @@ type Validated =
   | { ok: true; action: 'status'; input: Record<string, never> }
   | { ok: true; action: 'verify_quote'; input: { quote: string; source_url: string } }
   | { ok: true; action: 'draft_from_source'; input: { source_url: string; topic_hint: string } }
+  | { ok: true; action: 'draft_hook'; input: { title: string; outlet: string; url: string } }
   | { ok: true; action: 'check_topic'; input: { topic: Json } };
 type UrlCheck = { ok: false; reason: string } | { ok: true; url: string; host: string; ip: string | null };
 const fetchMessage = (reason: string) => (FETCH_MESSAGES as Record<string, string>)[reason] ?? 'The page could not be read.';
@@ -218,6 +222,32 @@ Deno.serve(async (req: Request) => {
     const r = await askClaude(apiKey, v.action, checkTopicContent(v.input.topic), CHECK_TOPIC_SCHEMA as Json);
     if (!r.ok) return reply(r.body, r.status);
     return reply({ ...shapeCheckResult(r.data), model: r.model, fallback: r.fallback });
+  }
+
+  if (v.action === 'draft_hook') {
+    // The headline alone, unless a link was given and the page passes the same fences as every other fetch. A page
+    // that cannot be read is reported, and the hooks are drafted from the headline alone.
+    let read: { text: string; url: string; truncated: boolean } | null = null;
+    let pageProblem: Json | null = null;
+    if (v.input.url) {
+      const got = await fetchPage(v.input.url);
+      if (got.ok) {
+        const cut = capText(got.text, HOOK_PAGE_MAX_CHARS);
+        read = { text: cut.text, url: got.url, truncated: cut.truncated };
+      } else {
+        pageProblem = { reason: got.reason, message: fetchMessage(got.reason), http_status: got.http_status ?? null };
+      }
+    }
+    const r = await askClaude(apiKey, v.action, hookContent({ title: v.input.title, outlet: v.input.outlet, page: read }), HOOK_SCHEMA as Json);
+    if (!r.ok) return reply(r.body, r.status);
+    return reply({
+      ...shapeHookResult(r.data, { title: v.input.title, pageText: read?.text ?? '' }),
+      source: read ? 'page' : 'headline',
+      page_problem: pageProblem,
+      truncated: read?.truncated ?? false,
+      model: r.model,
+      fallback: r.fallback,
+    });
   }
 
   // draft_from_source

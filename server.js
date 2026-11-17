@@ -70,6 +70,14 @@ const server = http.createServer(async (req, res) => {
     catch (err) { return send(502, JSON.stringify({ error: 'upstream unavailable' }), TYPES['.json']); }
   }
 
+  // The plain /stacks/ pages: written into public/ by the build step; locally rendered on request from the same code.
+  // Directory URLs end in a slash (the canonical form); without one they redirect, as vercel.json does.
+  if (url.pathname === '/stacks' || url.pathname.startsWith('/stacks/')) {
+    if (/^\/stacks(\/[a-z0-9-]+)?$/.test(url.pathname)) return send(308, '', 'text/plain', { Location: url.pathname + '/' + url.search });
+    const html = await require('./scripts/build-stacks-pages.cjs').pageFor(url.pathname);
+    return html ? send(200, html, TYPES['.html'], { 'Cache-Control': 'public, max-age=0, must-revalidate' }) : send(404, 'Not found', 'text/plain');
+  }
+
   const rel = path.normalize(decodeURIComponent(url.pathname)).replace(/^[/\\]+/, '') || 'index.html';
   const file = path.join(ROOT, rel);
   const top = rel.split(path.sep)[0];

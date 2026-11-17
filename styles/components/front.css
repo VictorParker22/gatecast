@@ -297,7 +297,6 @@
   .lead__burst-text small { @apply not-italic font-extrabold; font-size: var(--text-lg); @apply leading-none font-sign normal-nums tracking-code text-inherit; }
   .lead__text { flex: 2 1 --spacing(70); @apply min-w-0 flex flex-col gap-3.5; }
   .lead__note { font-size: var(--text-story); line-height: 1.55; @apply text-np-ink text-pretty; }
-  .lead__by { @apply text-np-muted; font-size: var(--text-note); }
   .lead__meta { @apply not-italic font-normal; font-size: var(--text-xl); @apply leading-none font-pixel normal-nums text-np-text; }
   .lead__meta-short { @apply hidden; }
   .lead__go { @apply self-start min-h-14 py-0 px-5; background: var(--color-np-cobalt); @apply text-np-on-cobalt; font-size: var(--text-base); @apply gap-2.5; }
@@ -652,7 +651,7 @@
     .sechead__kicker { @apply hidden; }
     .sechead--rule { @apply pb-1.5; }
     #bel-h, .favs .sechead__h { @apply not-italic font-extrabold; font-size: var(--text-xl); line-height: 1.3; @apply font-sign normal-nums tracking-code uppercase; }
-    #bel-h span { @apply text-inherit; }
+    #bel-h span, .favs .sechead__h span { @apply text-inherit; }
     .believe { @apply gap-3; }
     .filters { @apply flex-nowrap overflow-x-auto pt-0 pr-1.5 pb-2 pl-0; scrollbar-width: thin; }
     .chipf { @apply flex-none; }

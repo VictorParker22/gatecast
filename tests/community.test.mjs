@@ -4,8 +4,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash, webcrypto } from 'node:crypto';
 import {
-  normaliseStoryUrl, storyId, sha256Hex, isStoryId, parseIPv6, clientKey, dayBucket, voterHash, tipHash, saltReady,
-  publicHost, checkTipUrl, validateVote, parseIds, validateTip, publicRating, shapeRatings, shapeFavourites, route, ROUTE_METHOD,
+  normaliseStoryUrl, storyId, sha256Hex, isStoryId, parseIPv6, clientKey, dayBucket, voterHash, tipHash, clickHash, saltReady,
+  publicHost, checkTipUrl, validateVote, validateClick, parseIds, validateTip, publicRating, shapeRatings, shapeFavourites, route, ROUTE_METHOD,
   limitReply, originAllowed, corsHeaders, writeAllowed, VOTE_THRESHOLD, MAX_IDS, NOTE_MAX,
 } from '../supabase/functions/community/logic.mjs';
 import * as browser from '../js/community.js';
@@ -92,6 +92,11 @@ test('hashes are salted, purpose-bound, and tips change every UTC day', async ()
   assert.notEqual(d1, await tipHash(salt, '203.0.113.7', '2026-11-17'));
   assert.notEqual(d1, v);
   assert.equal(dayBucket(new Date('2026-11-16T23:59:59-05:00')), '2026-11-17', 'the day is UTC');
+  const c1 = await clickHash(salt, '203.0.113.7', '2026-11-16');
+  assert.match(c1, /^[0-9a-f]{64}$/);
+  assert.notEqual(c1, await clickHash(salt, '203.0.113.7', '2026-11-17'), 'the click hash changes every UTC day');
+  assert.notEqual(c1, d1, 'click and tip hashes differ for the same visitor and day');
+  assert.notEqual(c1, v);
   assert.equal(saltReady(''), false);
   assert.equal(saltReady('short'), false);
   assert.equal(saltReady('x'.repeat(16)), true);
@@ -130,6 +135,14 @@ test('votes: a story URL on a public site and a whole rating from 1 to 5', () =>
   assert.equal(validateVote({ storyUrl: 'nope', rating: 3 }).ok, false);
   assert.equal(validateVote(null).ok, false);
   assert.equal(validateVote([1]).ok, false);
+});
+
+test('clicks: only the story URL is read, normalised, and it must be on a public site', () => {
+  assert.deepEqual(validateClick({ storyUrl: 'https://www.upi.com/Odd_News/x/?utm_source=t#c' }), { ok: true, url: 'https://www.upi.com/Odd_News/x' });
+  assert.deepEqual(validateClick({ storyUrl: 'https://a.com/x', name: 'Ann', rating: 5, at: 'now' }), { ok: true, url: 'https://a.com/x' }, 'everything else is ignored');
+  for (const bad of [{ storyUrl: 'https://localhost/x' }, { storyUrl: 'https://10.0.0.1/x' }, { storyUrl: 'nope' }, { storyUrl: 42 }, {}, null, [1], 'https://a.com/x']) {
+    assert.equal(validateClick(bad).ok, false, JSON.stringify(bad));
+  }
 });
 
 test('ratings ids: comma-separated story ids, at most 60', () => {
@@ -195,7 +208,8 @@ test('routes and limit replies', () => {
   assert.equal(route('/community/admin'), null);
   assert.equal(route('/community/favourites'), 'favourites');
   assert.equal(route('/community/hasOwnProperty'), null);
-  assert.deepEqual(ROUTE_METHOD, { vote: 'POST', ratings: 'GET', favourites: 'GET', tip: 'POST' });
+  assert.equal(route('/functions/v1/community/click'), 'click');
+  assert.deepEqual(ROUTE_METHOD, { vote: 'POST', ratings: 'GET', favourites: 'GET', tip: 'POST', click: 'POST' });
   const l = limitReply({ ok: false, error: 'rate_limited', retry_after: 1234 }, 'vote');
   assert.equal(l.status, 429);
   assert.equal(l.body.retryAfter, 1234);
@@ -203,6 +217,9 @@ test('routes and limit replies', () => {
   assert.equal(limitReply({ ok: false, error: 'tips_full', retry_after: 0 }, 'tip').body.error, 'tips_full');
   assert.equal(limitReply({ ok: false, error: 'tips_full', retry_after: 0 }, 'tip').body.retryAfter, 60);
   assert.match(limitReply({ ok: false, error: 'rate_limited', retry_after: 5 }, 'tip').body.message, /tips/);
+  const c = limitReply({ ok: false, error: 'rate_limited', retry_after: 30 }, 'click');
+  assert.equal(c.status, 429);
+  assert.match(c.body.message, /clicks/);
   assert.equal(limitReply(null).status, 502);
   assert.equal(limitReply({ ok: false, error: 'something' }).status, 502);
 });
@@ -307,6 +324,53 @@ test('browser: calls go to the community function and never throw', async () => 
     globalThis.fetch = realFetch;
     delete globalThis.localStorage;
   }
+});
+
+test('browser: clicks are skipped under Do Not Track or Global Privacy Control', () => {
+  assert.equal(browser.clickAllowed({}, {}), true);
+  assert.equal(browser.clickAllowed({ doNotTrack: 'unspecified' }, {}), true);
+  assert.equal(browser.clickAllowed({ doNotTrack: '0' }, {}), true);
+  assert.equal(browser.clickAllowed({ globalPrivacyControl: false }, {}), true);
+  assert.equal(browser.clickAllowed({ doNotTrack: '1' }, {}), false);
+  assert.equal(browser.clickAllowed({ doNotTrack: 'yes' }, {}), false, 'old Firefox spelling');
+  assert.equal(browser.clickAllowed({ msDoNotTrack: '1' }, {}), false, 'old IE spelling');
+  assert.equal(browser.clickAllowed({}, { doNotTrack: '1' }), false, 'old Safari and IE put it on window');
+  assert.equal(browser.clickAllowed({ globalPrivacyControl: true }, {}), false);
+  assert.equal(browser.clickAllowed({ get doNotTrack() { throw new Error('x'); } }, {}), false, 'unreadable: not counted');
+});
+
+test('browser: a click sends the story URL only, never waits and never throws', () => {
+  const calls = [];
+  const fetch = (url, init) => { calls.push({ url, init }); return Promise.reject(new Error('offline')); };
+  const story = 'https://www.upi.com/Odd_News/x/?utm_source=feed&fbclid=1#top';
+  assert.equal(browser.countClick(story, { fetch, navigator: {}, window: {} }), true);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url, browser.BASE + '/click');
+  assert.equal(calls[0].init.method, 'POST');
+  assert.equal(calls[0].init.keepalive, true, 'outlives the page as the reader leaves');
+  assert.equal(calls[0].init.credentials, 'omit');
+  assert.equal(calls[0].init.referrerPolicy, 'no-referrer');
+  assert.deepEqual(JSON.parse(calls[0].init.body), { storyUrl: 'https://www.upi.com/Odd_News/x' }, 'the normalised story address and nothing else');
+  assert.deepEqual(Object.keys(calls[0].init.headers).sort(), ['Content-Type', 'apikey']);
+
+  // Do Not Track / GPC: nothing is sent at all.
+  assert.equal(browser.countClick(story, { fetch, navigator: { doNotTrack: '1' }, window: {} }), false);
+  assert.equal(browser.countClick(story, { fetch, navigator: { globalPrivacyControl: true }, window: {} }), false);
+  assert.equal(calls.length, 1);
+  // Not a story link.
+  for (const bad of ['javascript:alert(1)', '', null, 'mailto:x@y.z']) assert.equal(browser.countClick(bad, { fetch, navigator: {}, window: {} }), false, String(bad));
+  assert.equal(calls.length, 1);
+
+  // keepalive fetch throws synchronously (quota, old browser): the beacon, with the same body.
+  const beacons = [];
+  const navigator = { sendBeacon: (url, blob) => { beacons.push({ url, blob }); return true; } };
+  assert.equal(browser.countClick(story, { fetch: () => { throw new TypeError('keepalive'); }, navigator, window: {} }), true);
+  assert.equal(beacons[0].url, browser.BASE + '/click');
+  assert.equal(beacons[0].blob.type, 'application/json');
+  // No fetch at all: the beacon too. A beacon that throws (some browsers refuse JSON beacons): false, no throw.
+  assert.equal(browser.countClick(story, { fetch: undefined, navigator, window: {} }), true);
+  assert.equal(browser.countClick(story, { fetch: undefined, navigator: { sendBeacon() { throw new Error('no'); } }, window: {} }), false);
+  assert.equal(browser.countClick(story, { fetch: undefined, navigator: {}, window: {} }), false);
 });
 
 /* ---------- lib/picks-db.js ---------- */

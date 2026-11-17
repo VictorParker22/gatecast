@@ -1,0 +1,89 @@
+/* The Stacks as plain pages (/stacks/, /stacks/<shelf>/, /stacks/<book>/, written by scripts/build-stacks-pages.cjs).
+   Newsprint reading pages like how.html: they follow the day and night editions, unlike the always-night 3D room.
+   The cover stand-in is the library's own .lib-standin (components/library.css) in the book's binding colours;
+   everything else is here, built from tokens. Bundled into site-library.css by styles/main-library.css. */
+@layer components {
+  .stk-page { --tex-cloth: url("../assets/stacks/tex-cloth-512.webp"); }
+  /* The Library tab is the section these pages belong to: pressed in, like a current page. */
+  .stk-page .site-nav a[aria-current="true"] { @apply bg-np-night text-np-sun max-nav:bg-np-sun max-nav:text-np-on-sun; }
+
+  /* Breadcrumb: Gatecast › The Stacks › Shelf › Book */
+  .stk-crumbs ol { @apply flex flex-wrap items-center gap-x-2 text-sm text-np-muted; }
+  .stk-crumbs li { @apply inline-flex items-center gap-2; }
+  .stk-crumbs li + li::before { content: "›" / ""; @apply text-np-muted; }
+  .stk-crumbs a { @apply inline-flex min-h-tap items-center text-np-ink; }
+  .stk-crumbs [aria-current] { @apply font-semibold text-np-ink; }
+
+  /* Headings and type */
+  .stk-kicker { @apply font-sign font-bold tracking-caps uppercase text-sm text-np-muted; & a { @apply inline-flex min-h-tap items-center text-np-muted hover:text-np-cobalt; } }
+  .stk-title { @apply font-slab text-page font-normal tracking-slab text-np-ink; }
+  .stk-byline { @apply mt-2 text-xl/snug font-semibold text-np-text; }
+  .stk-lede { @apply mt-3 max-w-lede text-xl/snug text-np-muted; }
+  .stk-intro { @apply mt-2 max-w-read text-np-text; }
+  .stk-desc { @apply max-w-read text-lg/relaxed text-np-text; }
+  .stk-small { @apply max-w-read text-xs text-np-muted; }
+  .stk-head { @apply grid justify-items-start gap-1; }
+  .stk-section { @apply grid gap-4 border-t-3 border-double border-np-ink pt-6; }
+  .stk-section__title { @apply font-slab text-title font-normal tracking-slab; & a { @apply inline-flex min-h-tap items-center decoration-2 underline-offset-[0.12em]; } }
+  .stk-note-line { @apply -mt-2 max-w-read text-np-muted; }
+  .stk-more { @apply inline-flex min-h-tap items-center font-semibold; }
+
+  /* The book: cover beside the back-cover text from 48rem */
+  .stk-book { @apply grid items-start gap-8 md:grid-cols-[minmax(0,18rem)_minmax(0,1fr)] lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]; }
+  .stk-book__body { @apply grid min-w-0 justify-items-start gap-4; & .stk-title { @apply -mt-2; } & .stk-byline { @apply -mt-3; } }
+  .stk-cover { @apply m-0 grid w-full max-w-44 gap-2 justify-self-center xs:max-w-56 md:max-w-none md:justify-self-stretch; }
+  .stk-cover__frame { @apply relative aspect-[1/1.47] w-full overflow-hidden rounded-sm border-2 border-np-ink bg-np-sunken shadow-np-lg; }
+  .stk-cover__frame img { @apply block size-full object-cover; }
+  .stk-cover__frame { container-type: inline-size; }
+  .stk-cover__frame .lib-standin {
+    @apply gap-[4cqi] px-[7cqi] py-[8cqi];
+    & .lib-standin__shelf { @apply mt-[2cqi]; font-size: clamp(var(--text-xs), 4cqi, var(--text-sm)); }
+    & .lib-standin__title { overflow-wrap: break-word; }
+    & .lib-standin__author { font-size: clamp(var(--text-sm), 5.5cqi, var(--text-lg)); }
+    & .lib-standin__note { @apply mb-[2cqi]; }
+  }
+  .stk-cover__credit { @apply text-xs text-np-muted; }
+
+  .stk-facts { @apply flex flex-wrap gap-x-8 gap-y-2 border-y border-dashed border-np-rule py-3 text-sm; & dt { @apply text-np-muted; } & dd { @apply flex min-h-tap items-center font-bold; } & a { @apply inline-flex min-h-tap items-center; } }
+  .stk-facts > div { @apply grid content-start; }
+
+  /* Content note and Worth knowing: printed slips, never risk colours */
+  .stk-note { @apply max-w-read rounded-sm border-2 border-np-ink bg-np-card px-4 py-3 text-note/relaxed text-np-text shadow-np; & strong { @apply text-np-ink; } }
+  .stk-note--caveat { @apply bg-np-sunken; }
+
+  /* The owner's take ("Why it’s on the shelf"): reading text under the description */
+  .stk-take { @apply grid max-w-read gap-3 border-l-4 border-np-cobalt pl-4; & p { @apply text-np-text; } }
+  .stk-take__title { @apply font-sign text-xl font-bold tracking-caps text-np-ink uppercase; }
+
+  .stk-tags { @apply flex flex-wrap gap-2; & li { @apply border-2 border-np-ink bg-np-card px-2 py-0.5 text-xs font-semibold text-np-ink; } }
+  .stk-actions { @apply mt-2 flex flex-wrap gap-3; & .btn { @apply flex-auto sm:flex-none; } }
+
+  /* Book lists (more on this shelf, a shelf's books, the index) */
+  .stk-list { @apply grid grid-cols-[repeat(auto-fill,minmax(min(100%,--spacing(64)),1fr))] gap-3; }
+  .stk-list--wide { @apply grid-cols-[repeat(auto-fill,minmax(min(100%,--spacing(96)),1fr))]; }
+  .stk-item { @apply grid; }
+  .stk-item__link {
+    @apply grid min-h-tap content-start gap-1 rounded-sm border-2 border-np-ink bg-np-card p-4 text-np-ink no-underline shadow-np transition-[translate,box-shadow] ease-in-out;
+    @apply hover:-translate-0.5 hover:text-np-ink hover:shadow-np-lg motion-reduce:hover:translate-0;
+  }
+  .stk-item__title { @apply font-slab text-xl/tight font-normal; }
+  .stk-item__link:hover .stk-item__title { @apply text-np-cobalt underline decoration-2 underline-offset-[0.15em]; }
+  .stk-item__meta { @apply text-sm text-np-muted; }
+  .stk-item__line { @apply mt-1 text-sm text-np-text; }
+
+  .stk-shelves { @apply mt-3 flex flex-wrap gap-2; & a { @apply inline-flex min-h-tap items-center rounded-sm border-2 border-np-ink bg-np-card px-3 text-sm font-semibold text-np-ink no-underline shadow-bevel hover:bg-np-sun hover:text-np-on-sun; } }
+
+  /* Preview links out (no embeds on these pages) */
+  .stk-links { @apply grid grid-cols-[repeat(auto-fill,minmax(min(100%,--spacing(80)),1fr))] gap-3; }
+  .stk-link { @apply grid min-h-tap gap-1 rounded-sm border-2 border-np-ink bg-np-card p-4 text-np-ink no-underline shadow-np hover:text-np-ink hover:shadow-np-lg; }
+  .stk-link__kicker { @apply font-sign font-bold tracking-caps uppercase text-xs text-np-muted; }
+  .stk-link__title { @apply text-lg/snug font-bold; }
+  .stk-link__meta { @apply text-sm text-np-muted; }
+  .stk-link__go { @apply mt-1 text-sm font-semibold text-np-cobalt underline; }
+
+  /* On library.html (pasted there): the quiet link to the plain list, and the <noscript> list in the night room. */
+  .lib-listlink { @apply m-0 text-sm; text-shadow: 0 1px 2px rgb(0 0 0 / 0.9); & a { @apply inline-flex min-h-tap items-center text-lib-cream underline decoration-1 underline-offset-[0.2em] hover:text-lib-focus; } }
+  .lib-msg--list { @apply grid gap-3; & > ul { @apply grid gap-3 sm:grid-cols-2 lg:grid-cols-3; } & ul ul { @apply mt-1 grid gap-0.5 text-sm; } & a { @apply inline-flex min-h-tap items-center; } & ul ul a { @apply min-h-0 py-1; } }
+
+  @media (forced-colors: active) { .stk-item__link, .stk-link, .stk-note, .stk-cover__frame { border-color: CanvasText; } }
+}

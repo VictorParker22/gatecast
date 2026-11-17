@@ -1,4 +1,5 @@
-// Weird-news community features for anonymous visitors: the Weird-o-meter and the guestbook. See docs/community.md.
+// Weird-news community features for anonymous visitors: the Weird-o-meter, reader favourites, the guestbook and
+// anonymous click totals. See docs/community.md.
 //
 // Deployed with verify_jwt off (`supabase functions deploy community --no-verify-jwt`): visitors are not signed
 // in. Who a visitor is, for one-vote-per-story and the limits, is a salted SHA-256 of their network address;
@@ -7,16 +8,20 @@
 //   POST /functions/v1/community/vote     { storyUrl, rating }        -> { count, average | null, yours }
 //   GET  /functions/v1/community/ratings?ids=a,b,c (at most 60)        -> { ratings: { id: { count, average | null } } }
 //   GET  /functions/v1/community/favourites                             -> { favourites: [{ storyId, count, average | null }] }
-//        (PAUSED addition: needs supabase/paused/weird_favourites.sql; until that is applied it answers 502)
+//        (needs supabase/migrations/20261117090000_reader_favourites.sql; until that is applied it answers 502)
 //   POST /functions/v1/community/tip      { url, note, website }      -> { ok: true }
+//   POST /functions/v1/community/click    { storyUrl }                -> 204, no body
+//        (one click on a weird story's link: added to that story's total for the UTC day; nothing about the visitor
+//        is stored with it. Needs the same migration; until then it answers 502)
 //
 // The database does the counting and enforces the limits (votes 60 per visitor per hour; tips 5 per visitor per
-// UTC day and 200 per UTC day in all) through two definer functions only the service role may call. Tipped
-// links are checked by shape and never fetched. The pure logic is in logic.mjs (tests/community.test.mjs).
+// UTC day and 200 per UTC day in all; clicks 120 per visitor per hour) through definer functions only the service
+// role may call. Tipped links are checked by shape and never fetched. The pure logic is in logic.mjs
+// (tests/community.test.mjs).
 
 import {
-  BODY_MAX, clientKey, corsHeaders, dayBucket, limitReply, parseIds, route, ROUTE_METHOD, saltReady, shapeRatings,
-  storyId, tipHash, validateTip, validateVote, voterHash, writeAllowed, publicRating, shapeFavourites,
+  BODY_MAX, clickHash, clientKey, corsHeaders, dayBucket, limitReply, parseIds, route, ROUTE_METHOD, saltReady, shapeRatings,
+  storyId, tipHash, validateClick, validateTip, validateVote, voterHash, writeAllowed, publicRating, shapeFavourites,
 } from './logic.mjs';
 
 const SB_URL = Deno.env.get('SUPABASE_URL') ?? '';
@@ -86,8 +91,8 @@ Deno.serve(async (req: Request) => {
     return reply({ ratings: shapeRatings(res.data, ids.ids) }, 200, { 'Cache-Control': 'public, max-age=30' });
   }
 
-  // ── GET /favourites ── PAUSED addition (supabase/paused/weird_favourites.sql). The database's defaults:
-  // 7 days, at least 10 votes, 12 stories.
+  // ── GET /favourites ── The database's defaults: 7 days, at least 10 votes, 12 stories, best average then most
+  // votes; the average itself only from 50 votes.
   if (r === 'favourites') {
     const res = await rpc('weird_favourites', {});
     if (!res.ok) return reply({ error: 'unavailable' }, 502);
@@ -120,6 +125,21 @@ Deno.serve(async (req: Request) => {
       return reply(limit.body, limit.status, limit.headers);
     }
     return reply({ ...publicRating(out.votes as number, out.average as number | null), yours: v.rating });
+  }
+
+  // ── POST /click ── Only the story's address is read from the body. The visitor's hash goes to the rate limit only;
+  // weird_count_click stores no hash with the click. Answers 204: a beacon reads no reply.
+  if (r === 'click') {
+    const c = validateClick(parsed.body);
+    if (!c.ok) return reply({ error: 'bad_request', message: c.message }, 400);
+    const res = await rpc('weird_count_click', { p_story_id: await storyId(c.url), p_ip_hash: await clickHash(SALT, who, dayBucket()) });
+    if (!res.ok) return reply({ error: 'unavailable' }, 502);
+    const out = res.data as Json | null;
+    if (out?.ok !== true) {
+      const limit = limitReply(out, 'click');
+      return reply(limit.body, limit.status, limit.headers);
+    }
+    return new Response(null, { status: 204, headers: { ...cors, 'Cache-Control': 'no-store' } });
   }
 
   // ── POST /tip ──

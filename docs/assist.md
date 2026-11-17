@@ -1,21 +1,22 @@
 # Reviewer assistant
 
-A helper for the people who curate "Both sides" topics in the reviewer console (`review.html`). It is powered by Claude and runs as a Supabase Edge Function. It is **advisory only**: it never writes to the database, and nothing it says is published. A reviewer still approves every topic, as `docs/content-sources.md` requires.
+A helper for the people who curate "Both sides" topics and the weird-news editor's picks in the reviewer console (`review.html`). It is powered by Claude and runs as a Supabase Edge Function. It is **advisory only**: it never writes to the database, and nothing it says is published by it. A reviewer still approves every topic, as `docs/content-sources.md` requires, and every hook line (owner decision, 17 Nov 2026: hooks are drafted by Claude, and a person edits and approves every one).
 
-It does three things:
+It does four things:
 
 | Action | What it does | Uses Claude |
 |---|---|---|
 | `check_topic` | Reads a draft topic and lists what breaks the house rules: loaded or partisan wording in the title or fact, a fact that isn't neutral or doesn't match its source as described, quotes that look paraphrased, missing dates or roles, a missing side, quotes from different weeks or subjects. Suggests a neutral title or fact where needed. Never rewrites a quote and never says which side is right. | Yes |
 | `verify_quote` | Opens the quote's source page and checks the quote appears there word for word. | No |
 | `draft_from_source` | Opens a page (a floor transcript, a press release) and proposes quotes from named officials on the topic, each one re-checked word for word against the page before it is returned. Party is never guessed; the reviewer sets the side. | Yes |
+| `draft_hook` | Proposes up to 3 hook lines (at most 140 characters) for a weird-news pick: the short line shown under the outlet's headline, meant to make a reader wonder while staying true. Drawn from the headline only, unless a story link is given and the page passes the fetch fences, in which case every fact must be in the headline or the page. Each hook is re-checked against the house rules before it is returned. The console's "Draft with Claude" button; the reviewer clicks one into the field, edits it and saves. | Yes |
 
 ## How it is built
 
-- **Where it runs:** `supabase/functions/assist/index.ts`, a Deno Edge Function in the Gatecast Supabase project. The pure logic (text normalisation, the word-for-word check, the private-address check, the schemas and prompt, response shaping) is in `supabase/functions/assist/logic.mjs`, a plain JavaScript module tested from Node by `tests/assist.test.mjs`.
+- **Where it runs:** `supabase/functions/assist/index.ts`, a Deno Edge Function in the Gatecast Supabase project. The pure logic (text normalisation, the word-for-word check, the private-address check, the schemas and prompt, the hook rules, response shaping) is in `supabase/functions/assist/logic.mjs`, a plain JavaScript module tested from Node by `tests/assist.test.mjs`.
 - **The key:** the Anthropic API key is a Supabase Edge Function secret. The browser never sees it, and it is never in the repository. The function reads the first of these secret names that is set: `ANTHROPIC_API_KEY`, `Anthropic`, `ANTHROPIC`.
 - **Who may call it:** the function is deployed with `verify_jwt` on, so Supabase turns away calls without a valid token before the code runs. The code then checks the token belongs to a signed-in user (`/auth/v1/user`; the public key alone has no user) and that the user is listed in `public.reviewers` (it reads `reviewers` with the caller's own token; row-level security returns their row only if they are a reviewer).
-- **Claude:** called through the official SDK (`npm:@anthropic-ai/sdk@1.8.0`) on the beta messages endpoint. Model `claude-opus-5-5`, effort `high`, thinking left at the model's default (always on for this model), `max_tokens` 8000, structured JSON output with a closed schema, and refusal fallbacks on (`fallbacks: "default"` with the `server-side-fallback-2026-07-01` beta): if Claude Opus 5.5 declines on policy grounds, the API retries the same request on the model Anthropic recommends for that case, and the response says so (`fallback: true`). The system prompt is one fixed text shared by both Claude actions and marked for prompt caching.
+- **Claude:** called through the official SDK (`npm:@anthropic-ai/sdk@1.8.0`) on the beta messages endpoint. Model `claude-opus-5-5`, effort `high`, thinking left at the model's default (always on for this model), `max_tokens` 8000, structured JSON output with a closed schema, and refusal fallbacks on (`fallbacks: "default"` with the `server-side-fallback-2026-07-01` beta): if Claude Opus 5.5 declines on policy grounds, the API retries the same request on the model Anthropic recommends for that case, and the response says so (`fallback: true`). The system prompt is one fixed text shared by all three Claude actions (tasks A, B and C in it) and marked for prompt caching.
 
 ## Guardrails
 
@@ -26,6 +27,8 @@ It does three things:
 - **Nothing auto-publishes.** The function has no database write access of its own and uses only the caller's token, which row-level security already limits.
 - **What "word for word" means.** Both texts are compared after folding typography only: curly quotes become straight, every kind of dash becomes a hyphen, whitespace and invisible characters are collapsed, "…" becomes "...". Words, spelling and capitalisation must match. The quote's own final punctuation mark may differ (a quote ending "act." on a page that has "act,"). Outer quotation marks pasted with the quote are ignored. Quotes joined with an ellipsis are not found, by design: the house rule is full quotes.
 - **Fetching is fenced in.** Only `https` links on the default port, no user names or passwords in the link, at most 3 redirects (each one checked again), 10 seconds in all, 3 MB at most. Every name is looked up (A and AAAA) and refused if any answer is a private, loopback, link-local (cloud metadata), carrier-grade NAT, multicast, reserved or documentation address, or an IPv6 form wrapping one. Names such as `localhost` or `*.local` are refused without a lookup. Web pages and plain text are read; a PDF gets a clear message to check it by hand; anything else is refused.
+- **Hooks are re-checked.** Every hook Claude drafts is checked again on the server before the reviewer sees it (`hookProblems()` in `logic.mjs`): at most 140 characters; none of the clickbait phrases the console's checklist lists (`CLICKBAIT`, the same list as `js/reviewmodel.js`; the tests check they agree); no word of 4+ letters in capitals unless the headline or page writes it that way; at most one `?` or `!`; not the headline itself; and no number that is in neither the headline nor the page that was read. A hook that fails is dropped and counted (`dropped`). The rules the server cannot check mechanically (never more than the headline says without a source, never mocking people, never sensationalising harm, make them wonder but tell the truth) are in the system prompt, and the reviewer approves every hook.
+- **Hooks from the headline by default.** The console sends the story link only when the reviewer ticks "Let Claude read the story page". A page that cannot be read (any fence below) is reported (`page_problem`) and the hooks are drafted from the headline alone. A page is cut to its first 20,000 characters for a hook.
 - **Long pages are cut and flagged, never silently.** `draft_from_source` reads the first 80,000 characters and returns `truncated: true` with the page's full length when it had to cut.
 - **Limits.** 30 requests per reviewer per hour (`status` is free). See "Known gaps" for why this is best effort.
 - **Logs.** Token use (input, output, cache write, cache read) and Claude error codes go to the function's log in Supabase. They are never sent to the browser. Topic text and quotes are not logged.
@@ -95,6 +98,21 @@ Works even when the Anthropic key is not set.
 
 No `side` or party: the reviewer sets it. A page that can't be read → `422 { "error": "source_unreadable", "reason", "message", "http_status" }` with the same reason codes as `verify_quote`.
 
+### `draft_hook`
+
+`{ "action": "draft_hook", "title": "<the outlet's headline, up to 300 characters>", "outlet": "UPI", "url": "https://... (optional)" }` → `200`
+
+```json
+{ "hooks": [{ "text": "<at most 140 characters>", "basis": "<the words of the headline or page it rests on>" }],
+  "dropped": 1,
+  "source": "headline" | "page",
+  "page_problem": null | { "reason": "<a verify_quote reason code>", "message": "", "http_status": 404 | null },
+  "truncated": false,
+  "model": "claude-opus-5-5", "fallback": false }
+```
+
+At most 3 hooks; `hooks` may be empty when Claude finds no honest hook (for example a story about harm). Without `url` the page is never fetched. With `url`, the page goes to Claude as an untrusted document; if it cannot be read, `source` is `headline` and `page_problem` says why.
+
 ### Errors (every action)
 
 | Status | Body | Meaning |
@@ -119,9 +137,11 @@ Claude Opus 5.5 is $4 per million input tokens and $20 per million output tokens
 
 | Action | Input | Output (incl. thinking) | Cost |
 |---|---|---|---|
-| `check_topic` | ~1,500 to 2,500 tokens (about 1,000 of them the cached system prompt) | ~1,000 to 5,000 | about $0.03 to $0.11 |
+| `check_topic` | ~2,200 to 3,200 tokens (about 1,700 of them the cached system prompt, shared by all three Claude actions) | ~1,000 to 5,000 | about $0.03 to $0.11 |
 | `draft_from_source`, short page (a press release) | ~2,000 to 6,000 | ~2,000 to 6,000 | about $0.05 to $0.15 |
 | `draft_from_source`, long page (80,000 characters, the cap) | ~20,000 to 22,000 | ~3,000 to 7,000 | about $0.15 to $0.25 |
+| `draft_hook`, headline only | ~1,900 (about 1,700 of them the cached system prompt) | ~500 to 2,500 | about $0.01 to $0.06 |
+| `draft_hook`, with the story page (20,000 characters at most) | ~2,000 to 7,000 | ~800 to 3,000 | about $0.03 to $0.09 |
 | `verify_quote`, `status` | none | none | $0 |
 
 The rate limit caps one reviewer at roughly $7.50 an hour in the worst case. A request rescued by the fallback model is billed at that model's rates. Real numbers are in the function log (`input_tokens`, `output_tokens`, `cache_creation_input_tokens`, `cache_read_input_tokens`) and the Anthropic Console.
@@ -137,7 +157,8 @@ The rate limit caps one reviewer at roughly $7.50 an hour in the worst case. A r
 
 ## Testing
 
-- `npm test` runs `tests/assist.test.mjs`: normalisation, the word-for-word check, HTML to text, the private-address and link checks, request validation, the schemas, the exact Claude request (model, effort, fallbacks, cache control, no `thinking`), reading Claude's reply (refusal, cut-off, fallback), response shaping, CORS and the rate limit. No network and no API calls.
+- `npm test` runs `tests/assist.test.mjs`: normalisation, the word-for-word check, HTML to text, the private-address and link checks, request validation, the schemas, the exact Claude request (model, effort, fallbacks, cache control, no `thinking`), reading Claude's reply (refusal, cut-off, fallback), response shaping, `draft_hook` (its request, content blocks, the hook rules, shaping, and that its limit and clickbait list match the console's), CORS and the rate limit. No network and no API calls.
+- `draft_hook` was also run end to end under Node (17 Nov 2026) with a Deno stand-in, the real SDK (1.8.0) and stubbed Supabase auth, page and Anthropic replies: headline only, with a page, a link to a private address (reported, drafted from the headline), a missing title, a refusal, and a hook with a number the headline does not give (dropped). The real Anthropic API was not called.
 - `index.ts` was also run end to end under Node with a small Deno stand-in, the real SDK pointed at a local fake Anthropic server (`ANTHROPIC_BASE_URL`), a fake Supabase auth, and an intercepted test page. It covered auth (401, 403), CORS, every fetch refusal, a redirect to the metadata address, a name resolving to a private address, PDF, oversize, refusal, cut-off, typed SDK errors, quote re-verification and the rate limit. The real Anthropic API was not called (no spend approved) and no real tokens were used. That harness lives outside the repository; Deno was not available to run the function natively.
 
 ## Known gaps and follow-ups

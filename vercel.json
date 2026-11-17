@@ -3,6 +3,10 @@
   "framework": null,
   "buildCommand": "node scripts/build-data.cjs",
   "outputDirectory": "public",
+  "redirects": [
+    { "source": "/stacks", "destination": "/stacks/", "permanent": true },
+    { "source": "/stacks/:id([a-z0-9-]+)", "destination": "/stacks/:id/", "permanent": true }
+  ],
   "headers": [
     {
       "source": "/(.*)",

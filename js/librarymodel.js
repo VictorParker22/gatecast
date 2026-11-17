@@ -256,6 +256,188 @@ export function coverUrl(cover, size = 'M') {
   return Number.isInteger(id) && id > 0 ? `https://covers.openlibrary.org/b/id/${id}-${size}.jpg` : null;
 }
 
+/* ---------- Previews: an official video (Watch) and the publisher's pages (Look inside) ---------- */
+
+// Optional `preview` on a book, filled in only after the owner approves each one:
+//   preview.watch = { kind: 'youtube', id, url, title, channel, duration, label }   (embedded after a click)
+//                 | { kind: 'cspan' | 'pbs' | 'criterion', url, title, channel, duration, label }   (a link out, no embed)
+//   duration is optional (shown when known).
+//   preview.look  = { kind: 'googlebooks', volumeId } | { kind: 'archive', identifier }
+// Nothing loads from YouTube, Google or the Internet Archive until the reader opens Preview and presses Play or
+// opens Look inside. Anything that does not match exactly is rejected (validate) and never shown (previewFor).
+export const PREVIEW_URLS = {
+  ytPoster: (id) => `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
+  ytEmbed: (id) => `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0`,
+  ytWatch: (id) => `https://www.youtube.com/watch?v=${id}`,
+  gbScript: 'https://www.google.com/books/jsapi.js',
+  archiveEmbed: (identifier) => `https://archive.org/embed/${identifier}`,
+};
+export const WATCH_LABELS = ['Author interview', 'Author talk', 'Book talk', 'Author lesson', 'Reading', 'Lecture', 'Documentary', 'Film trailer', 'TV series trailer'];
+// Sites a Watch link may open (never embedded): the kind, its exact host, and how the page names it.
+export const WATCH_SITES = {
+  cspan: { host: 'www.c-span.org', name: 'C-SPAN', domain: 'c-span.org' },
+  pbs: { host: 'www.pbs.org', name: 'PBS', domain: 'pbs.org' },
+  criterion: { host: 'www.criterion.com', name: 'Criterion', domain: 'criterion.com' },
+};
+const PREVIEW_ID = {
+  youtube: /^[A-Za-z0-9_-]{6,20}$/,
+  googlebooks: /^[A-Za-z0-9_-]{8,16}$/,
+  archive: /^[A-Za-z0-9._-]{3,100}$/,
+};
+const DURATION = /^(?:[1-9]\d?:[0-5]\d:[0-5]\d|[1-5]?\d:[0-5]\d)$/; // 2:31, 58:10, 1:04:05
+const siteUrlOk = (kind, url) => typeof url === 'string' && url.startsWith(`https://${WATCH_SITES[kind].host}/`)
+  && /^https:\/\/[a-z.-]+\/[A-Za-z0-9/?=&._~%+-]+$/.test(url);
+const plain = (s, max) => typeof s === 'string' && s.trim() === s && s.length >= 1 && s.length <= max && !/[<>\u0000-\u001f]/.test(s);
+const onlyKeys = (o, keys) => Object.keys(o).every((k) => keys.includes(k));
+
+export function watchErrors(w) {
+  if (!w || typeof w !== 'object' || Array.isArray(w)) return ['preview.watch must be an object'];
+  const e = [];
+  if (w.kind === 'youtube') {
+    if (!onlyKeys(w, ['kind', 'id', 'url', 'title', 'channel', 'duration', 'label'])) e.push('preview.watch has unknown keys');
+    if (!PREVIEW_ID.youtube.test(w.id || '')) e.push('preview.watch.id is not a YouTube video id');
+    else if (w.url !== undefined && w.url !== PREVIEW_URLS.ytWatch(w.id) && w.url !== `https://youtu.be/${w.id}`) e.push('preview.watch.url must be the YouTube watch link for its id');
+  } else if (Object.hasOwn(WATCH_SITES, w.kind)) {
+    if (!onlyKeys(w, ['kind', 'url', 'title', 'channel', 'duration', 'label'])) e.push('preview.watch has unknown keys');
+    if (!siteUrlOk(w.kind, w.url)) e.push(`preview.watch.url must be a https://${WATCH_SITES[w.kind].host}/ link`);
+  } else return [`preview.watch.kind must be youtube or one of: ${Object.keys(WATCH_SITES).join(', ')}`];
+  if (!plain(w.title, 160)) e.push('preview.watch.title missing');
+  if (!plain(w.channel, 80)) e.push('preview.watch.channel missing');
+  if (w.duration !== undefined && !DURATION.test(w.duration)) e.push('preview.watch.duration must look like 2:31 or 1:04:05');
+  if (!WATCH_LABELS.includes(w.label)) e.push(`preview.watch.label must be one of: ${WATCH_LABELS.join(', ')}`);
+  return e;
+}
+
+export function lookErrors(l) {
+  if (!l || typeof l !== 'object' || Array.isArray(l)) return ['preview.look must be an object'];
+  if (l.kind === 'googlebooks') {
+    if (!onlyKeys(l, ['kind', 'volumeId'])) return ['preview.look has unknown keys'];
+    return PREVIEW_ID.googlebooks.test(l.volumeId || '') ? [] : ['preview.look.volumeId is not a Google Books volume id'];
+  }
+  if (l.kind === 'archive') {
+    if (!onlyKeys(l, ['kind', 'identifier'])) return ['preview.look has unknown keys'];
+    return PREVIEW_ID.archive.test(l.identifier || '') && !/^\.|\.\./.test(l.identifier) ? [] : ['preview.look.identifier is not an Internet Archive identifier'];
+  }
+  return ['preview.look.kind must be googlebooks or archive'];
+}
+
+export function previewErrors(p) {
+  if (!p || typeof p !== 'object' || Array.isArray(p)) return ['preview must be an object'];
+  if (!onlyKeys(p, ['watch', 'look'])) return ['preview has unknown keys (only watch and look)'];
+  if (p.watch === undefined && p.look === undefined) return ['preview is empty'];
+  return [...(p.watch !== undefined ? watchErrors(p.watch) : []), ...(p.look !== undefined ? lookErrors(p.look) : [])];
+}
+
+// The parts of a book's preview that are valid, or null. The page shows only these, whatever the file says.
+export function previewFor(book) {
+  const p = book && book.preview;
+  if (!p || typeof p !== 'object') return null;
+  const watch = p.watch !== undefined && !watchErrors(p.watch).length ? p.watch : null;
+  const look = p.look !== undefined && !lookErrors(p.look).length ? p.look : null;
+  return watch || look ? { watch, look } : null;
+}
+
+// The tabs a book's Preview has: Watch and/or Look inside, in that order; none without approved data.
+export function previewTabs(book) {
+  const p = previewFor(book);
+  if (!p) return [];
+  return [p.watch && { id: 'watch', label: 'Watch' }, p.look && { id: 'look', label: 'Look inside' }].filter(Boolean);
+}
+
+// "1:04:05" -> "1 hour 4 minutes", "12:34" -> "12 minutes 34 seconds", "2:31" -> "2 minutes 31 seconds".
+export function durationWords(d) {
+  const parts = String(d || '').split(':').map(Number);
+  if (parts.some((n) => !Number.isFinite(n))) return '';
+  const [h, m, s] = parts.length === 3 ? parts : [0, ...parts];
+  const unit = (n, w) => (n ? `${n} ${w}${n === 1 ? '' : 's'}` : '');
+  return (h ? [unit(h, 'hour'), unit(m, 'minute')] : [unit(m, 'minute'), unit(s, 'second')]).filter(Boolean).join(' ') || '0 seconds';
+}
+
+// What the Watch tab shows. Before Play: a facade (no embed). After Play: the privacy-enhanced player. C-SPAN, PBS
+// and Criterion are
+// never embedded: a link out. No poster for the books that never show a picture (NO_COVER): a thumbnail chosen by
+// the uploader could show the killer or the cult leader.
+export function watchView(book, { played = false } = {}) {
+  const w = previewFor(book)?.watch;
+  if (!w) return null;
+  const yt = w.kind === 'youtube';
+  const site = yt ? { name: 'YouTube', domain: 'youtube.com' } : WATCH_SITES[w.kind];
+  const dur = w.duration ? `, ${durationWords(w.duration)}` : '';
+  const note = w.label === 'Film trailer' ? 'This is the trailer for the film adaptation.'
+    : w.label === 'TV series trailer' ? 'This is the trailer for the TV adaptation.' : '';
+  return {
+    kind: w.kind, site: site.name, title: w.title, channel: w.channel, duration: w.duration || '', label: w.label,
+    poster: yt && !NO_COVER.has(book.id) ? PREVIEW_URLS.ytPoster(w.id) : null,
+    embed: yt && played ? PREVIEW_URLS.ytEmbed(w.id) : null,
+    link: yt ? PREVIEW_URLS.ytWatch(w.id) : w.url,
+    linkText: `Watch on ${site.name}`,
+    playLabel: yt ? `Play: ${w.title}${dur}, ${w.channel}` : `Watch on ${site.domain}: ${w.title}${dur}, ${w.channel} (opens a new tab)`,
+    credit: yt ? `Video: ${w.channel} on YouTube` : `Video: ${w.channel}, on ${site.domain}`,
+    note,
+  };
+}
+
+// What the Look inside tab shows. Nothing loads until it is opened (a click on the tab or its button).
+export function lookView(book, { opened = false } = {}) {
+  const l = previewFor(book)?.look;
+  if (!l) return null;
+  const gb = l.kind === 'googlebooks';
+  return {
+    kind: l.kind,
+    script: gb && opened ? PREVIEW_URLS.gbScript : null,
+    volumeId: gb ? l.volumeId : null,
+    iframe: !gb && opened ? PREVIEW_URLS.archiveEmbed(l.identifier) : null,
+    credit: gb ? 'Preview: Google Books' : 'Preview: Internet Archive',
+    source: gb ? 'Google Books' : 'the Internet Archive',
+  };
+}
+
+// The sheet's small print: what loads from where, and when, for this book's preview only.
+export function previewNote(book) {
+  const w = watchView(book), l = lookView(book);
+  const parts = [];
+  if (w && w.kind === 'youtube') parts.push((w.poster ? 'The video still comes from YouTube; the' : 'The') + ' video loads from YouTube only when you press play');
+  if (l) parts.push(`${parts.length ? 'the' : 'The'} pages load from ${l.source} only when you open them`);
+  let s = parts.length ? parts.join(', and ') + '. That service then sees your request.' : '';
+  if (w && w.kind !== 'youtube') s += (s ? ' ' : '') + `The ${w.site} link opens ${WATCH_SITES[w.kind].domain} in a new tab; nothing loads from it here.`;
+  return s;
+}
+
+// Every third-party address the preview loads in a given state (tests: nothing before a click).
+// open: the Preview view is showing; tab: the selected tab; played / opened: Play pressed / Look inside opened.
+export function previewRequests(book, { open = false, tab = null, played = false, opened = false } = {}) {
+  if (!open) return [];
+  const out = [];
+  const w = watchView(book, { played });
+  const l = lookView(book, { opened });
+  if (tab === 'watch' && w) { if (w.poster) out.push(w.poster); if (w.embed) out.push(w.embed); }
+  if (tab === 'look' && l) { if (l.script) out.push(l.script); if (l.iframe) out.push(l.iframe); }
+  return out;
+}
+
+// Where the Preview sheet goes, in viewport px, given the book's rectangle on screen. Beside the book when there is
+// room (`side`); otherwise full width over the lower part of the book, its top edge still showing (`over`).
+// bottom: px kept free for the dialog's buttons.
+export function previewPlace(book, vw, vh, { bottom = 96, gutter = 16, gap = 32, min = 400, max = 560, wide = 720, top = 16, peek = 0.22, minH = 420 } = {}) {
+  const floor = vh - bottom;
+  const right = vw - (book.left + book.width) - gap - gutter;
+  if (right >= min && book.left >= 0) {
+    const t = Math.max(top, Math.min(book.top, floor - minH));
+    return { mode: 'side', left: Math.round(book.left + book.width + gap), top: Math.round(t), width: Math.round(Math.min(max, right)), height: Math.round(floor - t) };
+  }
+  const width = Math.min(vw - 2 * gutter, wide);
+  const t = Math.max(top, Math.min(book.top + book.height * peek, floor - minH));
+  return { mode: 'over', left: Math.round((vw - width) / 2), top: Math.round(t), width: Math.round(width), height: Math.round(Math.max(0, floor - t)) };
+}
+
+// DOM shelves on a wide screen: how far to slide the book left so the book and the sheet beside it sit centred.
+export function previewShift(box, vw, { gutter = 16, gap = 32, min = 400, max = 560 } = {}) {
+  const room = vw - 2 * gutter - box.W - gap;
+  if (room < min) return 0;
+  const group = box.W + gap + Math.min(max, room);
+  return Math.round((vw - group) / 2 - box.left);
+}
+
 /* ---------- Data check (used by the tests and on load) ---------- */
 
 export function validate(data) {
@@ -279,6 +461,7 @@ export function validate(data) {
       else if (c.olKey !== null && !/^\/works\/OL\d+W$/.test(c.olKey || '')) errors.push(`${where}: cover.olKey must be /works/OL…W or null`);
       else if (!/^\d{4}-\d{2}-\d{2}$/.test(c.checked || '')) errors.push(`${where}: cover.checked must be a date`);
     }
+    if (b.preview !== undefined) for (const e of previewErrors(b.preview)) errors.push(`${where}: ${e}`);
   }
   return errors;
 }

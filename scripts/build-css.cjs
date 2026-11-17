@@ -35,7 +35,9 @@ function stale(dir = STYLES) {
   if (outs.some((o) => !fs.existsSync(o))) return true;
   const built = Math.min(...outs.map((o) => fs.statSync(o).mtimeMs));
   const dirs = [STYLES, path.join(STYLES, 'components'), path.join(root, 'js'), root];
-  return dirs.some((d) => fs.readdirSync(d).some((f) => /\.(css|html|js)$/.test(f) && !OUTPUTS.includes(f) && fs.statSync(path.join(d, f)).mtimeMs > built));
+  const newer = (f) => fs.statSync(f).mtimeMs > built;
+  return newer(path.join(root, 'scripts', 'build-stacks-pages.cjs')) // the /stacks/ page templates
+    || dirs.some((d) => fs.readdirSync(d).some((f) => /\.(css|html|js)$/.test(f) && !OUTPUTS.includes(f) && newer(path.join(d, f))));
 }
 
 function watchCss(dir = STYLES) {

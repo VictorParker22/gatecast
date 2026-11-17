@@ -1,10 +1,11 @@
 // The weird-news half of the front page (index.html): the edition strip, the section tabs, the headline ticker,
 // the lead with its Weird-o-meter, favourites, "Also odd", the reading streak, the "Believe it or not" grid, the
 // weird-weather line in the weather box, and the guestbook. Stories come from /api/weird via data.js loadWeird();
-// votes and tips go through js/community.js. Pure rules live in js/frontmodel.js. The weather half is js/weather.js.
+// votes, favourites, tips and anonymous click counts go through js/community.js. Pure rules live in js/frontmodel.js.
+// The weather half is js/weather.js.
 import * as data from './data.js';
 import {
-  cleanWeird, splitFront, gridFor, favourites, PAGE, CATEGORIES, catLabel, stickerTone, metaLine, shortMeta, ratingLabel,
+  cleanWeird, splitFront, gridFor, favourites, favCaption, favVotes, storyFor, PAGE, CATEGORIES, catLabel, stickerTone, metaLine, shortMeta, ratingLabel,
   monogram, editionLine, starPolygon, tickerSeconds, nextStreak, streakDigits, meterAngle, meterNote, METER_WORDS, tipUrl,
 } from './frontmodel.js';
 import { esc } from './ui.js';
@@ -42,7 +43,9 @@ $('.masthead__burst-ink').style.setProperty('--burst', starPolygon(16, 38));
 
 /* ---------- Stories ---------- */
 
-const view = { items: [], counts: {}, cat: 'all', shown: PAGE, skip: [], ratings: {} };
+// favs: reader favourites from the database (10+ votes this week); ids: each story's id, to match them; urls: the
+// stories' addresses, the only links whose clicks are counted.
+const view = { items: [], counts: {}, cat: 'all', shown: PAGE, skip: [], ratings: {}, favs: [], ids: {}, urls: new Set() };
 let community = null;
 const communityReady = import('./community.js').then((m) => { community = m; return m; }).catch(() => null);
 
@@ -54,12 +57,18 @@ async function loadStories() {
       : await fetch('api/weird?limit=30').then((r) => (r.ok ? r.json() : null));
   } catch {}
   const w = cleanWeird(json);
-  view.items = w.items; view.counts = w.counts;
+  view.items = w.items; view.counts = w.counts; view.urls = new Set(w.items.map((x) => x.url));
   render();
-  // Favourites and the lead's meter need the readers' votes; the page does not wait for them.
+  // The lead's meter and the reader-ranked favourites need the readers' votes; the page does not wait for them.
+  // Until they arrive the favourites row is the editor's.
   const m = await communityReady;
   if (!m || !view.items.length) return;
-  view.ratings = await m.loadRatings(view.items.map((x) => x.url)).catch(() => ({})) || {};
+  const [ratings, favs, ids] = await Promise.all([
+    m.loadRatings(view.items.map((x) => x.url)).catch(() => ({})),
+    m.loadFavourites().catch(() => []),
+    Promise.all(view.items.map(async (x) => [x.url, await m.storyId(x.url)])).then(Object.fromEntries).catch(() => ({})),
+  ]);
+  view.ratings = ratings || {}; view.favs = favs || []; view.ids = ids || {};
   renderFavs();
   renderGrid(); renderAlso();
   renderMeter();
@@ -148,7 +157,7 @@ function renderLead() {
           <span class="lead__burst-text">${x.pick ? '<small>Editor’s</small>Pick' : `<small>Straight from</small>${esc(monogram(x.outlet))}`}</span></div>
       </figure>
       <div class="lead__text">
-        ${x.note ? `<p class="lead__note">${esc(x.note)}<span class="lead__by"> — the editor</span></p>` : ''}
+        ${x.note ? `<p class="lead__note">${esc(x.note)}</p>` : ''}
         <p class="lead__meta"><span class="lead__meta-long">${esc(metaLine(x, locale))}</span><span class="lead__meta-short">${esc(shortMeta(x, locale))}</span></p>
         <a class="bev lead__go" href="${esc(x.url)}" rel="noopener">Read it at ${esc(x.outlet)}${ICON.out}</a>
         ${rating ? `<p class="pips" role="img" aria-label="${esc(rating)}"><span class="pips__k">EDITOR</span>${[1, 2, 3, 4, 5].map((n) => `<i class="${n <= x.rating ? 'on' : ''}"></i>`).join('')}</p>` : ''}
@@ -206,26 +215,24 @@ document.addEventListener('click', async (e) => {
   $(`[data-vote="${n}"]`)?.focus();
 });
 
-/* ---------- Favourites: readers' (from real votes) or the editor's picks ---------- */
-// PAUSED by the owner (to be planned before it ships): with FAVOURITES false the section stays hidden and the rest of
-// the page lays out as if it did not exist. To remove it entirely: this block, the #favs section in index.html, the
-// "Favourites" block in styles/components/front.css, favourites() in js/frontmodel.js and its tests.
-const FAVOURITES = false;
+/* ---------- Favourites: the editor's order until readers' votes rank it ---------- */
+// Owner decision, 17 Nov 2026: the editor's picks in the editor's order, until a story has 10 or more Weird-o-meter
+// votes in the past 7 days; such stories rank first, by the readers' votes. The heading says which it is. Each entry
+// shows its hook line (the editor-approved line under the headline) when it has one.
 function renderFavs() {
   const sec = $('#favs');
-  if (!FAVOURITES) { sec.hidden = true; view.skip = []; return; }
-  const f = favourites(view.items, view.ratings);
+  const f = favourites(view.items, view.favs, view.ids);
   view.skip = f.list.map((x) => x.url);
   sec.hidden = !f.list.length;
   if (!f.list.length) return;
-  const readers = f.mode === 'readers';
-  $('#favs-h').textContent = readers ? 'Reader favourites' : 'Editor’s favourites';
-  $('#favs-kicker').textContent = readers ? "RANKED BY READERS' WEIRD-O-METER VOTES · PAST 7 DAYS" : "THE EDITOR'S PICKS · EVERY ONE LINKS TO THE ORIGINAL";
+  const cap = favCaption(f);
+  $('#favs-h').innerHTML = `${esc(cap.title)}${cap.how ? `<span class="favs__how"> — ${esc(cap.how)}</span>` : ''}`;
+  $('#favs-kicker').textContent = cap.kicker;
   $('#favs-list').innerHTML = f.list.map((x, i) => `<li class="fav">
       <p class="fav__src"><span class="fav__rank" aria-hidden="true">${i + 1}</span><span class="fav__mark">${esc(x.outlet)}</span>${videoTag(x)}</p>
       <h3 class="fav__h"><a class="fav__link" href="${esc(x.url)}" rel="noopener">${esc(x.title)}<span class="sr-only">. Read it at ${esc(x.outlet)}</span></a></h3>
       ${x.note ? `<p class="fav__hook">${esc(x.note)}</p>` : '<p class="fav__hook fav__hook--none"></p>'}
-      <p class="fav__meta">${esc(metaLine(x, locale))}${readers ? ` · ${x.votes} VOTES` : ''}</p>
+      <p class="fav__meta">${esc(metaLine(x, locale))}${x.by === 'readers' ? ` · ${esc(favVotes(x))}` : f.mode === 'readers' ? " · EDITOR'S PICK" : ''}</p>
       <span class="fav__media">${media(x, { cls: 'fav', w: 600, h: 600 })}</span>
       <span class="fav__cta" aria-hidden="true">Read it at ${esc(x.outlet)}${ICON.out}</span>
     </li>`).join('');
@@ -282,6 +289,22 @@ function renderWxWeird() {
   a.href = x.url; a.rel = 'noopener';
   a.innerHTML = `<span class="wxbox__tag">Weird weather</span><span><strong>${esc(x.title)}</strong> · ${esc(x.outlet)}</span>`;
 }
+
+/* ---------- Clicks: anonymous totals per weird story ---------- */
+// A click (or middle-click) on a weird story's link in the ticker, the lead, favourites, Also odd or the grid adds
+// one to that story's total for the day, so the editor sees which stories land. Only the story's address is sent,
+// as the link opens (never waited for, never blocking it); nothing is sent when the browser asks for Do Not Track or
+// Global Privacy Control (js/community.js countClick). Clicks never rank anything on the page.
+const CLICK_AREAS = '#ticker, #lead, #favs, #also, #grid';
+function onStoryClick(e) {
+  if (e.type === 'auxclick' && e.button !== 1) return;
+  const a = e.target instanceof Element ? e.target.closest('a[href]') : null;
+  if (!a || !community || !a.closest(CLICK_AREAS)) return;
+  const url = storyFor(a.href, view.urls);
+  if (url) community.countClick(url);
+}
+document.addEventListener('click', onStoryClick, true);
+document.addEventListener('auxclick', onStoryClick, true);
 
 /* ---------- The guestbook ---------- */
 

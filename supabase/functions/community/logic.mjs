@@ -2,8 +2,8 @@
 // index.ts (the Supabase Edge Function) imports this; tests/community.test.mjs tests it from Node.
 //
 // What lives here: the story-URL normaliser and story id (the browser has the same code in js/community.js,
-// and the tests check they agree), hashing a visitor's address, request validation for votes, ratings and
-// tips, the public-host check for tipped links, the 50-vote rule, routing, CORS origins and error replies.
+// and the tests check they agree), hashing a visitor's address, request validation for votes, ratings, tips and
+// clicks, the public-host check for tipped links, the 50-vote rule, routing, CORS origins and error replies.
 
 export const VOTE_THRESHOLD = 50; // the readers' average shows once this many people have voted
 export const MAX_IDS = 60;
@@ -111,6 +111,9 @@ export const dayBucket = (now = new Date()) => new Date(now).toISOString().slice
 const SEP = String.fromCharCode(0); // a separator no address or salt can contain
 export const voterHash = (salt, key) => sha256Hex(`${salt}${SEP}vote${SEP}${key}`);
 export const tipHash = (salt, key, day) => sha256Hex(`${salt}${SEP}tip${SEP}${key}${SEP}${day}`);
+// Clicks: only for the 120-an-hour limit (a key in private.weird_rate, purged after 2 days), never stored with the
+// click. It changes every UTC day, like the tip hash, so the counter cannot link a visitor across days.
+export const clickHash = (salt, key, day) => sha256Hex(`${salt}${SEP}click${SEP}${key}${SEP}${day}`);
 
 export const saltReady = (salt) => typeof salt === 'string' && salt.trim().length >= SALT_MIN;
 
@@ -159,6 +162,15 @@ export function validateVote(body) {
   const rating = body.rating;
   if (!Number.isInteger(rating) || rating < 1 || rating > 5) return { ok: false, message: 'rating must be a whole number from 1 to 5.' };
   return { ok: true, url, rating };
+}
+
+// { storyUrl } -> { ok, url (normalised) } or { ok:false, message }. Nothing else in the body is read or kept.
+export function validateClick(body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return { ok: false, message: 'Send a JSON object.' };
+  const url = normaliseStoryUrl(body.storyUrl);
+  if (!url) return { ok: false, message: 'storyUrl must be the story’s http(s) address.' };
+  if (!publicHost(new URL(url).hostname)) return { ok: false, message: 'storyUrl must be on a public website.' };
+  return { ok: true, url };
 }
 
 // "a,b,c" -> { ok, ids } (deduplicated, order kept) or { ok:false, message }.
@@ -215,7 +227,7 @@ export function shapeRatings(rows, ids) {
   return out;
 }
 
-// PAUSED addition (reader favourites, supabase/paused/weird_favourites.sql).
+// Reader favourites (supabase/migrations/20261117090000_reader_favourites.sql).
 // Rows from public.weird_favourites -> [{ storyId, count, average }], best first as the database ordered them.
 export function shapeFavourites(rows) {
   return (Array.isArray(rows) ? rows : [])
@@ -231,9 +243,9 @@ export function route(pathname) {
   const last = String(pathname ?? '').replace(/\/+$/, '').split('/').pop();
   return Object.hasOwn(ROUTE_METHOD, last) ? last : null;
 }
-export const ROUTE_METHOD = { vote: 'POST', ratings: 'GET', favourites: 'GET', tip: 'POST' };
+export const ROUTE_METHOD = { vote: 'POST', ratings: 'GET', favourites: 'GET', tip: 'POST', click: 'POST' };
 
-// A database reply from weird_cast_vote / weird_submit_tip that was not { ok: true } -> the HTTP reply:
+// A database reply from weird_cast_vote / weird_submit_tip / weird_count_click that was not { ok: true } -> the HTTP reply:
 // 429 with retryAfter (seconds) for a limit, 502 for anything else.
 export function limitReply(result, kind = 'vote') {
   if (result?.error !== 'rate_limited' && result?.error !== 'tips_full') {
@@ -243,7 +255,8 @@ export function limitReply(result, kind = 'vote') {
   const error = result?.error === 'tips_full' ? 'tips_full' : 'rate_limited';
   const message = error === 'tips_full'
     ? 'The tip box is full for today. Try again tomorrow.'
-    : kind === 'tip' ? 'You’ve sent the most tips we take in a day. Try again tomorrow.' : 'That’s a lot of votes. Wait a while, then try again.';
+    : kind === 'tip' ? 'You’ve sent the most tips we take in a day. Try again tomorrow.'
+      : kind === 'click' ? 'That’s a lot of clicks. They are not being counted for a while.' : 'That’s a lot of votes. Wait a while, then try again.';
   return { status: 429, body: { error, message, retryAfter }, headers: { 'Retry-After': String(retryAfter) } };
 }
 

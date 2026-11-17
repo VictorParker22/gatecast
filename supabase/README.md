@@ -13,15 +13,15 @@ Gatecast's database lives in the Supabase project `gatecast` (`hfdwmzuedjcsaxgzh
 | `migrations/20261116090000_reviewer_console.sql` | **Written, not applied yet.** What the reviewer console needs beyond the queue: internal notes, a topic's review history, hiding a vote, collector health (see below) |
 | `functions/collect/index.ts` | Edge Function that reads up to four states per run from Open States and writes passage votes into `state_votes`. Copies the public record only: official title, counts, party split, date and links |
 | `functions/assist/` | Edge Function behind the reviewer console's assistant (Claude). See `docs/assist.md` |
-| `migrations/20261116160000_weird_community.sql` | **Written, not applied yet.** Weird news: reader votes (`weird_votes`, the Weird-o-meter), guestbook tips (`weird_tips`), the editor's picks (`weird_picks`), their limits, history and a daily retention job. See `docs/community.md` |
-| `functions/community/` | Edge Function for anonymous visitors: `POST /vote`, `GET /ratings`, `POST /tip`. Hashes the visitor's address with a secret salt; never stores it. See `docs/community.md` |
-| `paused/weird_favourites.sql` | **Paused, do not apply.** Reader favourites and the 140-character hook line, waiting for the owner's plan. Kept out of `migrations/` so `supabase db push` skips it |
+| `migrations/20261116160000_weird_community.sql` | **Applied** (16 Nov 2026). Weird news: reader votes (`weird_votes`, the Weird-o-meter), guestbook tips (`weird_tips`), the editor's picks (`weird_picks`), their limits, history and a daily retention job. See `docs/community.md` |
+| `migrations/20261117090000_reader_favourites.sql` | **Applied** (17 Nov 2026). Reader favourites (`weird_favourites()`), the 140-character hook line on `weird_picks.note`, anonymous click totals (`weird_clicks`, `weird_count_click()`, `weird_click_totals()`) and 90-day click retention in `private.weird_retention()`. Replaces the old `paused/weird_favourites.sql`. See `docs/community.md` |
+| `functions/community/` | Edge Function for anonymous visitors: `POST /vote`, `GET /ratings`, `GET /favourites`, `POST /tip`, `POST /click`. Hashes the visitor's address with a secret salt; never stores it. See `docs/community.md` |
 
 Which pages read it:
 
 - **Today page** (`js/civic.js`): "Your statehouse" (the visitor's state's latest votes) and "Both sides" (published topics), with the publishable key in `js/config.js`.
-- **Reviewer console** (`review.html`, `js/review.js`): reviewers sign in with an emailed link and work the queue, the guestbook tips and the editor's picks.
-- **Weird news front page** (`js/community.js`): the Weird-o-meter and the guestbook, through the `community` function. The editor's picks are read server-side by `lib/picks-db.js` with the publishable key.
+- **Reviewer console** (`review.html`, `js/review.js`): reviewers sign in with an emailed link and work the queue, the guestbook tips and the editor's picks (with hook lines, Claude's hook drafts, each published pick's clicks over 7 days and a preview of the favourites row).
+- **Weird news front page** (`js/community.js`): the Weird-o-meter, reader favourites, the guestbook and click counting, through the `community` function. The editor's picks are read server-side by `lib/picks-db.js` with the publishable key.
 
 ## Who can read and write what
 
@@ -43,8 +43,12 @@ Weird news (once `20261116160000_weird_community.sql` is applied):
 | `weird_submit_tip(...)` | no | no | call it (5 per sender per UTC day, 200 per day in all) |
 | `weird_picks` | read published picks (public columns only) | read all, add, edit, publish, withdraw; delete when not published | nothing |
 | `weird_pick_activity(pick)` | no | read a pick's history | no |
+| `weird_favourites(days, min_votes)` | call it: up to 12 stories with 10+ votes in the window, averages from 50 votes | same | same |
+| `weird_clicks` | nothing | nothing directly: only through `weird_click_totals` | nothing directly: only through `weird_count_click` |
+| `weird_count_click(...)` | no | no | call it (120 per visitor per hour; stores no hash with the click) |
+| `weird_click_totals(ids, days)` | no | call it: clicks per story over the last 1–90 days | no |
 
-Votes and tips are only ever written by the definer functions, which check every value again and enforce the limits in the database; no API role has a direct grant on `weird_votes`, and the service role has none on any of the three tables. Every definer function sets `search_path = ''` and names every object with its schema. Rate counters, vote totals kept after 90 days and the picks' history live in `private`, which the API cannot reach.
+Votes, tips and clicks are only ever written by the definer functions, which check every value again and enforce the limits in the database; no API role has a direct grant on `weird_votes` or `weird_clicks`, and the service role has none on any of the four tables. Every definer function sets `search_path = ''` and names every object with its schema. Rate counters, vote totals kept after 90 days and the picks' history live in `private`, which the API cannot reach.
 
 ## The `state_votes` switch
 
@@ -109,6 +113,15 @@ The cron job authenticates with the project's anon key, which is public; the rep
 4. Check it: `curl "https://hfdwmzuedjcsaxgzhzmu.supabase.co/functions/v1/community/ratings?ids=0123456789abcdef" -H "apikey: <publishable key>"` should answer `{"ratings":{"0123456789abcdef":{"count":0,"average":null}}}`. A `503 not_configured` means the salt is missing or too short.
 
 Until step 1, the console's Tips and Picks views say they arrive with the migration, and the site falls back to `data/weird-picks.json`.
+
+## Reader favourites, hook lines and clicks: going live
+
+1. Apply `migrations/20261117090000_reader_favourites.sql` (after `20261116160000_weird_community.sql`). It is safe to run twice. It stops, changing nothing, if any existing pick note is longer than 140 characters (none were on 17 Nov 2026); shorten those first. It replaces `private.weird_retention()` (the existing cron job keeps calling it).
+2. Redeploy `community` with JWT checks off (the same command as above): `supabase functions deploy community --no-verify-jwt --project-ref hfdwmzuedjcsaxgzhzmu`. Until then `/favourites` and `/click` do not exist (the front page shows the editor's favourites and counts nothing).
+3. Deploy `assist` with JWT checks on (see `docs/assist.md`) for "Draft with Claude".
+4. Check: `curl "https://hfdwmzuedjcsaxgzhzmu.supabase.co/functions/v1/community/favourites" -H "apikey: <publishable key>"` should answer `{"favourites":[]}` until a story has 10 votes in a week. In the SQL editor, `select * from public.weird_clicks order by day desc limit 5;` shows the first clicks.
+
+Before step 1, the console shows no click badges, the favourites preview shows the editor's row, and the hook field still saves (the 200-character database limit allows the console's 140).
 
 To remove a vote or tip by hand (for example after abuse), use the SQL editor: `delete from public.weird_tips where id = '<id>';`. To see today's tip volume: `select hits from private.weird_rate where key = 'tip:all' order by window_start desc limit 1;`.
 

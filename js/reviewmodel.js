@@ -344,15 +344,16 @@ export const CATEGORY_LABEL = {
 };
 export const PICK_STATUS_LABEL = { draft: 'Draft', published: 'Published', withdrawn: 'Withdrawn' };
 export const TIP_STATUS_LABEL = { new: 'New', accepted: 'Accepted', rejected: 'Rejected' };
-export const PICK_LIMITS = { url: 2048, title: 300, outlet: 120, note: 200 };
+// The hook: one line under the headline on the front page (weird_picks.note, at most 140 characters in the
+// database). Claude may draft it (assist draft_hook); a reviewer edits it and saves every one.
+export const HOOK_MAX = 140;
+export const HOOK_LABEL = 'Hook (your words, shown under the headline)';
+export const PICK_LIMITS = { url: 2048, title: 300, outlet: 120, note: HOOK_MAX };
 
 export const WEIRD_OFF = 'Tips and picks arrive when the weird-community migration is applied.';
 
-// PAUSED addition (owner, 16 Nov 2026): the hook-line checklist. Pure and tested, but no page uses it yet; the
-// pick form keeps the plain 200-character note until the owner has planned the hook (140 characters, see
-// supabase/paused/weird_favourites.sql).
-export const HOOK_MAX = 140;
-// The hook: the editor's own words under the headline. Phrases that promise more than a story can deliver.
+// Phrases that promise more than a story can deliver. The assist function refuses the same list
+// (supabase/functions/assist/logic.mjs; tests/assist.test.mjs checks they agree).
 export const CLICKBAIT = ['you won’t believe', 'shocking', 'what happened next', 'will blow your mind', 'doctors hate'];
 const plainQuotes = (s) => String(s ?? '').replace(/[‘’ʼ′]/g, "'").toLowerCase();
 
@@ -373,6 +374,51 @@ export function hookChecks(text, max = HOOK_MAX) {
   ];
 }
 export const HOOK_GUIDANCE = 'Make them wonder, but tell the truth: the answer must be in the story.';
+
+// The draft_hook request from the pick form's values: the headline and outlet, plus the story's link only when the
+// reviewer asked Claude to read the page. -> { ok, body } or { ok: false, message }.
+export function hookDraftRequest(f, { readPage = false } = {}) {
+  const one = (v) => String(v ?? '').replace(/\s+/g, ' ').trim();
+  const title = one(f?.title);
+  if (!title) return { ok: false, message: 'Add the outlet’s headline first: Claude drafts the hook from it.' };
+  const body = { action: 'draft_hook', title: title.slice(0, PICK_LIMITS.title), outlet: one(f?.outlet).slice(0, PICK_LIMITS.outlet) };
+  if (readPage) {
+    const url = String(f?.url ?? '').trim();
+    if (pickUrlProblem(url)) return { ok: false, message: 'Add the story’s https link so Claude can read it, or untick “Let Claude read the story page”.' };
+    body.url = url;
+  }
+  return { ok: true, body };
+}
+
+// A draft_hook reply's suggestions (at most 3), each with its own checklist so the reviewer sees what it passes.
+export function hookSuggestions(r) {
+  return (Array.isArray(r?.hooks) ? r.hooks : [])
+    .filter((h) => typeof h?.text === 'string' && h.text.trim())
+    .slice(0, 3)
+    .map((h) => ({ text: h.text.trim(), basis: typeof h.basis === 'string' ? h.basis.trim() : '', checks: hookChecks(h.text) }));
+}
+
+// What a draft_hook reply says about itself, in words: what Claude read, what was left out, and the fallback model.
+export function hookDraftNotes(r) {
+  const out = [];
+  if (r?.source === 'page') out.push(`Drawn from the headline and the story page${r.truncated ? ' (its first part)' : ''}.`);
+  else out.push('Drawn from the headline only.');
+  if (r?.page_problem?.message) out.push(`The story page was not read: ${r.page_problem.message}`);
+  const d = Number(r?.dropped) || 0;
+  if (d) out.push(`${d} ${d === 1 ? 'suggestion' : 'suggestions'} Claude made ${d === 1 ? 'was' : 'were'} left out for breaking the house rules.`);
+  if (r && Array.isArray(r.hooks) && !r.hooks.length) out.push('Claude found no hook it could stand behind. Write one yourself, or leave it empty.');
+  if (r?.fallback) out.push('Answered by Anthropic’s fallback model after the first model declined.');
+  return out;
+}
+
+// "12 clicks in 7 days" for a published pick, from weird_click_totals; '' when the count is unknown.
+export function clicksLabel(n, days = 7) {
+  if (n == null || n === '') return '';
+  const c = Number(n);
+  if (!Number.isFinite(c) || c < 0) return '';
+  const k = Math.trunc(c);
+  return k ? `${k.toLocaleString('en-US')} ${k === 1 ? 'click' : 'clicks'} in ${days} days` : `No clicks in ${days} days`;
+}
 
 // A story link as the pick form accepts it: https, a dotted host name (not an address or a local name).
 export function pickUrlProblem(raw) {
@@ -400,7 +446,7 @@ export function pickErrors(f) {
   if (!/^\d{4}-\d\d-\d\d$/.test(String(f.published ?? ''))) e.published = 'Add the day the outlet published it.';
   if (!Object.hasOwn(CATEGORY_LABEL, f.category)) e.category = 'Choose a category.';
   if (f.rating !== '' && f.rating != null && !/^[1-5]$/.test(String(f.rating))) e.rating = 'Rate it 1 to 5, or leave it unrated.';
-  if ([...String(f.note ?? '').trim()].length > PICK_LIMITS.note) e.note = `Keep the note to ${PICK_LIMITS.note} characters.`;
+  if ([...String(f.note ?? '').replace(/\s+/g, ' ').trim()].length > PICK_LIMITS.note) e.note = `Keep the hook to ${PICK_LIMITS.note} characters.`;
   return e;
 }
 
@@ -462,7 +508,7 @@ export function tipHost(url) {
 }
 
 // What "Accept" puts in a new pick draft: the link only. The headline, outlet and date come from the story
-// itself, and the note is the editor's own words, never the visitor's.
+// itself, and the hook is the reviewer's (written or drafted with Claude, then edited), never the visitor's.
 export function pickFromTip(tip) {
   return { url: normaliseStoryUrl(tip?.url) || String(tip?.url ?? ''), title: '', outlet: '', published: '', category: 'other', rating: '', note: '' };
 }

@@ -85,13 +85,16 @@
       <p>Every story comes from a real news outlet. We show its own headline, its name, the time and a link to the full story on its site. We don’t copy the article, rewrite the headline or add AI summaries. Pictures are the outlet’s own preview images, loaded from its site and credited, and a few outlets are shown without pictures.</p>
       <p>The outlets are UPI Odd News, Smithsonian Magazine, Atlas Obscura, ScienceDaily, Mental Floss, Live Science, SoraNews24, Sky News and Oddity Central. General-interest outlets only appear when a story is genuinely odd, and their quizzes, lists and podcasts are left out.</p>
       <p>Our rule is simple: the strangeness has to be in the situation, not in someone’s misfortune. Automatic checks leave out stories about deaths, injuries and illness, animals being harmed, mental illness, children, crime and court cases, disasters, sexual content, and ordinary people who went viral. The checks can only remove stories, never add them, and when in doubt they leave a story out.</p>
-      <p>The editor’s picks come first. A person chose each one, and any rating or note on it is the editor’s own. After the picks, stories are newest day first, and within a day the oddest first. Nothing is ranked by clicks.</p>
+      <p>The editor’s picks come first. A person chose each one, and any rating on it is the editor’s own. After the picks, stories are newest day first, and within a day the oddest first. Clicks never change the order of anything on the page.</p>
+      <p>Some picks have a hook: one short line under the headline, at most 140 characters. An AI assistant (Claude, made by Anthropic) may draft it from the outlet’s headline, or from the story itself when the editor asks it to read the page. A person checks it, edits it as needed and approves every hook before it appears. A hook should make you wonder, but it must not say more than the story does, mock anyone or make light of harm.</p>
+      <p>The favourites row under the lead follows the editor’s order. A story with 10 or more Weird-o-meter votes from the past 7 days is ranked by readers’ votes instead and goes first, and while one is, the row is headed “Reader favourites — ranked by Weird-o-meter votes” instead of “Editor’s favourites”.</p>
     </section>
 
     <section class="doc-section" id="community" aria-labelledby="community-title">
       <h2 id="community-title">Reader votes and tips</h2>
       <p>The Weird-o-meter and the guestbook don’t use accounts or cookies. To count one vote per person per story and to stop floods, we keep a scrambled code (a salted SHA-256 hash) made from your network address, never the address itself. A vote’s code is deleted 90 days after you last voted on that story, while your rating stays in the story’s total. A tip’s code changes every day and is erased after 7 days, and the tip itself is deleted after 90 days.</p>
       <p>The readers’ average appears only once 50 people have voted on a story. We never open the links you send; a person checks every one before anything is published. Your reading streak is kept on your device only.</p>
+      <p>We also count clicks on the weird stories, so the editor can see which ones land. When you follow a story’s link on the front page, your browser sends us the story’s address, and we add one to that story’s total for the day. No cookie is set, and the total holds nothing about you: no address, no code made from it, no time of day. To stop one machine inflating the counts, a scrambled code of your network address, which changes every day, is held in a rate counter (at most 120 clicks an hour) for up to two days, without the story. If your browser sends Do Not Track or Global Privacy Control, nothing is sent at all. Daily totals are kept for 90 days. Only the editor sees them, and they never rank anything: not the weird stories, not political items, not The brief.</p>
     </section>
 
     <section class="doc-section" id="brief" aria-labelledby="brief-title">
@@ -105,7 +108,7 @@
         <article class="doc-card">
           <h3>Headlines</h3>
           <p>From a hand-picked list of 20 newsrooms (listed <a href="#newsrooms">below</a>). For a US place in a state on the list you get that state’s newsrooms; otherwise a short list of weather and aviation newsrooms. Stories from the past seven days, newest first, at most three from any one outlet and eight in all.</p>
-          <p>Political items are never ranked by clicks. Gatecast does not count clicks: the order is time.</p>
+          <p>Political items are never ranked by clicks. Clicks on these headlines are not counted (the only clicks Gatecast counts are anonymous totals on the weird stories, for the editor), and the order is time.</p>
         </article>
         <article class="doc-card">
           <h3>Nothing copied</h3>
@@ -190,6 +193,7 @@
           </ul>
           Other states do not have local headlines yet.
         </dd></div>
+        <div id="previews"><dt>Book previews in The Stacks</dt><dd>Some books have a Preview: an official video about the book (an author interview, a talk, or a film trailer, labelled as such) and a look inside from the publisher through Google Books or from the Internet Archive. Each one is checked and approved by our editor first. Opening a book contacts none of these services. When you open Preview, the video’s still image comes from YouTube; the video loads from YouTube’s privacy-enhanced player (youtube-nocookie.com) only when you press play, and the pages load from Google Books or the Internet Archive only when you open them. From that moment that service sees your request, as it would if you visited it. C-SPAN, PBS and Criterion videos are links to their own sites (c-span.org, pbs.org, criterion.com) and are not played on Gatecast.</dd></div>
         <div><dt>Your location</dt><dd>Asked for only when you press “Use my location”. It is rounded to about a kilometre, kept in your browser and sent only to the weather services that need it (Open-Meteo, and the National Weather Service in the US). The place name comes from the nearest airport in a list bundled with the site.</dd></div>
       </dl>
     </section>
@@ -197,7 +201,7 @@
     <section class="doc-section" id="never" aria-labelledby="never-title">
       <h2 id="never-title">What Gatecast never does</h2>
       <ul class="grid gap-2 pl-4">
-        <li>Show news text written by AI. An AI assistant may help a reviewer check quotes against their sources, but nothing it writes is saved unless a person saves it, and nothing it writes is shown to readers as news.</li>
+        <li>Show news text written by AI. Headlines are the outlets’ own and quotes are word for word. An AI assistant may help a reviewer check quotes against their sources, and may draft the short hook line under a weird-news pick; nothing it writes is saved unless a person checks it, edits it as needed and approves it, and it never writes a headline, a summary or a quote.</li>
         <li>Sell your data. There are no accounts; your place and trips stay in your browser.</li>
         <li>Rank political items by clicks, or grade newsrooms as left, right or trustworthy.</li>
         <li>Show gates, scheduled times, delays or cancellations it cannot know. Delay information comes only from the FAA and is labelled as the FAA’s; the landing time is always marked as an estimate.</li>
@@ -214,7 +218,7 @@
   </main>
 
   <footer class="site-footer">
-    <p>Gatecast is a planning aid, not an official source. Check your airline for the status of your flight. <a href="how.html" aria-current="page">How Gatecast works</a>.</p>
+    <p>Gatecast is a planning aid, not an official source. Check your airline for the status of your flight. <a href="/stacks/">The Stacks, as a list</a>. <a href="how.html" aria-current="page">How Gatecast works</a>.</p>
     <p>Forecasts: <a href="https://open-meteo.com/" rel="noopener">Open-Meteo</a> (CC BY 4.0). Radar: <a href="https://www.rainviewer.com/" rel="noopener">RainViewer</a>. Map: © <a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a> contributors. Live aircraft: <a href="https://adsb.lol/" rel="noopener">adsb.lol</a> (ODbL). Routes: <a href="https://www.adsbdb.com/" rel="noopener">adsbdb</a>. Observations: NOAA. US status and plans: FAA. Alerts: National Weather Service. Headlines and their pictures belong to the newsrooms named beside them.</p>
   </footer>
 </body>

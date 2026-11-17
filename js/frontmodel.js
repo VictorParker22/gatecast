@@ -77,21 +77,61 @@ export function gridFor(items, cat = 'all', shown = PAGE, skip = []) {
   return { list: pool.slice(0, n), total: pool.length, left: pool.length - n };
 }
 
-// Favourites, right after the lead. Readers' favourites only when real votes exist: stories from the past 7 days with
-// at least 10 Weird-o-meter votes, ranked by the readers' average (shown from 50 votes; until then it is null and
-// ranks after any story that has one), then by the number of votes. Otherwise the editor's picks after the lead.
-// Never invents reader data: with neither, the list is empty and the section stays hidden.
+// Favourites, right after the lead (owner decision, 17 Nov 2026): the editor's order until a story has real votes,
+// then readers' votes rank the row. A story ranks by readers' votes once it has at least 10 Weird-o-meter votes in
+// the last 7 days: `favs` is loadFavourites() from js/community.js, already in the database's order (best average,
+// then most votes; the average itself is only shown from 50 votes). Those stories come first, in that order; the
+// rest of the row is the editor's picks in the editor's order (the order /api/weird sent them). `ids` maps each
+// item's url to its story id (storyId(url) in js/community.js). The lead is never repeated here. Never invents
+// reader data: a story without 10 votes this week is never shown as a reader favourite.
+//   -> { mode: 'readers' | 'editor' | 'none', list: [{ ...item, by: 'readers' | 'editor', votes?, average? }] }
 export const FAV_MIN_VOTES = 10;
-export function favourites(items, ratings = {}, now = Date.now(), n = 3) {
+export const FAV_COUNT = 3;
+export function favourites(items, favs = [], ids = {}, n = FAV_COUNT) {
   const list = (Array.isArray(items) ? items : []).slice(1);
-  const week = now - 7 * 864e5;
-  const voted = list
-    .map((x) => ({ x, r: ratings && ratings[x.url] }))
-    .filter(({ x, r }) => r && Number.isInteger(r.count) && r.count >= FAV_MIN_VOTES && x.ms >= week && x.ms <= now + 864e5)
-    .sort((a, b) => (b.r.average ?? -1) - (a.r.average ?? -1) || b.r.count - a.r.count);
-  if (voted.length) return { mode: 'readers', list: voted.slice(0, n).map(({ x, r }) => ({ ...x, votes: r.count, average: r.average ?? null })) };
-  const picks = list.filter((x) => x.pick).slice(0, n);
-  return picks.length ? { mode: 'editor', list: picks } : { mode: 'none', list: [] };
+  const byId = new Map();
+  for (const x of list) { const id = ids && ids[x.url]; if (typeof id === 'string' && !byId.has(id)) byId.set(id, x); }
+  const out = [];
+  const taken = new Set();
+  for (const f of Array.isArray(favs) ? favs : []) {
+    const x = f && byId.get(f.storyId);
+    if (!x || taken.has(x.url) || !Number.isInteger(f.count) || f.count < FAV_MIN_VOTES) continue;
+    taken.add(x.url);
+    out.push({ ...x, by: 'readers', votes: f.count, average: Number.isFinite(f.average) && f.count >= 50 ? f.average : null });
+  }
+  const voted = out.length;
+  for (const x of list) if (x.pick && !taken.has(x.url)) { taken.add(x.url); out.push({ ...x, by: 'editor' }); }
+  const row = out.slice(0, n);
+  return { mode: voted ? 'readers' : row.length ? 'editor' : 'none', list: row };
+}
+
+// The section's heading and kicker, honest about who ranked the row: "Editor's favourites" while no story has 10
+// votes this week, "Reader favourites — ranked by Weird-o-meter votes" once one does (and, when the editor's
+// picks fill the rest of the row, the kicker says so).
+export function favCaption(f) {
+  if (f?.mode === 'readers') {
+    const mixed = f.list.some((x) => x.by === 'editor');
+    return {
+      title: 'Reader favourites', how: 'ranked by Weird-o-meter votes',
+      kicker: mixed ? "10+ READER VOTES THIS WEEK RANK FIRST · THEN THE EDITOR'S PICKS" : '10+ READER VOTES IN THE PAST 7 DAYS · BEST AVERAGE FIRST',
+    };
+  }
+  return { title: 'Editor’s favourites', how: '', kicker: "THE EDITOR'S ORDER · READERS' VOTES RANK IT FROM 10 IN A WEEK" };
+}
+
+// One reader-ranked entry's vote line: "12 VOTES THIS WEEK", with the average from 50 votes.
+export function favVotes(x) {
+  if (x?.by !== 'readers' || !Number.isInteger(x.votes)) return '';
+  const avg = Number.isFinite(x.average) ? ` · AVERAGE ${x.average.toFixed(1)} OF 5` : '';
+  return `${x.votes} ${x.votes === 1 ? 'VOTE' : 'VOTES'} THIS WEEK${avg}`;
+}
+
+// The story a clicked link leads to, when it is one of the page's weird stories (and only then is a click counted):
+// the link's address must be exactly a story's address. Anything else (the outlet's home page, a tab, a filter)
+// gives null.
+export function storyFor(href, urls) {
+  if (typeof href !== 'string' || !href || !urls || typeof urls.has !== 'function') return null;
+  return urls.has(href) ? href : null;
 }
 
 // Datelines in pixel type, in the visitor's locale: "UPI ODD NEWS · FRI 13 NOV 2026" and "13 NOV".

@@ -1,4 +1,5 @@
-/* The Stacks' own components (library.html only), compiled to styles/site-library.css next to site.css. See
-   main-front.css. */
+/* The Stacks' own components (library.html and the plain /stacks/ pages), compiled to styles/site-library.css next to
+   site.css. See main-front.css. */
 @reference "./main.css";
 @import "./components/library.css";
+@import "./components/stacks-pages.css";
