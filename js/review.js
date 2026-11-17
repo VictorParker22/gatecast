@@ -1236,7 +1236,7 @@ async function weirdAct(name) {
       document.querySelectorAll('.rv-actions button').forEach((b) => { b.disabled = true; });
       const r = await change(`weird_picks?id=eq.${pick.id}`, 'PATCH', { status });
       if (!r.ok) { toast(`Couldn’t ${status === 'published' ? 'publish' : 'withdraw'} the pick: ${pickSaveError(r.status, r.data)}`, { error: true }); renderDetail(); return; }
-      toast(status === 'published' ? 'Published: it is on the front page' : 'Withdrawn from the front page');
+      toast(status === 'published' ? 'Published: it shows on the front page within about 5 minutes' : 'Withdrawn: it leaves the front page within about 5 minutes');
       await loadWeird();
       await loadPickActivity(pick.id);
       S.active = rows().findIndex((x) => x.id === pick.id);
