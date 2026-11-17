@@ -666,3 +666,13 @@ test('the sheet says what loads from where, for this book only', async () => {
   assert.equal(previewNote(withPreview('helter-skelter', { watch: PV_WATCH })), 'The video loads from YouTube only when you press play. That service then sees your request.');
   assert.equal(previewNote(withPreview('bad-blood', { watch: PV_CSPAN })), 'The C-SPAN link opens c-span.org in a new tab; nothing loads from it here.');
 });
+
+test('vercel.json: books.json always revalidates, so new previews and covers show on the next visit', () => {
+  const cfg = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
+  const cc = (src) => cfg.headers.findIndex((h) => h.source === src);
+  const books = cfg.headers[cc('/data/books.json')];
+  assert.ok(books, 'a rule for /data/books.json');
+  assert.equal(books.headers.find((h) => h.key === 'Cache-Control').value, 'public, max-age=0, must-revalidate');
+  // Vercel applies matching rules in order; the specific rule must come after the /data/(.*) one to win.
+  assert.ok(cc('/data/books.json') > cc('/data/(.*)'));
+});
