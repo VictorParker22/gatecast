@@ -146,7 +146,8 @@ test('/api/weird answer: contract shape, picks first, then newest; held items ne
   // Watch: -> video; Look: -> removed, not a video; categories from the feed's labels or the headline's words.
   const by = (start) => out.items.find((x) => x.title.startsWith(start));
   assert.equal(by('Bear raids').video, true);
-  assert.equal(by('Bear raids').image, 'https://cdnph.upi.com/fixture/bear.jpg'); // og:image from the article's own page
+  assert.equal(by('Bear raids').image, null); // UPI's pages are never read (pageReads: false; its bot check), so no og:image
+  assert.ok(!pagesRead.includes(BEAR_URL));
   assert.equal(by('Bear raids').category, 'animals');
   assert.equal(by('Giant pumpkin').video, false);
   assert.equal(by('Giant pumpkin').category, 'records');

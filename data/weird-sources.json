@@ -6,12 +6,12 @@
     {
       "id": "upi-odd", "name": "UPI", "section": "Odd News",
       "home": "https://www.upi.com/Odd_News/", "feed": "https://rss.upi.com/news/odd_news.rss",
-      "images": true, "review": false, "minWeirdness": 0, "maxAgeDays": 14,
+      "images": true, "pageReads": false, "review": false, "minWeirdness": 0, "maxAgeDays": 14,
       "categoryHints": {},
       "licence": "Unknown: no feed reuse terms found (upi.com footer Terms of Use not read). Preview photos are often Reuters/AP/Getty wire photos: keep the images switch and takedown route ready.",
       "checked": "2026-11-16: ok on the Vercel preview, 25 items, 20 kept",
       "comment": "The odd-news desk, posting daily: the default 14-day window and cap 8. Before the mix rule it filled 8 of the 10 feed places at the top of the page (17 Nov 2026 production debug: 8 of 21 shown plus 3 picks); now it gets at most 3 of the first 12 and 10 of the first 30 while other outlets have stories.",
-      "terms": "www.upi.com/robots.txt answered 200 to the sandbox (17 Nov 2026); article pages answer automated requests with a Cloudflare challenge (HTTP 403), which we do not work around, so UPI pictures come from the feed or the editor. rss.upi.com was refused by the sandbox's proxy. Feed terms not found."
+      "terms": "www.upi.com/robots.txt answered 200 to the sandbox (17 Nov 2026); article pages answer automated requests with a Cloudflare challenge (HTTP 403), which we do not work around, so UPI pictures come from the feed or the editor, and pageReads is false (17 Nov 2026): the server never asks for a UPI article page. rss.upi.com was refused by the sandbox's proxy. Feed terms not found."
     },
     {
       "id": "sky-offbeat", "name": "Sky News", "section": "Offbeat",
