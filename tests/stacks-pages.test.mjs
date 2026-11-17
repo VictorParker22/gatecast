@@ -15,6 +15,7 @@ const S = require('../scripts/build-stacks-pages.cjs');
 const B = require('../scripts/build-data.cjs');
 // The shelves as the pages show them: those with books (a shelf added before its books are merged has no page yet).
 const raw = JSON.parse(read('data/books.json'));
+const INTROS = JSON.parse(read('data/shelf-intros.json'));
 const data = S.stocked(raw);
 const NB = data.books.length, NS = data.shelves.length;
 const m = await S.loadModel();
@@ -72,10 +73,18 @@ test('titles, canonicals and meta descriptions: unique, in the agreed form, from
   }
   for (const s of data.shelves) {
     const html = byId.get(s.id).html;
-    assert.equal(title(html), `${s.name} books — The Stacks · Gatecast`);
+    const intro = INTROS.shelves[s.id];
+    assert.equal(title(html), intro ? intro.title : `${s.name} books — The Stacks · Gatecast`);
     assert.equal(canonical(html), `https://gatecast.vercel.app/stacks/${s.id}/`);
-    assert.equal(metaDesc(html), s.note);
+    assert.equal(metaDesc(html), intro ? intro.description : s.note);
+    assert.equal(attr(html, /<meta property="og:title" content="([^"]+)">/), title(html));
+    assert.equal(attr(html, /<meta property="og:description" content="([^"]+)">/), metaDesc(html));
   }
+  // A shelf with no introduction keeps the plain title and its note.
+  const bare = S.shelfPage(data.shelves[0], { ...data, intros: { shelves: {} } }, m);
+  assert.equal(title(bare), `${data.shelves[0].name} books — The Stacks · Gatecast`);
+  assert.equal(metaDesc(bare), data.shelves[0].note);
+  assert.ok(!bare.includes('<div class="stk-intro'));
   assert.equal(canonical(byId.get(null).html), 'https://gatecast.vercel.app/stacks/');
   assert.equal(S.metaDescription('word '.repeat(60)).length <= 155, true);
   assert.equal(S.metaDescription('short.'), 'short.');
@@ -159,6 +168,7 @@ test('every word on every page is from data/books.json or a fixed label', () => 
   const check = (pagesToCheck, d) => {
     const strings = new Set([...S.UI_TEXT, S.OG_ALT]);
     for (const s of d.shelves) [s.name, s.chip, s.note].forEach((x) => strings.add(x));
+    for (const e of Object.values(INTROS.shelves)) [e.title, e.description, ...e.intro].forEach((x) => strings.add(x));
     for (const b of d.books) {
       [b.title, ...b.authors, m.authorLine(b.authors), String(b.year), b.description, S.firstSentence(b.description), b.contentNote, b.caveat, ...b.tags].forEach((x) => x && strings.add(x));
       S.takeParagraphs(b).forEach((x) => strings.add(x));
@@ -277,7 +287,12 @@ test('sitemap: the pages, /stacks/, the stocked shelves and the books with a tak
   assert.equal(get('in-cold-blood'), '2026-12-01');
   assert.equal(get('crime'), '2026-12-01');
   assert.equal(get(null), '2026-12-01');
-  assert.equal(get('serial'), data.books.filter((b) => b.shelf === 'serial').map((b) => S.bookLastmod(b, data)).sort().pop());
+  assert.equal(get('serial'), [INTROS.shelves.serial.updated, ...data.books.filter((b) => b.shelf === 'serial').map((b) => S.bookLastmod(b, data))].sort().pop());
+  // A shelf introduction's date lifts its shelf page; a take's date lifts its book page.
+  const later = { ...data, intros: { shelves: { ...INTROS.shelves, cults: { ...INTROS.shelves.cults, updated: '2027-01-05' } } } };
+  assert.equal(S.stacksSitemapEntries(later).find((x) => x.loc === S.pageUrl('cults')).lastmod, '2027-01-05');
+  const sky = data.books.find((b) => b.id === 'skyjack');
+  assert.equal(S.bookLastmod(sky, data), [data.checked, sky.cover.checked, sky.takeDate].sort().pop());
   // The default reads git when it can; whatever it returns is a date or null.
   const g = B.gitDate('how.html');
   assert.ok(g === null || /^\d{4}-\d{2}-\d{2}$/.test(g));
@@ -346,33 +361,37 @@ test('styles: the page template is scanned by Tailwind and its components ship i
   assert.ok(read('scripts/build-data.cjs').includes('writeStacksPages(out)'), 'the build writes the pages');
 });
 
-test('indexing: book pages are noindex, follow and left out of the sitemap until the owner adds a take of 150+ words', () => {
+test('indexing: book pages are noindex, follow and left out of the sitemap until the book has a take of 150+ words', () => {
   assert.equal(S.TAKE_MIN_WORDS, 150);
   assert.equal(S.wordCount('It’s a well-known, 1966 book.'), 5);
-  // Today: no book has a take, so every book page is noindex and only /stacks/ and the shelves are listed.
+  // Only the books with a take are indexed and listed; every other book page is noindex, follow.
+  const withTakes = data.books.filter((b) => typeof b.take === 'string');
+  assert.deepEqual(withTakes.map((b) => b.id), ['skyjack'], 'the takes written so far');
   for (const b of data.books) {
     const h = byId.get(b.id).html;
-    assert.equal(S.indexable(b), false, b.id);
-    assert.ok(h.includes('<meta name="robots" content="noindex, follow">'), `${b.id}: noindex, follow`);
-    assert.ok(!h.includes('id="take-title"'), `${b.id}: no take section`);
+    const has = withTakes.includes(b);
+    assert.equal(S.indexable(b), has, b.id);
+    assert.equal(h.includes('<meta name="robots" content="noindex, follow">'), !has, `${b.id}: noindex, follow only without a take`);
+    assert.equal(h.includes('id="take-title"'), has, `${b.id}: a take section only with a take`);
   }
   for (const p of pages.filter((x) => !x.id || shelfIds.has(x.id))) assert.ok(!p.html.includes('name="robots"'), `${p.path} is indexed`);
   const locs = S.stacksSitemapEntries(data).map((e) => e.loc);
-  assert.deepEqual(locs, [S.pageUrl(null), ...data.shelves.map((s) => S.pageUrl(s.id))]);
+  assert.deepEqual(locs, [S.pageUrl(null), ...data.shelves.map((s) => S.pageUrl(s.id)), ...withTakes.map((b) => S.pageUrl(b.id))]);
 
-  // With a take of TAKE_MIN_WORDS words: indexed, in the sitemap, and the take is shown in the owner's paragraphs.
+  // With a take of TAKE_MIN_WORDS words: indexed, in the sitemap, and the take is shown in its paragraphs.
   const b0 = data.books.find((b) => b.id === 'helter-skelter');
-  const withTake = { ...data, books: data.books.map((b) => (b.id === b0.id ? { ...b, take: TAKE } : b)) };
+  const withTake = { ...data, books: data.books.map((b) => (b.id === b0.id ? { ...b, take: TAKE, takeDate: '2026-12-01' } : b)) };
   assert.equal(S.wordCount(TAKE), S.TAKE_MIN_WORDS);
   const h = S.bookPage(withTake.books.find((b) => b.id === b0.id), withTake, m);
   assert.ok(!h.includes('name="robots"'), 'indexable');
-  assert.ok(h.includes('<h2 id="take-title" class="stk-take__title">Why it’s on the shelf</h2>'));
+  assert.ok(h.includes('<h2 id="take-title" class="stk-take__title">Gatecast’s take</h2>'));
   assert.equal((h.match(/<section class="stk-take"[\s\S]*?<\/section>/)[0].match(/<p>/g) || []).length, 2, 'one <p> per paragraph');
+  assert.ok(h.includes('Written <time datetime="2026-12-01">1 December 2026</time>'));
   assert.equal((h.match(/<h1[\s>]/g) || []).length, 1);
   const entries = S.stacksSitemapEntries(withTake);
   assert.ok(entries.some((e) => e.loc === S.pageUrl(b0.id)), 'listed in the sitemap');
-  assert.equal(entries.length, 1 + NS + 1);
-  assert.equal((B.sitemapXml({ data: withTake, dateOf: () => null }).match(/<url>/g) || []).length, 5 + 1 + NS + 1);
+  assert.equal(entries.length, 1 + NS + withTakes.length + 1);
+  assert.equal((B.sitemapXml({ data: withTake, dateOf: () => null }).match(/<url>/g) || []).length, 5 + 1 + NS + withTakes.length + 1);
 
   // One word short: shown, but still noindex and unlisted.
   const short = TAKE.replace(/ more$/, '');
@@ -418,7 +437,7 @@ test('a shelf with no books yet has no page, is not listed and is not in the sit
   const fp = S.renderStacks(full, m);
   assert.equal(fp.length, full.books.length + raw.shelves.length + 1);
   assert.ok(fp.some((p) => p.id === 'fantasy') && fp.some((p) => p.id === 'scifi'));
-  assert.equal(S.stacksSitemapEntries(full).length, 1 + raw.shelves.length);
+  assert.equal(S.stacksSitemapEntries(full).length, 1 + raw.shelves.length + full.books.filter(S.indexable).length);
   assert.equal(S.shelfIntro([]), '');
 });
 
