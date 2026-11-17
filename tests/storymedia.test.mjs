@@ -248,7 +248,11 @@ test('pageMedia reads past </head> for the player but never more than the cap, o
   const lookupImpl = async () => [{ address: '93.184.216.34', family: 4 }];
   const page = (html) => async () => ({ ok: true, status: 200, headers: { get: (k) => (k.toLowerCase() === 'content-type' ? 'text/html; charset=utf-8' : null) }, text: async () => html });
   const got = await news.pageMedia('https://www.atlasobscura.com/articles/goat', src, { fetchImpl: page(fixture('iframe.html')), lookupImpl });
-  assert.deepEqual(got, { image: { url: 'https://img.atlasobscura.com/fixture/goat.jpg' }, video: { id: 'aBcDeFgHi_1', duration: null } });
+  assert.deepEqual(got, {
+    image: { url: 'https://img.atlasobscura.com/fixture/goat.jpg' }, video: { id: 'aBcDeFgHi_1', duration: null },
+    // Every provider's player, in page order (js/mediaproviders.js findPageVideos); the one in a script is never read.
+    videos: [{ provider: 'vimeo', ref: '123456', duration: null }, { provider: 'youtube', ref: 'aBcDeFgHi_1', duration: null }, { provider: 'youtube', ref: 'SECONDxxxxx', duration: null }],
+  });
   assert.ok(!JSON.stringify(got).includes('NEVER-SHOW'));
   // An iframe past the size cap is never seen.
   const far = `<html><head></head><body>${' '.repeat(news.MAX_HEAD_BYTES)}<iframe src="https://www.youtube.com/embed/aBcDeFgHi_1"></iframe></body></html>`;
@@ -276,12 +280,13 @@ test('pageMedia reads past </head> for the player but never more than the cap, o
 
 test('picks-db reads video_id and image_url, and checks them', async () => {
   const row = { url: 'https://www.upi.com/Odd_News/moose', title: 'Moose on the bus', outlet: 'UPI', published: '2026-11-15', category: 'animals', rating: 5, note: null, video_id: ID, image_url: 'https://cdnph.upi.com/m.jpg' };
-  assert.deepEqual(picksDb.toPick(row), { url: row.url, title: row.title, outlet: 'UPI', published: '2026-11-15', category: 'animals', rating: 5, note: null, videoId: ID, imageUrl: 'https://cdnph.upi.com/m.jpg' });
+  assert.deepEqual(picksDb.toPick(row), { url: row.url, title: row.title, outlet: 'UPI', published: '2026-11-15', category: 'animals', rating: 5, note: null, videoId: ID, imageUrl: 'https://cdnph.upi.com/m.jpg', video: { provider: 'youtube', ref: ID }, summary: null });
   for (const bad of ['dQw4w9WgXc', `${ID}x`, 'dQw4w9WgXc!', 42, '']) assert.equal(picksDb.toPick({ ...row, video_id: bad }).videoId, null, String(bad));
   for (const bad of ['http://cdnph.upi.com/m.jpg', 'javascript:alert(1)', `https://cdnph.upi.com/${'x'.repeat(2050)}`, 7]) assert.equal(picksDb.toPick({ ...row, image_url: bad }).imageUrl, null, String(bad).slice(0, 30));
   assert.ok(picksDb.picksEndpoint('https://p.supabase.co').includes('select=url,title,outlet,published,category,rating,note,video_id,image_url'));
 
-  // Before the migration: the database refuses the new columns, and the picks are read without them.
+  // Before either migration: the database refuses the new columns, and the picks are read with the columns of the
+  // migration before each (summary and provider video, then picture and YouTube id, then neither).
   const asked = [];
   const fetchImpl = async (url) => {
     asked.push(url);
@@ -289,8 +294,10 @@ test('picks-db reads video_id and image_url, and checks them', async () => {
     return new Response(JSON.stringify([{ ...row, video_id: undefined, image_url: undefined }]), { status: 200 });
   };
   const picks = await picksDb.loadDbPicks({ url: 'https://p.supabase.co', key: 'k', fetchImpl });
-  assert.equal(asked.length, 2);
-  assert.ok(asked[1].includes(`select=${picksDb.LEGACY_COLUMNS}&`));
+  assert.equal(asked.length, 3);
+  assert.ok(asked[0].includes(`select=${picksDb.COLUMNS}&`));
+  assert.ok(asked[1].includes(`select=${picksDb.MEDIA_COLUMNS}&`));
+  assert.ok(asked[2].includes(`select=${picksDb.LEGACY_COLUMNS}&`));
   assert.equal(picks.length, 1);
   assert.equal(picks[0].videoId, null);
   // Any other failure is still [] with one request.
@@ -497,7 +504,7 @@ test('before Play, no markup points at YouTube: no i.ytimg.com, no player, no yo
   const video = mediaSlot(cases[0], { cls: 'lead' });
   assert.equal(video.kind, 'video');
   assert.match(video.html, new RegExp(`<img class="vplay__img" src="api/yt-thumb\\?id=${ID}"`));
-  assert.match(video.html, /<button type="button" class="vplay" data-play="dQw4w9WgXcQ" aria-label="Play the video: Moose rides the bus \(UPI on YouTube, 2 minutes 31 seconds\)">/);
+  assert.match(video.html, /<button type="button" class="vplay vplay--youtube" data-play="dQw4w9WgXcQ" aria-label="Play the video: Moose rides the bus \(UPI on YouTube, 2 minutes 31 seconds\)">/);
   assert.match(video.html, /Video: UPI on YouTube/);
   assert.match(video.html, /class="vplay__dur" aria-hidden="true">2:31</);
   assert.ok(!/vplay__dur/.test(mediaSlot(cleanItem(item({ youtube: { ...YT, duration: null } })), { cls: 'card' }).html), 'no length shown when it is not known');

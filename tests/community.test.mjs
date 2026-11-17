@@ -375,14 +375,14 @@ test('browser: a click sends the story URL only, never waits and never throws', 
 
 /* ---------- lib/picks-db.js ---------- */
 
-const ROW = { url: 'https://www.upi.com/Odd_News/sheep', title: 'Loose sheep caught by lasso', outlet: 'UPI', published: '2026-11-13', category: 'animals', rating: 4, note: 'Forty-five days on the run.', videoId: null, imageUrl: null };
+const ROW = { url: 'https://www.upi.com/Odd_News/sheep', title: 'Loose sheep caught by lasso', outlet: 'UPI', published: '2026-11-13', category: 'animals', rating: 4, note: 'Forty-five days on the run.', videoId: null, imageUrl: null, video: null, summary: null };
 const FAKE_ROW_NOTE = 'x'.repeat(200);
 
 test('picks from the database: endpoint and shape', async () => {
   const ep = picksEndpoint('https://hfdwmzuedjcsaxgzhzmu.supabase.co/');
   assert.ok(ep.startsWith('https://hfdwmzuedjcsaxgzhzmu.supabase.co/rest/v1/weird_picks?'));
   assert.ok(ep.includes('status=eq.published'));
-  assert.ok(ep.includes('select=url,title,outlet,published,category,rating,note,video_id,image_url'));
+  assert.ok(ep.includes('select=url,title,outlet,published,category,rating,note,video_id,image_url,summary,video_provider,video_ref'));
   assert.deepEqual(toPick(ROW), ROW);
   assert.deepEqual(toPick({ ...ROW, category: 'aliens', rating: 9, note: '', published: 'soon' }), { ...ROW, category: 'other', rating: null, note: null, published: null });
   assert.equal(toPick({ ...ROW, note: FAKE_ROW_NOTE + 'x' }).note.length, 200, 'notes are at most 200 characters');
