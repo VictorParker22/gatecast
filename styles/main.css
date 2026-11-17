@@ -33,6 +33,8 @@
 @source "../js/librarypreview.js";
 @source "../js/librarymodel.js";
 @source "../scripts/build-stacks-pages.cjs"; /* the plain /stacks/ pages (written at build time) */
+@source "../lib/weekly.js"; /* the /weekly/ pages (rendered on request by the /api/weird function) */
+@source "../js/newsletter.js";
 
 /* daisyUI 5, only for the reviewer console's form controls and badges (used from styles/console.css). Prefixed d- so it never collides with
    Gatecast's own .btn / .card / .chip; no stock themes (the "gatecast" theme below maps it onto the newsprint tokens). */

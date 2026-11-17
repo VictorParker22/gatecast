@@ -84,6 +84,7 @@
   </script>
   <script type="module" src="js/weather.js"></script>
   <script type="module" src="js/front.js"></script>
+  <link rel="alternate" type="application/rss+xml" title="Gatecast: the editor’s weird-news picks" href="/feed.xml">
 </head>
 <body class="page-front">
   <a class="skip-link" href="#main">Skip to content</a>
@@ -359,6 +360,7 @@
             <li>A weird rating on a card is our editor’s opinion, shown only when they gave one. The Weird-o-meter on the lead is yours.</li>
           </ul>
           <a class="about__more" href="how.html">How Gatecast works</a>
+          <a class="about__more" href="/weekly/">Every pick, week by week</a>
         </section>
       </section>
     </div>
@@ -371,11 +373,17 @@
       <a class="badge badge--night" href="how.html">How Gatecast works</a>
       <a class="badge badge--lime" href="#guestbook">Sign the guestbook</a>
       <a class="badge" href="library.html">The Stacks library</a>
+      <a class="badge" href="/weekly/">Picks of the week</a>
+      <a class="badge" href="/feed.xml">RSS feed</a>
     </nav>
+    <!-- The newsletter signup: filled by js/newsletter.js only when data/site.json names a Buttondown username. -->
+    <div id="newsletter" class="mb-6" hidden></div>
     <div class="site-footer__lines">
-      <p>Headlines and preview images belong to their publishers; we link to every original and copy none of their reporting. Gatecast is a planning aid, not an official source: check your airline for the status of your flight. <a href="/stacks/">The Stacks, as a list</a>. <a href="how.html">How Gatecast works</a>.</p>
+      <p>Headlines and preview images belong to their publishers; we link to every original and copy none of their reporting. Gatecast is a planning aid, not an official source: check your airline for the status of your flight. <a href="/weekly/">Weird news, week by week</a>. <a href="/stacks/">The Stacks, as a list</a>. <a href="how.html">How Gatecast works</a>.</p>
       <p>Forecasts: <a href="https://open-meteo.com/" rel="noopener">Open-Meteo</a> (CC BY 4.0). Sky: Gatecast’s WebGL engine. Radar: <a href="https://www.rainviewer.com/" rel="noopener">RainViewer</a>. Map: © <a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a> contributors. Observations: NOAA. US status: FAA. Alerts: National Weather Service.</p>
     </div>
   </footer>
+  <script type="module" src="js/analytics.js"></script>
+  <script type="module" src="js/newsletter.js"></script>
 </body>
 </html>

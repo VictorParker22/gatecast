@@ -26,6 +26,7 @@ const cacheControl = (top) => (top === 'data' ? 'public, max-age=3600, stale-whi
 const { api, parseFaa, FAA_PLANS_CACHE } = require('./lib/live.js');
 const news = require('./lib/news.js');
 const weird = require('./lib/weird.js');
+const weekly = require('./lib/weekly.js');
 const books = require('./lib/books.js');
 const stacks = require('./lib/stacks-db.js');
 const youtube = require('./lib/youtube.js');
@@ -62,6 +63,18 @@ const server = http.createServer(async (req, res) => {
       return send(200, JSON.stringify(out.body), TYPES['.json'], { 'Cache-Control': out.cacheControl });
     } catch (err) { return send(502, JSON.stringify({ error: 'upstream unavailable' }), TYPES['.json'], { 'Cache-Control': 'no-store' }); }
   }
+  // The weekly pages and the feed: rendered on request by lib/weekly.js, as the /api/weird function does on Vercel
+  // (vercel.json rewrites /weekly/, /weekly/<YYYY>-W<ww>/ and /feed.xml to /api/weird?view=...).
+  if (weekly.needsSlash(url.pathname)) return send(308, '', 'text/plain', { Location: url.pathname + '/' + url.search });
+  const wq = url.pathname === '/api/weird' && weekly.isView(url.searchParams.get('view')) ? url.searchParams : weekly.routeQuery(url.pathname);
+  if (wq) {
+    try {
+      const out = await weekly.render(wq);
+      return send(out.status, req.method === 'HEAD' ? undefined : out.body, out.type, { 'Cache-Control': out.cacheControl });
+    } catch (err) { return send(502, 'The picks could not be loaded just now.\n', 'text/plain; charset=utf-8', { 'Cache-Control': 'no-store' }); }
+  }
+  // Vercel Web Analytics' script exists only on Vercel (js/analytics.js); locally an empty script stands in for it.
+  if (url.pathname === '/_vercel/insights/script.js') return send(200, '// Vercel Web Analytics runs only on Vercel.\n', TYPES['.js'], { 'Cache-Control': 'no-store' });
   if (url.pathname === '/api/weird') {
     try {
       const body = JSON.stringify(await weird.weirdFor(url.searchParams));

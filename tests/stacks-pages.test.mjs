@@ -269,7 +269,7 @@ test('sitemap: the pages, /stacks/, the stocked shelves and the books with a tak
   const xml = B.sitemapXml({ day: '2099-01-01', dateOf: (f) => (f === 'how.html' ? '2026-11-10' : null) });
   const urls = [...xml.matchAll(/<url><loc>([^<]+)<\/loc><lastmod>([^<]+)<\/lastmod><\/url>/g)].map((x) => ({ loc: x[1], lastmod: x[2] }));
   const listed = data.books.filter(S.indexable).length;
-  assert.equal(urls.length, 5 + 1 + NS + listed, 'pages, /stacks/, shelves and only the books with a take');
+  assert.equal(urls.length, B.SITEMAP_PAGES.length + 1 + NS + listed, 'pages, /stacks/, shelves and only the books with a take');
   assert.equal(new Set(urls.map((u) => u.loc)).size, urls.length, 'no duplicates');
   const at = (loc) => urls.find((u) => u.loc === 'https://gatecast.vercel.app/' + loc);
   assert.equal(at('how.html').lastmod, '2026-11-10', 'a page: its last commit');
@@ -319,11 +319,12 @@ test('robots.txt: /stacks/ and the three page-data endpoints allowed, the rest o
   assert.equal(header('/api/(.*)'), 'noindex');
 });
 
-test('vercel.json: only /stacks/ URLs get a trailing-slash redirect (no site-wide trailingSlash)', () => {
+test('vercel.json: only /stacks/ (and /weekly/) URLs get a trailing-slash redirect (no site-wide trailingSlash)', () => {
   const v = JSON.parse(read('vercel.json'));
   assert.equal(v.trailingSlash, undefined);
   assert.equal(v.cleanUrls, undefined);
-  const r = v.redirects;
+  // The /weekly/ redirects are the weekly archive's own (tests/weekly.test.mjs).
+  const r = v.redirects.filter((x) => !x.source.startsWith('/weekly'));
   assert.deepEqual(r.map((x) => [x.source, x.destination, x.permanent]), [['/stacks', '/stacks/', true], ['/stacks/:id([a-z0-9-]+)', '/stacks/:id/', true]]);
   // Vercel matches sources strictly (a trailing slash is not optional): the same pattern as a regular expression.
   const re = /^\/stacks\/([a-z0-9-]+)$/;
@@ -391,7 +392,7 @@ test('indexing: book pages are noindex, follow and left out of the sitemap until
   const entries = S.stacksSitemapEntries(withTake);
   assert.ok(entries.some((e) => e.loc === S.pageUrl(b0.id)), 'listed in the sitemap');
   assert.equal(entries.length, 1 + NS + withTakes.length + 1);
-  assert.equal((B.sitemapXml({ data: withTake, dateOf: () => null }).match(/<url>/g) || []).length, 5 + 1 + NS + withTakes.length + 1);
+  assert.equal((B.sitemapXml({ data: withTake, dateOf: () => null }).match(/<url>/g) || []).length, B.SITEMAP_PAGES.length + 1 + NS + withTakes.length + 1);
 
   // One word short: shown, but still noindex and unlisted.
   const short = TAKE.replace(/ more$/, '');

@@ -35,6 +35,7 @@
     import { initSettings } from './js/shell.js';
     initSettings();
   </script>
+  <link rel="alternate" type="application/rss+xml" title="Gatecast: the editor’s weird-news picks" href="/feed.xml">
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
@@ -100,6 +101,13 @@
       <p>The Weird-o-meter and the guestbook don’t use accounts or cookies. To count one vote per person per story and to stop floods, we keep a scrambled code (a salted SHA-256 hash) made from your network address, never the address itself. A vote’s code is deleted 90 days after you last voted on that story, while your rating stays in the story’s total. A tip’s code changes every day and is erased after 7 days, and the tip itself is deleted after 90 days.</p>
       <p>The readers’ average appears only once 50 people have voted on a story. We never open the links you send; a person checks every one before anything is published. Your reading streak is kept on your device only.</p>
       <p>We also count clicks on the weird stories, so the editor can see which ones land. When you follow a link to a weird story’s original (“Read it at …” on the front page, or “Read the full story at …” in a story you opened), your browser sends us the story’s address, and we add one to that story’s total for the day. No cookie is set, and the total holds nothing about you: no address, no code made from it, no time of day. To stop one machine inflating the counts, a scrambled code of your network address, which changes every day, is held in a rate counter (at most 120 clicks an hour) for up to two days, without the story. If your browser sends Do Not Track or Global Privacy Control, nothing is sent at all. Daily totals are kept for 90 days. Only the editor sees them, and they never rank anything: not the weird stories, not political items, not The brief.</p>
+    </section>
+
+    <section class="doc-section" id="counting" aria-labelledby="counting-title">
+      <h2 id="counting-title">Counting visits</h2>
+      <p>We count visits to each page in total with Vercel Web Analytics, from Vercel, the company that hosts Gatecast. It uses no cookies and stores nothing in your browser. It tells us how many people opened a page, which site sent them, and their country, browser and type of device, never who they are. To tell one visit from the next it uses a scrambled code made from your request, which is thrown away after 24 hours, so it cannot follow you from one day to the next or from one site to another. The counter’s script comes from Gatecast’s own address, not from another site. Vercel explains what it collects in its <a href="https://vercel.com/docs/analytics/privacy-policy" rel="noopener">Web Analytics privacy notes</a>.</p>
+      <p>If your browser sends Do Not Track or Global Privacy Control, the counter doesn’t load at all, the same rule as for the story clicks above. Apart from these two counts, Gatecast measures nothing: no advertising or social media trackers, no session recordings, no heatmaps. (A video’s provider can see you once you press play, as described under <a href="#videos">videos</a>.)</p>
+      <p>The editor’s picks are also published <a href="/weekly/">week by week</a> and as an <a href="/feed.xml">RSS feed</a>; neither tells us who reads them. If you sign up for the weekly email, Buttondown keeps your address and sends the email for us, with its open and click tracking turned off, and every email has an unsubscribe link.</p>
     </section>
 
     <section class="doc-section" id="brief" aria-labelledby="brief-title">
@@ -241,8 +249,9 @@
   </main>
 
   <footer class="site-footer">
-    <p>Gatecast is a planning aid, not an official source. Check your airline for the status of your flight. <a href="/stacks/">The Stacks, as a list</a>. <a href="how.html" aria-current="page">How Gatecast works</a>.</p>
+    <p>Gatecast is a planning aid, not an official source. Check your airline for the status of your flight. <a href="/weekly/">Weird news, week by week</a>. <a href="/stacks/">The Stacks, as a list</a>. <a href="how.html" aria-current="page">How Gatecast works</a>.</p>
     <p>Forecasts: <a href="https://open-meteo.com/" rel="noopener">Open-Meteo</a> (CC BY 4.0). Radar: <a href="https://www.rainviewer.com/" rel="noopener">RainViewer</a>. Map: © <a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a> contributors. Live aircraft: <a href="https://adsb.lol/" rel="noopener">adsb.lol</a> (ODbL). Routes: <a href="https://www.adsbdb.com/" rel="noopener">adsbdb</a>. Observations: NOAA. US status and plans: FAA. Alerts: National Weather Service. Headlines and their pictures belong to the newsrooms named beside them.</p>
   </footer>
+  <script type="module" src="js/analytics.js"></script>
 </body>
 </html>

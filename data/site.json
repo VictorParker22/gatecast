@@ -1,0 +1,4 @@
+{
+  "comment": "Site-wide switches the owner sets. buttondown: the Buttondown username (the part after buttondown.com/) that the newsletter signup posts to; null hides the signup everywhere. See README, 'Weekly archive, RSS, newsletter and visit counts'.",
+  "buttondown": null
+}
