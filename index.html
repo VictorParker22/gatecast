@@ -130,7 +130,10 @@
         <section class="wxbox" id="wxbox" aria-labelledby="wx-h">
           <div class="wxbox__bar">
             <h2 class="wxbox__title" id="wx-h">WEATHER BOX<span id="wx-place"></span></h2>
+            <span class="wxbox__mini" id="wx-mini" aria-hidden="true"></span>
             <button class="bev bev--sun wxbox__change" type="button" id="wx-change" aria-expanded="false" aria-controls="wx-find">Change city</button>
+            <!-- Phones only: the box folds to this bar so the news is the first thing on screen (js/weather.js). -->
+            <button class="bev bev--sun wxbox__fold" type="button" id="wx-fold" aria-expanded="false" aria-controls="wx-find sky">Set my weather</button>
           </div>
           <div class="wxbox__find" id="wx-find">
             <div class="finder" id="finder">

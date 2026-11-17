@@ -33,6 +33,21 @@ const todayEl = $('#today');
 const findEl = $('#wx-find');
 const changeBtn = $('#wx-change');
 const FIRST_HTML = heroEl.innerHTML; // the first-visit prompt as index.html wrote it
+// On a phone the weather box folds to its title bar (with the temperature once known) so the news leads the first
+// screen; the button opens it. Wider screens never fold (the button is hidden there by the stylesheet).
+const boxEl = $('#wxbox');
+const foldBtn = $('#wx-fold');
+const miniEl = $('#wx-mini');
+function setFold(open) {
+  boxEl.classList.toggle('wxbox--open', open);
+  foldBtn.setAttribute('aria-expanded', String(open));
+  foldBtn.textContent = open ? 'Close' : state.place ? 'Forecast' : 'Set my weather';
+}
+foldBtn.addEventListener('click', () => {
+  const open = !boxEl.classList.contains('wxbox--open');
+  setFold(open);
+  if (open && !state.place) input.focus({ preventScroll: true });
+});
 
 // Everything the page shows comes from this; render() decides what goes where.
 const state = {
@@ -83,6 +98,7 @@ function setPlace(p) {
   const saved = [p, ...store.get('gatecast:places', []).filter((x) => x.name !== p.name || x.region !== p.region)].slice(0, 4);
   store.set('gatecast:places', saved);
   openFinder(false);
+  setFold(true); // the answer for the new place shows straight away, also on a phone
   $('#wxbox').scrollIntoView({ block: 'nearest' }); // the answer for the new place is in the weather box
   loadPlace();
 }
@@ -191,6 +207,7 @@ findEl.addEventListener('keydown', (e) => { if (e.key === 'Escape' && listEl.hid
 document.addEventListener('click', (e) => {
   if (!e.target.closest('[data-change-place]')) return;
   openFinder(true);
+  setFold(true);
   $('#wxbox').scrollIntoView({ block: 'center' });
   input.focus({ preventScroll: true });
 });
@@ -306,6 +323,8 @@ function render() {
   document.documentElement.dataset.start = mode;
   if (!place) openFinder(true); else if (changeBtn.hidden) openFinder(false);
   $('#wx-place').textContent = place ? ` · ${(place.name === 'Your location' ? 'Your area' : place.name).toUpperCase()}` : '';
+  miniEl.textContent = mode === 'weather' ? `${fmt().temp(wx.now.temp)} · ${describeCode(wx.now.code).text}` : '';
+  if (!boxEl.classList.contains('wxbox--open')) setFold(false); // relabel the button for the new state
   renderSky();
   heroEl.innerHTML = HERO[mode]();
   heroEl.dataset.mode = mode;

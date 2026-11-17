@@ -513,7 +513,14 @@ test('before Play, no markup points at YouTube: no i.ytimg.com, no player, no yo
   assert.match(chip.html, /<button type="button" class="vchip" data-play="dQw4w9WgXcQ"[^>]*>.*Has video<\/button>/s);
   assert.match(chip.html, /aria-label="Has video\. Play the video: Moose rides the bus/, 'the name starts with the visible words');
   assert.match(chip.html, /referrerpolicy="no-referrer"/);
-  assert.deepEqual(mediaSlot(cleanItem(item()), { cls: 'lead' }), { kind: 'text', html: '' }, 'text-led: no slot at all');
+  assert.deepEqual(mediaSlot(cleanItem(item()), { cls: 'lead', art: false }), { kind: 'text', html: '' }, 'art: false: no slot at all');
+  // No picture and no video: Gatecast's own category illustration, labelled, from this site only (owner decision,
+  // 17 Nov 2026: no text-only cards).
+  const art = mediaSlot(cleanItem(item()), { cls: 'lead' });
+  assert.equal(art.kind, 'art');
+  assert.match(art.html, /src="assets\/art\/animals-480\.webp"/);
+  assert.match(art.html, /class="credit credit--art">.*Illustration<\/span>/s);
+  assert.ok(!/https?:\/\/(?!www\.upi\.com)/.test(art.html), 'nothing from another site except the story link');
   assert.ok(!/Picture at the source|ftile/.test(JSON.stringify(cases.map((x) => mediaSlot(x, { cls: 'card' })))));
 });
 
@@ -577,4 +584,20 @@ test('the migration adds the two columns with their checks, is safe to run twice
   assert.match(sql, /grant select \(video_id, image_url\) on public\.weird_picks to anon;/);
   assert.match(sql, /create or replace function private\.weird_picks_guard\(\)[\s\S]*new\.video_id, new\.image_url\)[\s\S]*old\.video_id, old\.image_url\)/);
   assert.ok(!/\bdrop table\b|\bdrop column\b|\btruncate\b|\bdelete from\b/i.test(sql));
+});
+
+test('category illustrations: one per category, unknown categories get "other", every file exists in three sizes', async () => {
+  const { artFor, ART_CATEGORIES, ART_CREDIT } = await import('../js/frontmodel.js');
+  const fs = await import('node:fs');
+  assert.equal(artFor('nonsense').category, 'other');
+  assert.equal(artFor(undefined).category, 'other');
+  assert.equal(ART_CREDIT, 'Illustration: Gatecast');
+  for (const c of ART_CATEGORIES) {
+    assert.equal(artFor(c).category, c);
+    for (const w of [240, 480, 960]) {
+      const f = new URL(`../assets/art/${c}-${w}.webp`, import.meta.url);
+      assert.ok(fs.existsSync(f), `${c}-${w}.webp`);
+      assert.ok(fs.statSync(f).size < 160 * 1024, `${c}-${w}.webp stays small`);
+    }
+  }
 });
