@@ -214,7 +214,7 @@ function shell({ title, description, id, ogType = 'website', ld = [], body, noin
   const url = pageUrl(id);
   const nav = NAV.map(([href, label, icon]) => `<li><a href="${href}"${label === 'Library' ? ' aria-current="true"' : ''}><svg class="site-nav__icon" viewBox="0 0 24 24" aria-hidden="true">${icon}</svg><span>${label}</span></a></li>`).join('\n        ');
   return `<!doctype html>
-<html lang="en">
+<html lang="en-GB">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -229,6 +229,7 @@ function shell({ title, description, id, ogType = 'website', ld = [], body, noin
   <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#07090d">
   <meta property="og:type" content="${ogType}">
   <meta property="og:site_name" content="Gatecast">
+  <meta property="og:locale" content="en_GB">
   <meta property="og:title" content="${esc(title)}">
   <meta property="og:description" content="${esc(description)}">
   <meta property="og:url" content="${url}">
@@ -240,7 +241,9 @@ function shell({ title, description, id, ogType = 'website', ld = [], body, noin
   <meta name="twitter:title" content="${esc(title)}">
   <meta name="twitter:description" content="${esc(description)}">
   <meta name="twitter:image" content="${OG_IMAGE}">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23111418'/%3E%3Cpath d='M9 25V14a7 7 0 0 1 14 0v11M16 18v7' stroke='%23fff' stroke-width='2.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="icon" href="/favicon.ico" sizes="48x48">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="preload" href="/vendor/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/vendor/fonts/alfa-slab-one-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/styles/site.css">
@@ -495,7 +498,7 @@ function shelfPage(shelf, data, m) {
     </nav>`;
   const ld = {
     '@context': 'https://schema.org', '@type': 'CollectionPage',
-    name: `${shelf.name} — The Stacks`, description, url: pageUrl(shelf.id), inLanguage: 'en',
+    name: `${shelf.name} — The Stacks`, description, url: pageUrl(shelf.id), inLanguage: 'en-GB',
     isPartOf: { '@type': 'WebSite', name: 'Gatecast', url: SITE_ORIGIN + '/' },
     mainEntity: {
       '@type': 'ItemList', numberOfItems: books.length,
@@ -537,7 +540,7 @@ ${shelves}`;
   const description = 'Every shelf and book in The Stacks: real books on true crime, unsolved mysteries, weird history, strange science, cults and cons, and classic fantasy and science fiction, described in our own words.';
   const ld = {
     '@context': 'https://schema.org', '@type': 'CollectionPage',
-    name: 'The Stacks', description, url: pageUrl(null), inLanguage: 'en',
+    name: 'The Stacks', description, url: pageUrl(null), inLanguage: 'en-GB',
     isPartOf: { '@type': 'WebSite', name: 'Gatecast', url: SITE_ORIGIN + '/' },
     mainEntity: {
       '@type': 'ItemList', numberOfItems: data.shelves.length,

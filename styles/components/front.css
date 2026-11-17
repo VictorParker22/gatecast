@@ -184,6 +184,7 @@
   .masthead__kicker svg { @apply w-4.5 h-4.5 flex-none stroke-current; fill: none; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
   .masthead__rule { @apply flex-1 h-0; border-top: 2px solid var(--color-np-ink); border-bottom: 1px solid var(--color-np-ink); @apply pt-0.5; }
   .masthead__h1 { grid-area: h1; @apply m-0 font-slab font-normal; line-height: 0.86; @apply tracking-slab whitespace-nowrap; font-size: min(var(--text-masthead), 100cqi / 5.95); @apply text-np-cobalt; text-shadow: 3px 3px 0 var(--color-np-sun), 6px 6px 0 var(--color-np-shadow-ink); text-wrap: nowrap; }
+  .masthead__h1 { font-family: "Alfa Slab One", "Alfa Slab Fallback", var(--font-slab); } /* no shift when the slab swaps in */
   .masthead__lede { grid-area: lede; @apply mt-1.5 max-w-155; font-size: var(--text-lg); @apply leading-normal text-np-text text-pretty; }
   .masthead__burst { grid-area: burst; @apply relative w-32 h-32; rotate: 10deg; margin-right: 2cqi; }
   @media (width >= theme(--breakpoint-wxbox)) {
@@ -751,6 +752,26 @@
     .shelf__go { @apply flex items-center justify-between min-h-12 py-0 px-3.5; background: var(--color-np-sun); @apply text-np-on-sun font-extrabold; font-size: var(--text-note); border-top: 2px solid #15120E; }
     .guestbook, .about { @apply p-4; }
     .community { @apply gap-4; }
+  }
+  /* Room kept for what the scripts fill in, so the first screen does not jump (layout shift, CLS). index.html sets
+     data-start on <html> before the first paint ("first" or "place"); js/weather.js replaces it with its own mode
+     once it has rendered. The ticker, the lead, Also odd and the weird-weather link are not hidden in the HTML:
+     while empty they keep their usual size (blank and invisible, so nothing half-drawn shows), and js/front.js hides
+     them if no stories come back. Heights are the settled blocks measured at 390 and 1280px (a text-led lead with a
+     note; Also odd with its four stories); a lead with a picture is a little taller still. */
+  .edition__line { min-block-size: 1lh; } /* the short edition line is written by js/front.js */
+  :root[data-start="place"] .wxbox__find { @apply hidden; } /* a returning visitor: the finder stays shut */
+  .ticker:has(.ticker__track:empty) .ticker__btn { @apply invisible; }
+  .lead:empty { @apply invisible min-h-136; }
+  .also:has(> .also__list:empty) { @apply invisible min-h-120; }
+  .streak__digits:empty { @apply min-h-13.5; }
+  .wxbox__pills:empty { @apply min-h-23.5 basis-full; } /* six city pills: two rows of 44px on a phone and in the box */
+  .wxbox__weird:empty { @apply invisible min-h-19; }
+  /* Without JavaScript (no data-start) nothing will fill them, so they take no room at all. */
+  :root:not([data-start]) :is(.wxbox__find, .wxbox__weird:empty, .lead:empty, .also:has(> .also__list:empty), .ticker:has(.ticker__track:empty)) { @apply hidden; }
+  @media (width <= theme(--breakpoint-sm)) {
+    :root:not([data-start="first"]) .wxbox__screen { @apply min-h-51; } /* the forecast is taller than the first-visit prompt */
+    .lead:empty { @apply min-h-120; }
   }
   @media (prefers-reduced-motion: reduce) {
     .masthead__burst-ink, .ticker__track { animation: none !important; }

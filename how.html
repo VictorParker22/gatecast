@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en-GB">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7,26 +7,37 @@
   <script>
     try { document.querySelector('meta[name="color-scheme"]').content = localStorage.getItem("color-scheme") ?? "light dark"; } catch (e) {}
   </script>
-  <title>How Gatecast works — Gatecast</title>
-  <meta name="description" content="How Gatecast picks its weird news, how The brief and the weather verdicts are worked out, how reader votes and tips are handled, where every piece of data comes from, and how to report an error.">
+  <title>How Gatecast works: sources, picks and weather verdicts</title>
+  <meta name="description" content="How Gatecast picks its weird news, works out weather verdicts and handles votes and tips, where every bit of data comes from, and how to report an error.">
   <!-- Search and share basics. Copy lives here and in the other pages' heads; the share image is rendered from docs/og/og-template.html. -->
+  <meta name="robots" content="max-image-preview:large">
   <link rel="canonical" href="https://gatecast.vercel.app/how.html">
   <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ecebe6">
   <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#07090d">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Gatecast">
-  <meta property="og:title" content="How Gatecast works — Gatecast">
-  <meta property="og:description" content="How Gatecast picks its weird news, how The brief and the weather verdicts are worked out, how reader votes and tips are handled, where every piece of data comes from, and how to report an error.">
+  <meta property="og:locale" content="en_GB">
+  <meta property="og:title" content="How Gatecast works: sources, picks and weather verdicts">
+  <meta property="og:description" content="How Gatecast picks its weird news, works out weather verdicts and handles votes and tips, where every bit of data comes from, and how to report an error.">
   <meta property="og:url" content="https://gatecast.vercel.app/how.html">
   <meta property="og:image" content="https://gatecast.vercel.app/vendor/og/gatecast-og.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="Gatecast: weird news from real outlets, the weather on top, and a library of strange true stories.">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="How Gatecast works — Gatecast">
-  <meta name="twitter:description" content="How Gatecast picks its weird news, how The brief and the weather verdicts are worked out, how reader votes and tips are handled, where every piece of data comes from, and how to report an error.">
+  <meta name="twitter:title" content="How Gatecast works: sources, picks and weather verdicts">
+  <meta name="twitter:description" content="How Gatecast picks its weird news, works out weather verdicts and handles votes and tips, where every bit of data comes from, and how to report an error.">
   <meta name="twitter:image" content="https://gatecast.vercel.app/vendor/og/gatecast-og.png">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23111418'/%3E%3Cpath d='M9 25V14a7 7 0 0 1 14 0v11M16 18v7' stroke='%23fff' stroke-width='2.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="icon" href="/favicon.ico" sizes="48x48">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <script type="application/ld+json">
+  {"@context": "https://schema.org", "@graph": [
+    {"@type": "AboutPage", "@id": "https://gatecast.vercel.app/how.html#page", "url": "https://gatecast.vercel.app/how.html", "name": "How Gatecast works: sources, picks and weather verdicts", "description": "How Gatecast picks its weird news, works out weather verdicts and handles votes and tips, where every bit of data comes from, and how to report an error.", "inLanguage": "en-GB", "isPartOf": {"@id": "https://gatecast.vercel.app/#website"}, "about": {"@id": "https://gatecast.vercel.app/#organization"}, "breadcrumb": {"@id": "https://gatecast.vercel.app/how.html#breadcrumb"}},
+    {"@type": "BreadcrumbList", "@id": "https://gatecast.vercel.app/how.html#breadcrumb", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Gatecast", "item": "https://gatecast.vercel.app/"}, {"@type": "ListItem", "position": 2, "name": "How Gatecast works", "item": "https://gatecast.vercel.app/how.html"}]},
+    {"@type": "Organization", "@id": "https://gatecast.vercel.app/#organization", "name": "Gatecast", "url": "https://gatecast.vercel.app/", "logo": {"@type": "ImageObject", "url": "https://gatecast.vercel.app/icon-512.png", "width": 512, "height": 512}, "sameAs": ["https://github.com/VictorParker22/gatecast"]}
+  ]}
+  </script>
   <link rel="preload" href="vendor/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="vendor/fonts/barlow-condensed-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="styles/site.css">
@@ -73,6 +84,7 @@
       <ol class="mt-2 flex flex-wrap gap-x-6">
         <li><a class="inline-flex min-h-tap items-center" href="#weird">How the weird news is chosen</a></li>
         <li><a class="inline-flex min-h-tap items-center" href="#community">Reader votes and tips</a></li>
+        <li><a class="inline-flex min-h-tap items-center" href="#counting">Counting visits</a></li>
         <li><a class="inline-flex min-h-tap items-center" href="#brief">How The brief is chosen</a></li>
         <li><a class="inline-flex min-h-tap items-center" href="#verdict">How a weather verdict is worked out</a></li>
         <li><a class="inline-flex min-h-tap items-center" href="#books">How the books are chosen</a></li>
@@ -112,7 +124,7 @@
 
     <section class="doc-section" id="brief" aria-labelledby="brief-title">
       <h2 id="brief-title">How The brief is chosen</h2>
-      <p>The brief on the front page is built from three things: the place you chose, the weather there, and your saved trips. It shows only the parts that have something in them. There is no hidden profile: the place and trips are stored in your browser, not on our servers.</p>
+      <p>The brief on the front page is built from four things: the place you chose, the weather there (National Weather Service alerts and the forecast at the airports near you), the US state that place is in, and a trip saved on this device, which only adds a note when an alert covers your departure. It shows only the parts that have something in them. There is no hidden profile: the place and trips are stored in your browser, not on our servers.</p>
       <div class="mt-2 grid grid-cols-[repeat(auto-fill,minmax(min(100%,--spacing(80)),1fr))] gap-3">
         <article class="doc-card">
           <h3>Weather news</h3>

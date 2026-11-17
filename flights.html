@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en-GB">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7,26 +7,35 @@
   <script>
     try { document.querySelector('meta[name="color-scheme"]').content = localStorage.getItem("color-scheme") ?? "light dark"; } catch (e) {}
   </script>
-  <title>Flights — Gatecast</title>
-  <meta name="description" content="Live flight tracking with weather at both ends, and current weather risk at any airport.">
+  <title>Flight status and airport weather, live — Gatecast</title>
+  <meta name="description" content="Track a flight live with the weather at both ends, or check what the weather is doing to any airport right now, with US FAA delay programs.">
   <!-- Search and share basics. Copy lives here and in how.html; the share image is rendered from docs/og/og-template.html. -->
+  <meta name="robots" content="max-image-preview:large">
   <link rel="canonical" href="https://gatecast.vercel.app/flights.html">
   <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ecebe6">
   <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#07090d">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Gatecast">
-  <meta property="og:title" content="Flights — Gatecast">
-  <meta property="og:description" content="Live flight tracking with weather at both ends, and current weather risk at any airport.">
+  <meta property="og:locale" content="en_GB">
+  <meta property="og:title" content="Flight status and airport weather, live — Gatecast">
+  <meta property="og:description" content="Track a flight live with the weather at both ends, or check what the weather is doing to any airport right now, with US FAA delay programs.">
   <meta property="og:url" content="https://gatecast.vercel.app/flights.html">
   <meta property="og:image" content="https://gatecast.vercel.app/vendor/og/gatecast-og.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="Gatecast: weird news from real outlets, the weather on top, and a library of strange true stories.">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Flights — Gatecast">
-  <meta name="twitter:description" content="Live flight tracking with weather at both ends, and current weather risk at any airport.">
+  <meta name="twitter:title" content="Flight status and airport weather, live — Gatecast">
+  <meta name="twitter:description" content="Track a flight live with the weather at both ends, or check what the weather is doing to any airport right now, with US FAA delay programs.">
   <meta name="twitter:image" content="https://gatecast.vercel.app/vendor/og/gatecast-og.png">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23111418'/%3E%3Cpath d='M9 25V14a7 7 0 0 1 14 0v11M16 18v7' stroke='%23fff' stroke-width='2.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="icon" href="/favicon.ico" sizes="48x48">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <script type="application/ld+json">
+  {"@context": "https://schema.org", "@graph": [
+    {"@type": "BreadcrumbList", "@id": "https://gatecast.vercel.app/flights.html#breadcrumb", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Gatecast", "item": "https://gatecast.vercel.app/"}, {"@type": "ListItem", "position": 2, "name": "Flights", "item": "https://gatecast.vercel.app/flights.html"}]}
+  ]}
+  </script>
   <link rel="stylesheet" href="styles/site.css">
   <link rel="preload" href="data/airports.json" as="fetch" crossorigin>
   <script type="module" src="js/flights.js"></script>

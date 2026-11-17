@@ -1,6 +1,6 @@
 # Contributing to Gatecast
 
-Thanks for helping. Gatecast tells travellers, in one plain sentence, whether the weather is likely to disrupt their flight or connection. Every change should make that answer clearer, more honest or faster to reach.
+Thanks for helping. Gatecast is weird news from real outlets, each story linked to the original, with the weather where you are told in plain words, The Stacks (a library of strange true stories and classic fiction) and small weather checks for flights and connections. Every change should make the page more honest, clearer or faster to read: real sources, plain words, nothing made up.
 
 ## Set up
 

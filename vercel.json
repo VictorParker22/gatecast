@@ -45,6 +45,10 @@
       "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, s-maxage=300, stale-while-revalidate=300" }]
     },
     {
+      "source": "/stacks/(.*)",
+      "headers": [{ "key": "X-Robots-Tag", "value": "max-image-preview:large" }]
+    },
+    {
       "source": "/review.html",
       "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
     },
