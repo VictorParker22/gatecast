@@ -6,7 +6,8 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const weird = require('../lib/weird.js');
 const sourceFile = require('../data/weird-sources.json');
-const pickFile = require('../data/weird-picks.json');
+const pickFile = require('./fixtures/weird/picks-seed.json');
+const liveFile = require('../data/weird-picks.json');
 const { parseWeirdFeed, headline, parseQuery, loadRound, respond, weirdFor, pickItems, normaliseSource, CATEGORIES } = weird;
 
 const now = Date.UTC(2026, 10, 16, 12);
@@ -33,7 +34,7 @@ async function fetchImpl(url) {
   return { ok: false, status: 404, headers: headers('text/html'), text: async () => '' };
 }
 const lookupImpl = async () => [{ address: '93.184.216.34', family: 4 }];
-const OPTS = { fetchImpl, lookupImpl, now, pageCache: false, dbPicks: [] };
+const OPTS = { fetchImpl, lookupImpl, now, pageCache: false, picks: pickFile.picks, dbPicks: [] };
 const get = (params) => new URLSearchParams(params);
 const by0 = (out, start) => out.items.find((x) => x.title.startsWith(start));
 
@@ -240,9 +241,9 @@ test('picks stop showing after 21 days; with every feed down and no picks the en
   assert.equal(items.length, 0);
   assert.equal(stats.expired, 13);
   const down = async () => { throw new Error('refused'); };
-  await assert.rejects(weirdFor(get({}), { fetchImpl: down, lookupImpl, now: later, dbPicks: [] }), /all feeds failed/);
+  await assert.rejects(weirdFor(get({}), { fetchImpl: down, lookupImpl, now: later, picks: pickFile.picks, dbPicks: [] }), /all feeds failed/);
   // Feeds down but picks still fresh: the picks are served.
-  const out = await weirdFor(get({}), { fetchImpl: down, lookupImpl, now, dbPicks: [] });
+  const out = await weirdFor(get({}), { fetchImpl: down, lookupImpl, now, picks: pickFile.picks, dbPicks: [] });
   assert.equal(out.items.length, 11);
   assert.ok(out.sources.every((s) => !s.ok));
 });
@@ -317,7 +318,11 @@ test('data/weird-sources.json: https feeds, unique ids, checked notes, no non-co
   assert.equal(byId.odditycentral.stale, '2026-11-16');
 });
 
-test('data/weird-picks.json: real UPI stories, ratings and notes left to the owner, all marked seeded', () => {
+test('the live site takes picks only from the reviewer console', () => {
+  assert.deepEqual(liveFile.picks, []);
+});
+
+test('seed fixture: real UPI stories, ratings and notes left to the owner, all marked seeded', () => {
   assert.equal(pickFile.maxAgeDays, 21);
   assert.equal(pickFile.picks.length, 13);
   for (const p of pickFile.picks) {
@@ -347,7 +352,7 @@ test('api/weird.js answers 200 with the cache header, or 502', async () => {
     const ok = res();
     await handler({ url: '/api/weird?limit=5' }, ok);
     assert.equal(ok.code, 200);
-    assert.equal(ok.headers['Cache-Control'], 'public, s-maxage=900, stale-while-revalidate=3600');
+    assert.equal(ok.headers['Cache-Control'], 'public, s-maxage=300, stale-while-revalidate=300');
     weird.weirdFor = async () => { throw new Error('all feeds failed'); };
     const bad = res();
     await handler({ url: '/api/weird' }, bad);
@@ -423,7 +428,7 @@ test('database picks: reviewer-approved, merged with the file, the database wins
     }
     throw new Error('offline');
   };
-  const out = await weirdFor(get({ debug: '1' }), { fetchImpl: fi, lookupImpl, now, dbPicks: undefined });
+  const out = await weirdFor(get({ debug: '1' }), { fetchImpl: fi, lookupImpl, now, picks: pickFile.picks, dbPicks: undefined });
   assert.equal(seen.length, 1);
   assert.match(seen[0], /^sb_publishable_/);
   const db = out.items.find((x) => x.title.startsWith('Llama elected'));
@@ -431,7 +436,7 @@ test('database picks: reviewer-approved, merged with the file, the database wins
   assert.equal(db.rating, 4);
   assert.equal(out.debug.picks.fromDb, 1);
   // The table missing (404) or the database down: the file's picks still show.
-  const missing = await weirdFor(get({}), { fetchImpl: async (url) => (url.includes('/rest/v1/') ? { ok: false, status: 404, json: async () => ({}) } : Promise.reject(new Error('offline'))), lookupImpl, now, dbPicks: undefined });
+  const missing = await weirdFor(get({}), { fetchImpl: async (url) => (url.includes('/rest/v1/') ? { ok: false, status: 404, json: async () => ({}) } : Promise.reject(new Error('offline'))), lookupImpl, now, picks: pickFile.picks, dbPicks: undefined });
   assert.equal(missing.items.length, 11);
 });
 
