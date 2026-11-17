@@ -15,8 +15,12 @@ const out = path.join(root, 'public');
 const SRC = 'https://raw.githubusercontent.com/mwgg/Airports/master/airports.json';
 const SIZES = 'https://raw.githubusercontent.com/davidmegginson/ourairports-data/main/airports.csv';
 const SITE = stacks.SITE_ORIGIN + '/'; // one constant for the whole site (canonicals, JSON-LD, this sitemap)
-// Public pages, in sitemap order. review.html is left out on purpose (noindex).
-const SITEMAP_PAGES = ['', 'library.html', 'trip.html', 'flights.html', 'how.html'];
+// Public pages, in sitemap order. review.html is left out on purpose (noindex). weekly/ is the index of the editor's
+// picks by week, rendered on request (lib/weekly.js); its week pages are not listed (they are not files, and a thin
+// week is noindex), the index links every one.
+const SITEMAP_PAGES = ['', 'library.html', 'trip.html', 'flights.html', 'how.html', 'weekly/'];
+// The file whose last commit dates a page that is not a file of its own.
+const PAGE_SOURCE = { '': 'index.html', 'weekly/': 'lib/weekly.js' };
 const STATIC_FILES = ['index.html', 'library.html', 'flights.html', 'trip.html', 'review.html', 'how.html', 'robots.txt'];
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -35,7 +39,7 @@ function gitDate(file) {
 // Every URL in the sitemap with a real lastmod: the pages from their last commit (build day without git), and the
 // /stacks/ pages from the dates in data/books.json (scripts/build-stacks-pages.cjs stacksSitemapEntries).
 function sitemapEntries({ day = today(), dateOf = gitDate, data } = {}) {
-  const pages = SITEMAP_PAGES.map((p) => ({ loc: SITE + p, lastmod: dateOf(p || 'index.html') || day }));
+  const pages = SITEMAP_PAGES.map((p) => ({ loc: SITE + p, lastmod: dateOf(PAGE_SOURCE[p] || p) || day }));
   const books = stacks.stacksSitemapEntries(data).map((e) => ({ loc: e.loc, lastmod: e.lastmod || day }));
   return [...pages, ...books];
 }
@@ -82,6 +86,8 @@ async function build() {
   // The weird-news outlets, for the reviewer console's picture rule (a pick's picture must be on the story's site or
   // one of the outlet's imageHosts; js/storymedia.js pickImageProblem). Public facts only: names, feeds and hosts.
   fs.copyFileSync(path.join(root, 'data', 'weird-sources.json'), path.join(out, 'data', 'weird-sources.json'));
+  // Site switches the front page reads (the newsletter signup: js/newsletter.js). Public by design.
+  fs.copyFileSync(path.join(root, 'data', 'site.json'), path.join(out, 'data', 'site.json'));
 
   const res = await fetch(SRC);
   if (!res.ok) throw new Error('airport list download failed: ' + res.status);
