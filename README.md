@@ -63,7 +63,7 @@ npm run ci          # npm test && npm run build
 
 ## Deployment
 
-The site is deployed on Vercel (`vercel.json`). Vercel runs `node scripts/build-data.cjs`, which downloads the airport list, writes the map outline, compiles the Tailwind stylesheets into `public/styles/site.css` and `console.css` (`scripts/build-css.cjs`), and assembles the static site in `public/`, including the plain `/stacks/` pages; the functions in `api/` serve the `/api` routes. The build step needs `npm ci` first (for `topojson-client`, `world-atlas` and the Tailwind CLI) and network access. `public/` is generated and not committed.
+The site is deployed on Vercel (`vercel.json`). Vercel runs `node scripts/build-data.cjs`, which downloads the airport list, writes the map outline, compiles the Tailwind stylesheets into `public/styles/site.css` and `console.css` (`scripts/build-css.cjs`), bundles The Stacks' scripts (three.js, cannon-es, gsap and `js/library.js`) into hashed, minified files in `public/js/dist/` with esbuild (`scripts/build-js.cjs`; `public/library.html` is rewritten to load them, while `library.html` in the repo keeps its import map for the dev server), and assembles the static site in `public/`, including the plain `/stacks/` pages; the functions in `api/` serve the `/api` routes. The build step needs `npm ci` first (for `topojson-client`, `world-atlas`, the Tailwind CLI and esbuild) and network access. `public/` is generated and not committed.
 
 ### Weekly archive, RSS, newsletter and visit counts
 
@@ -95,6 +95,7 @@ The site is deployed on Vercel (`vercel.json`). Vercel runs `node scripts/build-
 | `styles/main.css`, `styles/components/` | Tailwind CSS v4 entry: the theme (newsprint and risk colours, type, spacing, radii, shadows, breakpoints), base styles and the components (shared, Trips and Flights, the front page, The Stacks); compiled to `styles/site.css` |
 | `styles/main-console.css`, `styles/components/review.css` | The reviewer console's components (with daisyUI for its fields and pills); compiled to `styles/console.css` |
 | `scripts/build-css.cjs`, `scripts/dev.cjs` | Tailwind build (`npm run css`) and the dev server with CSS watch (`npm run dev`) |
+| `scripts/build-js.cjs` | The Stacks' scripts bundled and minified with esbuild into content-hashed files in `public/js/dist/` (cached for a year, `vercel.json`); the rest of the site's scripts are served as plain modules |
 | `lib/live.js` | Server-side lookups: airport observations, FAA status and today's FAA plans (parser unit-tested), flight route and position, nearby aircraft |
 | `api/*.js` | Vercel functions wrapping `lib/live.js` |
 | `server.js` | Local static server exposing the same `/api` routes |

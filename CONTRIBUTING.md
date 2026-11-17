@@ -36,7 +36,7 @@ Pure logic lives in modules with no DOM and no network so it can be tested with 
 
 ## Code style
 
-- Plain JavaScript modules and CSS, no framework and no bundler.
+- Plain JavaScript modules and CSS, no framework. The one bundle is The Stacks (`library.html`): at build time `scripts/build-js.cjs` bundles and minifies its scripts with esbuild; in development they run unbundled through the import map.
 - Two-space indentation, single quotes in JavaScript, LF line endings, a final newline. `.editorconfig` sets this up in most editors.
 - Keep comments short and about why, not what.
 - Do not edit `vendor/`; those are third-party files with their own licences.

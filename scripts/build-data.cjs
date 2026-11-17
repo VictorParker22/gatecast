@@ -1,14 +1,16 @@
 // Build step: generates the two large data files and assembles the static site in public/
 // (pages, the 404 page, robots.txt, sitemap.xml, the site icons, the IndexNow key file, any search engine
 // verification files from verify/, styles, scripts and vendor files including the share image), writes the plain
-// /stacks/ pages from data/books.json (scripts/build-stacks-pages.cjs), and compiles the Tailwind stylesheets into
-// public/styles/ (site.css and the page bundles; scripts/build-css.cjs).
+// /stacks/ pages from data/books.json (scripts/build-stacks-pages.cjs), compiles the Tailwind stylesheets into
+// public/styles/ (site.css and the page bundles; scripts/build-css.cjs), and bundles The Stacks' scripts into hashed,
+// minified files in public/js/dist/, pointing public/library.html at them (scripts/build-js.cjs).
 // Airports come from mwgg/Airports (MIT), ranked with OurAirports (public domain); the land outline from Natural Earth via world-atlas.
 const fs = require('node:fs');
 const path = require('node:path');
 const topo = require('topojson-client');
 const { spawnSync } = require('node:child_process');
 const { buildCss } = require('./build-css.cjs');
+const { buildJs } = require('./build-js.cjs');
 const stacks = require('./build-stacks-pages.cjs');
 
 const root = path.join(__dirname, '..');
@@ -132,6 +134,7 @@ async function build() {
   if (key) fs.copyFileSync(path.join(root, key), path.join(out, key));
   const verify = verifyFiles();
   for (const file of verify) fs.copyFileSync(path.join(root, 'verify', file), path.join(out, file));
+  const js = await buildJs(out); // after the pages: it rewrites public/library.html
   const sitemap = sitemapXml();
   fs.writeFileSync(path.join(out, 'sitemap.xml'), sitemap);
   const stackPages = await stacks.writeStacksPages(out);
@@ -165,7 +168,7 @@ async function build() {
   let d = '';
   for (const poly of polys) for (const ring of poly) d += 'M' + ring.map(([x, y]) => (x + 180).toFixed(1) + ' ' + (90 - y).toFixed(1)).join('L') + 'Z';
   fs.writeFileSync(path.join(out, 'js', 'world.js'), '// Natural Earth 110m land (public domain), equirectangular 360x180\nexport const LAND_PATH="' + d + '";\n');
-  console.log('built public/: site.css ' + fs.statSync(path.join(out, 'styles', 'site.css')).size + ' bytes, ' + rows.length + ' airports, map outline ' + d.length + ' bytes, ' + stackPages + ' /stacks/ pages, sitemap of ' + (sitemap.match(/<url>/g) || []).length + ' URLs'
+  console.log('built public/: site.css ' + fs.statSync(path.join(out, 'styles', 'site.css')).size + ' bytes, library JS ' + js.files.length + ' files (' + js.entry + '), ' + rows.length + ' airports, map outline ' + d.length + ' bytes, ' + stackPages + ' /stacks/ pages, sitemap of ' + (sitemap.match(/<url>/g) || []).length + ' URLs'
     + (verify.length ? ', verification files ' + verify.join(', ') : '') + (key ? '' : ', no IndexNow key file'));
 }
 
