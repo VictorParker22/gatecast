@@ -2,8 +2,7 @@
 -- Owner decisions, 17 Nov 2026: a story opens in "story mode" on Gatecast (the TV) instead of sending the reader away;
 -- a pick may carry a 2-4 sentence summary in the editor's own words ("In our words"; Claude may draft it, the editor
 -- edits and approves it, like the hook); and a pick's video may come from YouTube, Vimeo, Facebook, X, TikTok or
--- Instagram (Instagram as a link-out card only). Written, not applied: the lead applies it, after
--- 20261117150000_pick_media.sql.
+-- Instagram (Instagram as a link-out card only). Applied 17 Nov 2026, after 20261117150000_pick_media.sql.
 --
 -- Safe to run twice: columns are added only if missing, the checks are dropped and added again, the backfill only
 -- touches rows it has not filled yet, and the guard function is replaced whole.

@@ -1,6 +1,6 @@
 -- The editor's own media for a pick: a YouTube video and a picture, so a story whose outlet offers neither in its feed
 -- (UPI's Odd News feed has no pictures, and its pages refuse automated reads) can still lead with something to look
--- at. Owner request, 17 Nov 2026. Written, not applied: the lead applies it.
+-- at. Owner request, 17 Nov 2026. Applied 17 Nov 2026.
 --
 -- Safe to run twice: columns are added only if missing, the checks are dropped and added again, and the guard
 -- function is replaced whole.
