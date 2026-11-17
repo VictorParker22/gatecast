@@ -1,0 +1,93 @@
+{
+  "comment": "Shelf introductions for the plain /stacks/<shelf>/ pages (scripts/build-stacks-pages.cjs). One entry per shelf in data/books.json, keyed by shelf id. 'title' is the page's <title> (at most 60 characters), 'description' its meta description (at most 155), 'intro' the introduction under the shelf's note, one string per paragraph, 120 to 250 words in all. 'updated' is the date the text last changed; it dates the shelf page in sitemap.xml. Drafted with an AI assistant (Claude) at the owner's request, for the editor to check and approve. Only facts that are in data/books.json or widely documented; no quotes from the books.",
+  "shelves": {
+    "crime": {
+      "title": "Classic true crime books on real investigations · Gatecast",
+      "description": "Classic true crime books chosen for the investigation and the victims, from In Cold Blood to Killers of the Flower Moon, with content notes and caveats.",
+      "updated": "2026-11-17",
+      "intro": [
+        "This shelf is for real crimes, told by people who stayed with them long after the headlines moved on: detectives, reporters and writers who often spent years on a town, a family or a case. The cases run from a Wiltshire country house in 1860 to the streets of Baltimore in 1988. What ties the books together is the work of finding out what happened, and what it cost the people left behind.",
+        "If you are new to true crime, three good places to start are The Suspicions of Mr Whicher, about one of Scotland Yard’s first detectives and the child’s death he was sent to solve; Killers of the Flower Moon, on the murders of Osage people in 1920s Oklahoma and the years in which almost no one was held to account; and Homicide, a reporter’s year inside Baltimore’s homicide unit, which shows how cases are actually worked, solved or left open.",
+        "Some of the most famous books here are also the most argued over. Capote invented or rearranged scenes in In Cold Blood, and Berendt has acknowledged compressing the timeline of Midnight in the Garden of Good and Evil. We keep them, and say so under “Worth knowing” on their pages. Every book on this shelf also carries a content note.",
+        "As on all our true-crime shelves, the books are chosen for the investigation and the victims, never to make killers famous."
+      ]
+    },
+    "serial": {
+      "title": "Serial killer books on the investigations · Gatecast",
+      "description": "Books about serial-killer investigations that keep the focus on the victims and the people who found the killers, from The Five to The Good Nurse.",
+      "updated": "2026-11-17",
+      "intro": [
+        "This is the shelf we handle most carefully. Every book on it is about a series of killings, and each is here for how the killer was found, or why it took so long, and for the people whose lives were taken. We keep the focus on the cases and the victims, never on making a killer famous.",
+        "Some books follow the people who did the finding. In The Good Nurse, a fellow nurse and two detectives stop a man the hospitals around him failed to stop; Wicked Beyond Belief draws on the official review of the West Yorkshire Police hunt to show how it went wrong for five years. Others put the victims first. The Five tells the lives of the five women killed in London’s East End in 1888 and barely mentions their killer, and Lost Girls profiles five young women who went missing on Long Island, and the families who kept pushing police to look.",
+        "Whoever Fights Monsters and Mindhunter are first-hand accounts by FBI agents who worked on criminal profiling as it began. Profiling’s scientific basis is contested, and we say so on their pages.",
+        "If you are starting out, The Five, The Good Nurse and I’ll Be Gone in the Dark, Michelle McNamara’s search for the man behind a series of rapes and murders across California, finished by colleagues after her death, are good first books. Every book here carries a content note; please read it first."
+      ]
+    },
+    "unsolved": {
+      "title": "Unsolved mystery books and what we know now · Gatecast",
+      "description": "Books on unsolved mysteries, from D. B. Cooper and the Mary Celeste to Dyatlov Pass and the Voynich manuscript, with what is known and what is only theory.",
+      "updated": "2026-11-17",
+      "intro": [
+        "Some questions never get a settled answer, and some take decades to get one. This shelf holds both: a ship found drifting with no one aboard, a manuscript nobody can read, an inventor who vanished from a steamer overnight, a hijacker who jumped from a plane with the ransom and was never identified.",
+        "What ties the books together is the gap between what is known and what has been claimed. Several authors offer their own solutions; we say on each page when an answer is only one theory, or when later evidence points elsewhere, as for Dead Mountain and Zodiac. The Mothman Prophecies takes the paranormal seriously; we note that there is no evidence for it. The Bermuda Triangle Mystery—Solved is the shelf’s corrective: a reference librarian went back to the records and found that many famous disappearances were misreported, exaggerated or did not happen there at all.",
+        "To start, try Ghost Ship, on the Mary Celeste and the captain, family and crew behind the legend; The Lost City of Z, on the explorer Percy Fawcett, who walked into the Amazon in 1925 and never came out; or Skyjack, on the hijacker the press called D. B. Cooper.",
+        "Some of these cases involve real deaths, and some books point to people who were never charged. A suspect is not a culprit. Where a case is a crime, we keep the rule of our true-crime shelves: the investigation and the victims come first, never making a killer famous."
+      ]
+    },
+    "history": {
+      "title": "Weird history books: dancing plagues and more · Gatecast",
+      "description": "Weird history books about things that really happened: the 1518 dancing plague, radium tonics, cholera in Soho and Henry Ford’s town in the Amazon.",
+      "updated": "2026-11-17",
+      "intro": [
+        "Weird history is the past at its least predictable: a summer when hundreds of people in Strasbourg danced for weeks and could not stop, remedies made of mercury and radium, a company town Henry Ford built in the Brazilian Amazon. Every book on this shelf is about something that really happened.",
+        "The shelf runs from manias and bad ideas to disasters and the people who made sense of them. The Ghost Map follows a doctor and a curate who traced an outbreak of cholera in Soho to one water pump. The Radium Girls follows the young women who painted watch dials with glowing paint, fell ill, and took the companies to court. Extraordinary Popular Delusions, from 1841, is the oldest book here, though historians say Mackay exaggerated several of his episodes, tulip mania among them.",
+        "To start, try A Time to Dance, a Time to Die, a historian of medicine on the dancing plague of 1518; Quackery, a tour of remedies people once trusted, from bloodletting to electric belts; or A Night to Remember, Walter Lord’s short, plain account of the night the Titanic sank, still the book others are measured against.",
+        "Several books here describe mass loss of life, serious illness or surgery in detail, and their content notes say which."
+      ]
+    },
+    "science": {
+      "title": "Strange science books: Mary Roach, Sam Kean · Gatecast",
+      "description": "Popular science books for curious readers: Mary Roach on bodies and the afterlife, Sam Kean on the brain and the elements, Ed Yong on animal senses.",
+      "updated": "2026-11-17",
+      "intro": [
+        "This shelf is for the questions people are slightly embarrassed to ask. What happens to a body donated to science? How did a French king’s jousting wound in 1559 help show what each part of the brain does? What would it be like to feel an electric field? The writers here go into labs and archives and come back with answers anyone can follow.",
+        "Mary Roach has three books here, Stiff, Spook and Gulp, and they are the easiest way in: funny and endlessly curious. Sam Kean has two, The Disappearing Spoon on the periodic table and The Tale of the Dueling Neurosurgeons on the brain. For something with higher stakes, The Immortal Life of Henrietta Lacks tells how cells taken from a Black woman in 1951, without her knowledge, became one of medical research’s most important tools, alongside the story of her family.",
+        "One book carries a recent caveat. In December 2025 a New Yorker report, drawing on Oliver Sacks’s own journals, said he altered or invented details in some of his case studies, including in The Man Who Mistook His Wife for a Hat. We note it on the book’s page.",
+        "If you want one place to start, pick a Roach. Spook and Gulp are the gentlest; Stiff carries a content note for its frank descriptions of human remains."
+      ]
+    },
+    "cults": {
+      "title": "Books about cults, cons and con artists · Gatecast",
+      "description": "Books about cults, con artists and swindles, from Peoples Temple and Theranos to Bernard Madoff, and a famous memoir that was itself a con.",
+      "updated": "2026-11-17",
+      "intro": [
+        "This shelf is about trust, and what happens when it goes to the wrong person. Some books are about swindles, from the long cons of the early twentieth century to Bernard Madoff’s Ponzi scheme and Theranos. Others are about groups that took people in and, at their worst, led them to violence or death. What ties them together is how clever, ordinary people come to believe, and how the truth finally comes out.",
+        "The Confidence Game is a good place to begin: Maria Konnikova, a psychologist and writer, walks through each stage of a swindle and the habits of mind that make it work. Then try Bad Blood, by the reporter who broke the Theranos story, or The Road to Jonestown, a history of Peoples Temple drawn from survivors’ accounts and documents released since.",
+        "One book is a con in its own right. Catch Me If You Can is a famous memoir that public records have since shown to be largely made up, and it sits here for that reason. Going Clear and Under the Banner of Heaven have been disputed or criticised by the churches they describe, and we say so on their pages.",
+        "Where a book involves real killings, as Helter Skelter and Under the Banner of Heaven do, we keep the rule of our true-crime shelves: the focus stays on the case and the people harmed, never on making a killer famous."
+      ]
+    },
+    "fantasy": {
+      "title": "Classic fantasy books, Wonderland to Earthsea · Gatecast",
+      "description": "Classic fantasy books, from Alice’s Adventures in Wonderland and The Hobbit to A Wizard of Earthsea and Howl’s Moving Castle, described in our own words.",
+      "updated": "2026-11-17",
+      "intro": [
+        "This is one of two shelves of made-up stories in The Stacks. The rest of the library is about strange things that really happened; this shelf holds the books that made impossible places feel real. Rabbit holes, wardrobes, a road of yellow brick, a school for wizards: many readers met one of these worlds young and never quite left.",
+        "The books run from 1865 to 1997, from Wonderland to Hogwarts. Several began as stories told aloud: Lewis Carroll first made up Alice’s adventures for three young sisters on a boat trip near Oxford, and Tolkien first told The Hobbit to his own children. Others play games with the reader, like The Princess Bride, which pretends to be an abridgement of an older book that never existed.",
+        "To start, try A Wizard of Earthsea, where magic works by knowing the true names of things and every spell has a cost; Howl’s Moving Castle, in which Sophie Hatter, turned into an old woman by the Witch of the Waste, talks her way into a wizard’s walking castle; or The Last Unicorn, for something bittersweet.",
+        "Our notes cover each book’s history, such as revised texts and changed titles. One book, Peter and Wendy, carries a content note for the racist language and stereotypes it uses for its Native American characters."
+      ]
+    },
+    "scifi": {
+      "title": "Science fiction classics, Frankenstein onwards · Gatecast",
+      "description": "Classic science fiction from Frankenstein to Neuromancer: Wells, Huxley, Orwell, Asimov, Herbert, Le Guin and Douglas Adams, described in our own words.",
+      "updated": "2026-11-17",
+      "intro": [
+        "Our second fiction shelf holds the science fiction that shaped how many of us picture what might come next: machines, futures and other planets. Like Fantasy & Magic, it is a shelf of made-up stories; the rest of The Stacks is true. These books’ ideas still come up whenever people talk about science going too far or a state that watches everyone.",
+        "The books run from 1818 to 1984: from Mary Shelley’s Frankenstein, first published anonymously, through Verne’s submarine and Wells’s time traveller, to Huxley’s hatcheries, Orwell’s Big Brother and Gibson’s Neuromancer, which helped make “cyberspace” an everyday word. Between them stand Asimov’s Foundation, Herbert’s Dune and Le Guin’s The Left Hand of Darkness.",
+        "To start, try The Time Machine, a Victorian inventor’s account of the year 802,701; The Hitch Hiker’s Guide to the Galaxy, if you want to laugh; or The Left Hand of Darkness, Le Guin’s look at gender, loyalty and trust on an icebound planet.",
+        "Several of these first appeared in magazines or in parts, or have been revised or translated more than once. Our notes say so, and for Twenty Thousand Leagues Under the Sea we suggest a modern translation. Brave New World and Nineteen Eighty-Four carry content notes."
+      ]
+    }
+  }
+}

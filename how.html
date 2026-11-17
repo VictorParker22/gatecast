@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en-GB">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7,26 +7,37 @@
   <script>
     try { document.querySelector('meta[name="color-scheme"]').content = localStorage.getItem("color-scheme") ?? "light dark"; } catch (e) {}
   </script>
-  <title>How Gatecast works — Gatecast</title>
-  <meta name="description" content="How Gatecast picks its weird news, how The brief and the weather verdicts are worked out, how reader votes and tips are handled, where every piece of data comes from, and how to report an error.">
+  <title>How Gatecast works: sources, picks and weather verdicts</title>
+  <meta name="description" content="How Gatecast picks its weird news, works out weather verdicts and handles votes and tips, where every bit of data comes from, and how to report an error.">
   <!-- Search and share basics. Copy lives here and in the other pages' heads; the share image is rendered from docs/og/og-template.html. -->
+  <meta name="robots" content="max-image-preview:large">
   <link rel="canonical" href="https://gatecast.vercel.app/how.html">
   <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ecebe6">
   <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#07090d">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Gatecast">
-  <meta property="og:title" content="How Gatecast works — Gatecast">
-  <meta property="og:description" content="How Gatecast picks its weird news, how The brief and the weather verdicts are worked out, how reader votes and tips are handled, where every piece of data comes from, and how to report an error.">
+  <meta property="og:locale" content="en_GB">
+  <meta property="og:title" content="How Gatecast works: sources, picks and weather verdicts">
+  <meta property="og:description" content="How Gatecast picks its weird news, works out weather verdicts and handles votes and tips, where every bit of data comes from, and how to report an error.">
   <meta property="og:url" content="https://gatecast.vercel.app/how.html">
   <meta property="og:image" content="https://gatecast.vercel.app/vendor/og/gatecast-og.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="Gatecast: weird news from real outlets, the weather on top, and a library of strange true stories.">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="How Gatecast works — Gatecast">
-  <meta name="twitter:description" content="How Gatecast picks its weird news, how The brief and the weather verdicts are worked out, how reader votes and tips are handled, where every piece of data comes from, and how to report an error.">
+  <meta name="twitter:title" content="How Gatecast works: sources, picks and weather verdicts">
+  <meta name="twitter:description" content="How Gatecast picks its weird news, works out weather verdicts and handles votes and tips, where every bit of data comes from, and how to report an error.">
   <meta name="twitter:image" content="https://gatecast.vercel.app/vendor/og/gatecast-og.png">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23111418'/%3E%3Cpath d='M9 25V14a7 7 0 0 1 14 0v11M16 18v7' stroke='%23fff' stroke-width='2.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="icon" href="/favicon.ico" sizes="48x48">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <script type="application/ld+json">
+  {"@context": "https://schema.org", "@graph": [
+    {"@type": "AboutPage", "@id": "https://gatecast.vercel.app/how.html#page", "url": "https://gatecast.vercel.app/how.html", "name": "How Gatecast works: sources, picks and weather verdicts", "description": "How Gatecast picks its weird news, works out weather verdicts and handles votes and tips, where every bit of data comes from, and how to report an error.", "inLanguage": "en-GB", "isPartOf": {"@id": "https://gatecast.vercel.app/#website"}, "about": {"@id": "https://gatecast.vercel.app/#organization"}, "breadcrumb": {"@id": "https://gatecast.vercel.app/how.html#breadcrumb"}},
+    {"@type": "BreadcrumbList", "@id": "https://gatecast.vercel.app/how.html#breadcrumb", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Gatecast", "item": "https://gatecast.vercel.app/"}, {"@type": "ListItem", "position": 2, "name": "How Gatecast works", "item": "https://gatecast.vercel.app/how.html"}]},
+    {"@type": "Organization", "@id": "https://gatecast.vercel.app/#organization", "name": "Gatecast", "url": "https://gatecast.vercel.app/", "logo": {"@type": "ImageObject", "url": "https://gatecast.vercel.app/icon-512.png", "width": 512, "height": 512}, "sameAs": ["https://github.com/VictorParker22/gatecast"]}
+  ]}
+  </script>
   <link rel="preload" href="vendor/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="vendor/fonts/barlow-condensed-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="styles/site.css">
@@ -35,6 +46,7 @@
     import { initSettings } from './js/shell.js';
     initSettings();
   </script>
+  <link rel="alternate" type="application/rss+xml" title="Gatecast: the editor’s weird-news picks" href="/feed.xml">
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
@@ -72,8 +84,10 @@
       <ol class="mt-2 flex flex-wrap gap-x-6">
         <li><a class="inline-flex min-h-tap items-center" href="#weird">How the weird news is chosen</a></li>
         <li><a class="inline-flex min-h-tap items-center" href="#community">Reader votes and tips</a></li>
+        <li><a class="inline-flex min-h-tap items-center" href="#counting">Counting visits</a></li>
         <li><a class="inline-flex min-h-tap items-center" href="#brief">How The brief is chosen</a></li>
         <li><a class="inline-flex min-h-tap items-center" href="#verdict">How a weather verdict is worked out</a></li>
+        <li><a class="inline-flex min-h-tap items-center" href="#books">How the books are chosen</a></li>
         <li><a class="inline-flex min-h-tap items-center" href="#sources">Where the data comes from</a></li>
         <li><a class="inline-flex min-h-tap items-center" href="#never">What Gatecast never does</a></li>
         <li><a class="inline-flex min-h-tap items-center" href="#corrections">Corrections and contact</a></li>
@@ -101,9 +115,16 @@
       <p>We also count clicks on the weird stories, so the editor can see which ones land. When you follow a link to a weird story’s original (“Read it at …” on the front page, or “Read the full story at …” in a story you opened), your browser sends us the story’s address, and we add one to that story’s total for the day. No cookie is set, and the total holds nothing about you: no address, no code made from it, no time of day. To stop one machine inflating the counts, a scrambled code of your network address, which changes every day, is held in a rate counter (at most 120 clicks an hour) for up to two days, without the story. If your browser sends Do Not Track or Global Privacy Control, nothing is sent at all. Daily totals are kept for 90 days. Only the editor sees them, and they never rank anything: not the weird stories, not political items, not The brief.</p>
     </section>
 
+    <section class="doc-section" id="counting" aria-labelledby="counting-title">
+      <h2 id="counting-title">Counting visits</h2>
+      <p>We count visits to each page in total with Vercel Web Analytics, from Vercel, the company that hosts Gatecast. It uses no cookies and stores nothing in your browser. It tells us how many people opened a page, which site sent them, and their country, browser and type of device, never who they are. To tell one visit from the next it uses a scrambled code made from your request, which is thrown away after 24 hours, so it cannot follow you from one day to the next or from one site to another. The counter’s script comes from Gatecast’s own address, not from another site. Vercel explains what it collects in its <a href="https://vercel.com/docs/analytics/privacy-policy" rel="noopener">Web Analytics privacy notes</a>.</p>
+      <p>If your browser sends Do Not Track or Global Privacy Control, the counter doesn’t load at all, the same rule as for the story clicks above. Apart from these two counts, Gatecast measures nothing: no advertising or social media trackers, no session recordings, no heatmaps. (A video’s provider can see you once you press play, as described under <a href="#videos">videos</a>.)</p>
+      <p>The editor’s picks are also published <a href="/weekly/">week by week</a> and as an <a href="/feed.xml">RSS feed</a>; neither tells us who reads them. If you sign up for the weekly email, Buttondown keeps your address and sends the email for us, with its open and click tracking turned off, and every email has an unsubscribe link.</p>
+    </section>
+
     <section class="doc-section" id="brief" aria-labelledby="brief-title">
       <h2 id="brief-title">How The brief is chosen</h2>
-      <p>The brief on the front page is built from three things: the place you chose, the weather there, and your saved trips. It shows only the parts that have something in them. There is no hidden profile: the place and trips are stored in your browser, not on our servers.</p>
+      <p>The brief on the front page is built from four things: the place you chose, the weather there (National Weather Service alerts and the forecast at the airports near you), the US state that place is in, and a trip saved on this device, which only adds a note when an alert covers your departure. It shows only the parts that have something in them. There is no hidden profile: the place and trips are stored in your browser, not on our servers.</p>
       <div class="mt-2 grid grid-cols-[repeat(auto-fill,minmax(min(100%,--spacing(80)),1fr))] gap-3">
         <article class="doc-card">
           <h3>Weather news</h3>
@@ -171,6 +192,21 @@
       </details>
     </section>
 
+    <section class="doc-section" id="books" aria-labelledby="books-title">
+      <h2 id="books-title">How the books are chosen</h2>
+      <p>The Stacks, our library, holds real, published books chosen one by one by our editor. Six shelves are true stories: True Crime, Serial Killers · Case Files, Unsolved Mysteries, Weird History, Strange Science, and Cults &amp; Cons. Two, Fantasy &amp; Magic and Science Fiction Classics, are fiction: the classic novels the true stories sit beside, never presented as fact. Every shelf and book is also on a plain page: <a href="/stacks/">The Stacks, as a list</a>.</p>
+      <p>A book goes on a shelf when it tells its story well and fits that shelf. Being disputed does not rule a book out: some of the best-known true stories are also the most argued over, so we keep them and say what is disputed. Nobody pays for a place on a shelf.</p>
+      <dl class="doc-defs">
+        <div id="true-crime"><dt>True crime</dt><dd>Our true-crime shelves are chosen for the investigation and the victims, never to make killers famous: the books focus on the cases and the people who solved them. Every book on True Crime and Serial Killers · Case Files carries a content note, and a book whose usual cover shows a killer or a cult leader gets our own stand-in cover instead.</dd></div>
+        <div><dt>Titles, authors and years</dt><dd>Our editor checks the title, authors and year of every book. The year is when it first came out in book form; where a book was serialised first, has another title in another country or was later revised, we say so on its page. We compare our records with Open Library’s, and a cover is shown only when its title and author match ours.</dd></div>
+        <div><dt>Descriptions, content notes and “Worth knowing”</dt><dd>Every description is ours, written for Gatecast, never a publisher’s blurb. A content note says what a book describes, such as real killings, abuse or self-harm, so you can decide before you start. “Worth knowing” records a known, published dispute about a book’s accuracy or fairness, or something about its editions worth having before you look for a copy.</dd></div>
+        <div><dt>Shelf introductions and Gatecast’s take</dt><dd>Each shelf page opens with a short introduction, and some books have Gatecast’s take: why the book is on the shelf, what it does well, what to keep in mind and where to start. These are drafted with an AI assistant (Claude, made by Anthropic), then checked, edited as needed and approved by our editor before they appear. They keep to facts on the public record and never quote the books.</dd></div>
+        <div><dt>Books put forward by authors</dt><dd>Authors and publishers can suggest a book for the true-story shelves; the fiction shelves are the editor’s choice alone. The editor decides, and writes the description and notes; nothing from the pitch is published. A book that joins a shelf this way carries a small “Suggested by the author” or “Suggested by the publisher” note. See <a href="#put-forward">books put forward by authors</a> for what we keep and for how long.</dd></div>
+        <div><dt>Book of the Week</dt><dd>One book from the shelves, chosen by our editor with a one-line reason; nobody pays for the spot. See <a href="#book-of-the-week">Book of the Week</a>.</dd></div>
+        <div><dt>The links on each book</dt><dd>“Find at your library” is a WorldCat search for the title and author. “Buy at Bookshop.org” is a plain search on Bookshop.org, not an affiliate link, so we earn nothing from it. “Open Library record” goes to the book’s record there once the match is confirmed, and to an Open Library search until then. Covers load from Open Library; nothing else from these sites loads until you follow a link. Previews work differently: see <a href="#previews">book previews</a>.</dd></div>
+      </dl>
+    </section>
+
     <section class="doc-section" id="sources" aria-labelledby="sources-title">
       <h2 id="sources-title">Where the data comes from</h2>
       <p>Every source is free and public. Each has limits, and we would rather show nothing than guess.</p>
@@ -208,7 +244,7 @@
     <section class="doc-section" id="never" aria-labelledby="never-title">
       <h2 id="never-title">What Gatecast never does</h2>
       <ul class="grid gap-2 pl-4">
-        <li>Show news text written by AI. Headlines are the outlets’ own and quotes are word for word. An AI assistant may help a reviewer check quotes against their sources, and may draft the short hook line under a weird-news pick; nothing it writes is saved unless a person checks it, edits it as needed and approves it, and it never writes a headline, a summary or a quote.</li>
+        <li>Show news text written by AI. Headlines are the outlets’ own and quotes are word for word. An AI assistant may help a reviewer check quotes against their sources, and may draft the short hook line and the “In our words” summary for a weird-news pick, and The Stacks’ shelf introductions and Gatecast’s takes on books; nothing it writes is saved unless a person checks it, edits it as needed and approves it, and it never writes a headline or a quote.</li>
         <li>Sell your data. There are no accounts; your place and trips stay in your browser.</li>
         <li>Rank political items by clicks, or grade newsrooms as left, right or trustworthy.</li>
         <li>Show gates, scheduled times, delays or cancellations it cannot know. Delay information comes only from the FAA and is labelled as the FAA’s; the landing time is always marked as an estimate.</li>
@@ -225,8 +261,9 @@
   </main>
 
   <footer class="site-footer">
-    <p>Gatecast is a planning aid, not an official source. Check your airline for the status of your flight. <a href="/stacks/">The Stacks, as a list</a>. <a href="how.html" aria-current="page">How Gatecast works</a>.</p>
+    <p>Gatecast is a planning aid, not an official source. Check your airline for the status of your flight. <a href="/weekly/">Weird news, week by week</a>. <a href="/stacks/">The Stacks, as a list</a>. <a href="how.html" aria-current="page">How Gatecast works</a>.</p>
     <p>Forecasts: <a href="https://open-meteo.com/" rel="noopener">Open-Meteo</a> (CC BY 4.0). Radar: <a href="https://www.rainviewer.com/" rel="noopener">RainViewer</a>. Map: © <a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a> contributors. Live aircraft: <a href="https://adsb.lol/" rel="noopener">adsb.lol</a> (ODbL). Routes: <a href="https://www.adsbdb.com/" rel="noopener">adsbdb</a>. Observations: NOAA. US status and plans: FAA. Alerts: National Weather Service. Headlines and their pictures belong to the newsrooms named beside them.</p>
   </footer>
+  <script type="module" src="js/analytics.js"></script>
 </body>
 </html>

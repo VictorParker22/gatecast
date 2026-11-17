@@ -2,17 +2,19 @@
 // and an index (/stacks/), written into public/ by the build step (scripts/build-data.cjs) and rendered on request
 // by server.js locally. Everything on them comes from data/books.json (and, at build time, the books authors and
 // publishers put forward that the editor approved; see buildData): our descriptions, the "Worth knowing" caveats
-// and content notes, which until now only the 3D library (library.html) showed, through JavaScript. The pages need
+// and content notes, which until now only the 3D library (library.html) showed, through JavaScript, and Gatecast's
+// take on a book where it has one. Each shelf page also has an introduction, its own <title> and meta description
+// from data/shelf-intros.json (see INTRO_* below). The pages need
 // no script at all (the only inline scripts are the colour-scheme line every page has and JSON-LD), load nothing
 // from three.js, cannon or gsap, and embed nothing: a cover is the only third-party file (Open Library, hotlinked,
 // lazy, no referrer, never for the NO_COVER books), and an approved preview video or scan is a plain link out.
-// Indexing: the index and shelf pages are indexed and in sitemap.xml; a book page only once the book has the
-// owner's own `take` of TAKE_MIN_WORDS words or more (see below), otherwise it carries noindex, follow.
+// Indexing: the index and shelf pages are indexed and in sitemap.xml; a book page only once the book has a `take`
+// of TAKE_MIN_WORDS words or more (see below), otherwise it carries noindex, follow.
 // The links (WorldCat, Bookshop.org, Open Library) come from the same builders as the library (js/librarymodel.js),
 // and the stand-in cover uses the library's binding colours (js/stacks3d/model.js bookLook).
 // Styles: utilities (scanned by styles/main.css through @source) and styles/components/stacks-pages.css (bundled
 // into site-library.css by styles/main-library.css). Fixed wording lives in UI_TEXT so the tests can prove that
-// every other word on a page comes from books.json.
+// every other word on a page comes from books.json or shelf-intros.json.
 const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
@@ -23,14 +25,24 @@ const OG_IMAGE = SITE_ORIGIN + '/vendor/og/gatecast-og.png';
 const OG_ALT = 'Gatecast: weird news from real outlets, the weather on top, and a library of strange true stories.';
 const DESC_MAX = 155;
 const MORE_ON_SHELF = 6;
-// A book page is indexed (and listed in sitemap.xml) only when the book has a `take` in books.json: the owner's own
-// write-up, shown as "Why it’s on the shelf", of at least this many words. Without one the page is a short
+// A book page is indexed (and listed in sitemap.xml) only when the book has a `take` in books.json: Gatecast's own
+// write-up, approved by the editor and shown as "Gatecast’s take", of at least this many words (at most
+// TAKE_MAX_WORDS), with `takeDate`, the day it was written (YYYY-MM-DD). Without one the page is a short
 // description, so it is published with noindex, follow (readers and links still reach it; search engines are asked
-// not to list it). The index and the six shelf pages are always indexed.
+// not to list it). The index and every stocked shelf page are always indexed.
 const TAKE_MIN_WORDS = 150;
+const TAKE_MAX_WORDS = 300;
+// Shelf introductions (data/shelf-intros.json, keyed by shelf id): { title, description, updated, intro: [paragraphs] }.
+// The title replaces the shelf page's <title> (at most INTRO_TITLE_MAX characters), the description its meta
+// description (at most DESC_MAX), and the intro, INTRO_MIN_WORDS to INTRO_MAX_WORDS words, sits under the shelf's
+// note. A shelf with no entry keeps the plain title and its note as the description.
+const INTRO_TITLE_MAX = 60;
+const INTRO_MIN_WORDS = 120;
+const INTRO_MAX_WORDS = 250;
 
 const root = path.join(__dirname, '..');
 const DATA_FILE = path.join(root, 'data', 'books.json');
+const INTROS_FILE = path.join(root, 'data', 'shelf-intros.json');
 
 // The library's own logic is an ES module; load it once (dynamic import works from CommonJS on every Node >= 20).
 async function loadModel() {
@@ -39,6 +51,13 @@ async function loadModel() {
   return { ...lib, bookLook: s3d.bookLook };
 }
 const readData = () => JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+// The shelf introductions: data.intros when given (renderStacks reads the file once), otherwise the file, read fresh.
+const readIntros = () => JSON.parse(fs.readFileSync(INTROS_FILE, 'utf8'));
+const introsOf = (data) => (data && data.intros) || readIntros();
+const introFor = (shelf, data) => {
+  const e = introsOf(data).shelves?.[shelf.id];
+  return e && typeof e === 'object' ? e : null;
+};
 // Only shelves that have books get pages (a shelf added before its books are merged stays out, as in the library).
 const stocked = (data) => {
   const has = new Set(data.books.map((b) => b.shelf));
@@ -103,21 +122,49 @@ function metaDescription(text, max = DESC_MAX) {
 
 // The newest real date behind a book's page: when the list was checked, and any per-book date the data carries.
 function bookLastmod(book, data) {
-  const dates = [data.checked, book.checked, book.cover && book.cover.checked, book.preview && book.preview.checked].filter((d) => DATE.test(d || ''));
+  const dates = [data.checked, book.checked, book.cover && book.cover.checked, book.preview && book.preview.checked, book.take && book.takeDate].filter((d) => DATE.test(d || ''));
   return dates.sort().pop() || null;
 }
 const wordCount = (text) => (String(text || '').match(/[\p{L}\p{N}]+(?:[’'.-][\p{L}\p{N}]+)*/gu) || []).length;
 const takeParagraphs = (book) => (typeof book.take === 'string' ? book.take.split(/\n\s*\n/).map((p) => p.replace(/\s+/g, ' ').trim()).filter(Boolean) : []);
 const indexable = (book) => typeof book.take === 'string' && wordCount(book.take) >= TAKE_MIN_WORDS;
 const newest = (dates) => dates.filter(Boolean).sort().pop() || null;
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+// "2026-11-17" -> "17 November 2026" (a calendar day: no time zone involved).
+const longDate = (d) => (DATE.test(d || '') ? `${Number(d.slice(8, 10))} ${MONTHS[Number(d.slice(5, 7)) - 1]} ${d.slice(0, 4)}` : null);
+
+// What the build refuses (writeStacksPages): a take or a shelf introduction outside its limits, or a take with no
+// date. A shelf with no introduction is allowed (it keeps the plain page). Returns a list of problems.
+function contentErrors(data) {
+  const errors = [];
+  for (const b of data.books || []) {
+    if (b.take === undefined) continue;
+    const w = wordCount(b.take);
+    if (typeof b.take !== 'string' || w < 1) errors.push(`${b.id}: take must be text`);
+    else if (w > TAKE_MAX_WORDS) errors.push(`${b.id}: take is ${w} words (at most ${TAKE_MAX_WORDS})`);
+    if (!DATE.test(b.takeDate || '')) errors.push(`${b.id}: takeDate must be a date (YYYY-MM-DD)`);
+  }
+  for (const [id, e] of Object.entries(introsOf(data).shelves || {})) {
+    if (!(data.shelves || []).some((s) => s.id === id)) { errors.push(`shelf-intros: ${id} is not a shelf`); continue; }
+    if (typeof e.title !== 'string' || !e.title.trim() || e.title.length > INTRO_TITLE_MAX) errors.push(`shelf-intros ${id}: title must be 1 to ${INTRO_TITLE_MAX} characters`);
+    if (typeof e.description !== 'string' || !e.description.trim() || e.description.length > DESC_MAX) errors.push(`shelf-intros ${id}: description must be 1 to ${DESC_MAX} characters`);
+    if (!DATE.test(e.updated || '')) errors.push(`shelf-intros ${id}: updated must be a date`);
+    const paras = Array.isArray(e.intro) && e.intro.length && e.intro.every((p) => typeof p === 'string' && p.trim()) ? e.intro : null;
+    const w = paras ? wordCount(paras.join(' ')) : 0;
+    if (w < INTRO_MIN_WORDS || w > INTRO_MAX_WORDS) errors.push(`shelf-intros ${id}: intro must be ${INTRO_MIN_WORDS} to ${INTRO_MAX_WORDS} words in paragraphs (${w})`);
+  }
+  return errors;
+}
 
 // Sitemap entries for /stacks/, each shelf and each indexable book (see TAKE_MIN_WORDS), dated from the data (not
-// the build day). A shelf's date is its newest book's, listed or not, since the shelf page shows every book.
+// the build day). A shelf's date is its newest book's, listed or not, since the shelf page shows every book, or its
+// introduction's `updated` when that is newer.
 function stacksSitemapEntries(all = readData()) {
   const data = stocked(all);
   const byShelf = (id) => data.books.filter((b) => b.shelf === id);
   const books = data.books.filter(indexable).map((b) => ({ loc: pageUrl(b.id), lastmod: bookLastmod(b, data) }));
-  const shelves = data.shelves.map((s) => ({ loc: pageUrl(s.id), lastmod: newest([data.checked, ...byShelf(s.id).map((b) => bookLastmod(b, data))]) }));
+  const introDate = (s) => { const e = introFor(s, data); return e && DATE.test(e.updated || '') ? e.updated : null; };
+  const shelves = data.shelves.map((s) => ({ loc: pageUrl(s.id), lastmod: newest([data.checked, introDate(s), ...byShelf(s.id).map((b) => bookLastmod(b, data))]) }));
   const index = { loc: pageUrl(null), lastmod: newest([data.checked, ...data.books.map((b) => bookLastmod(b, data))]) };
   return [index, ...shelves, ...books];
 }
@@ -138,7 +185,7 @@ const UI_TEXT = [
   'Open it in The Stacks', 'Find at your library', 'Buy at Bookshop.org', 'Open Library record',
   'Library search by WorldCat. The Bookshop.org link is a plain search.',
   'Cover of', 'Cover: Open Library', 'Cover art not available. This is our stand-in.',
-  'Why it’s on the shelf', 'More on this shelf', 'All shelves', 'Watch', 'Look inside', 'Watch on YouTube', 'Watch on C-SPAN', 'Watch on PBS', 'Watch on Criterion', 'Opens on',
+  'Gatecast’s take', 'Written', ...MONTHS, 'More on this shelf', 'All shelves', 'Watch', 'Look inside', 'Watch on YouTube', 'Watch on C-SPAN', 'Watch on PBS', 'Watch on Criterion', 'Opens on',
   'Scanned pages at the Internet Archive', 'A preview at Google Books', 'Look inside at the Internet Archive', 'Look inside at Google Books',
   'Nothing from it loads on this page.',
   'book on this shelf', 'books on this shelf', ', first published in', ', first published between', 'and',
@@ -146,7 +193,7 @@ const UI_TEXT = [
   'All shelves and books', 'Every shelf and book in The Stacks, as a plain list.',
   'Real books on true crime, unsolved mysteries, weird history, strange science, cults and cons, beside classic fantasy and science fiction, picked by our editor and described in our own words.',
   'Open the 3D library', 'Every shelf and book in The Stacks: real books on true crime, unsolved mysteries, weird history, strange science, cults and cons, and classic fantasy and science fiction, described in our own words.',
-  'Titles, authors and dates are checked by our editor. Descriptions are written by us. Covers and records:', 'Open Library', 'How Gatecast works',
+  'Titles, authors and dates are checked by our editor. Descriptions are written by us. Covers and records:', 'Open Library', 'How the books are chosen', 'How Gatecast works',
   'Suggested by the author', 'Suggested by the publisher',
   'Where a book has a cover, your browser loads it from Open Library. Links to WorldCat, Bookshop.org, Open Library, YouTube, C-SPAN, PBS, Criterion, Google Books and the Internet Archive go to those sites; nothing from them loads here until you follow one.',
 ];
@@ -167,7 +214,7 @@ function shell({ title, description, id, ogType = 'website', ld = [], body, noin
   const url = pageUrl(id);
   const nav = NAV.map(([href, label, icon]) => `<li><a href="${href}"${label === 'Library' ? ' aria-current="true"' : ''}><svg class="site-nav__icon" viewBox="0 0 24 24" aria-hidden="true">${icon}</svg><span>${label}</span></a></li>`).join('\n        ');
   return `<!doctype html>
-<html lang="en">
+<html lang="en-GB">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -182,6 +229,7 @@ function shell({ title, description, id, ogType = 'website', ld = [], body, noin
   <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#07090d">
   <meta property="og:type" content="${ogType}">
   <meta property="og:site_name" content="Gatecast">
+  <meta property="og:locale" content="en_GB">
   <meta property="og:title" content="${esc(title)}">
   <meta property="og:description" content="${esc(description)}">
   <meta property="og:url" content="${url}">
@@ -193,7 +241,9 @@ function shell({ title, description, id, ogType = 'website', ld = [], body, noin
   <meta name="twitter:title" content="${esc(title)}">
   <meta name="twitter:description" content="${esc(description)}">
   <meta name="twitter:image" content="${OG_IMAGE}">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23111418'/%3E%3Cpath d='M9 25V14a7 7 0 0 1 14 0v11M16 18v7' stroke='%23fff' stroke-width='2.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="icon" href="/favicon.ico" sizes="48x48">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="preload" href="/vendor/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/vendor/fonts/alfa-slab-one-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/styles/site.css">
@@ -220,7 +270,7 @@ ${body}
   </main>
 
   <footer class="site-footer">
-    <p>Titles, authors and dates are checked by our editor. Descriptions are written by us. Covers and records: <a href="https://openlibrary.org/" rel="noopener">Open Library</a>. <a href="/how.html">How Gatecast works</a>.</p>
+    <p>Titles, authors and dates are checked by our editor. Descriptions are written by us. Covers and records: <a href="https://openlibrary.org/" rel="noopener">Open Library</a>. <a href="/how.html#books">How the books are chosen</a>. <a href="/how.html">How Gatecast works</a>.</p>
     <p>Where a book has a cover, your browser loads it from Open Library. Links to WorldCat, Bookshop.org, Open Library, YouTube, C-SPAN, PBS, Criterion, Google Books and the Internet Archive go to those sites; nothing from them loads here until you follow one.</p>
   </footer>
 </body>
@@ -368,8 +418,9 @@ function bookPage(book, data, m) {
         <p class="stk-desc">${esc(book.description)}</p>
         ${notes.join('\n        ')}${take.length ? `
         <section class="stk-take" aria-labelledby="take-title">
-          <h2 id="take-title" class="stk-take__title">Why it’s on the shelf</h2>
-          ${take.map((p) => `<p>${esc(p)}</p>`).join('\n          ')}
+          <h2 id="take-title" class="stk-take__title">Gatecast’s take</h2>
+          ${take.map((p) => `<p>${esc(p)}</p>`).join('\n          ')}${longDate(book.takeDate) ? `
+          <p class="stk-small text-np-muted">Written <time datetime="${book.takeDate}">${longDate(book.takeDate)}</time></p>` : ''}
         </section>` : ''}
         <ul class="stk-tags" aria-label="Topics">
           ${book.tags.map((t) => `<li>${esc(t)}</li>`).join('')}
@@ -413,6 +464,9 @@ function shelfIntro(books) {
 
 function shelfPage(shelf, data, m) {
   const books = data.books.filter((b) => b.shelf === shelf.id);
+  const intro = introFor(shelf, data);
+  const paras = intro && Array.isArray(intro.intro) ? intro.intro.map((p) => String(p).replace(/\s+/g, ' ').trim()).filter(Boolean) : [];
+  const description = intro && intro.description ? intro.description : metaDescription(shelf.note);
   const trail = crumbs([{ name: shelf.name, path: pagePath(shelf.id) }]);
   const others = data.shelves.filter((s) => s.id !== shelf.id);
   const body = `${trail.html}
@@ -420,8 +474,11 @@ function shelfPage(shelf, data, m) {
     <section class="stk-head" aria-labelledby="shelf-title">
       <p class="stk-kicker">The Stacks</p>
       <h1 id="shelf-title" class="stk-title">${esc(shelf.name)}</h1>
-      <p class="stk-lede">${esc(shelf.note)}</p>
-      <p class="stk-intro">${esc(shelfIntro(books))}</p>
+      <p class="stk-lede">${esc(shelf.note)}</p>${paras.length ? `
+      <div class="stk-intro grid gap-3">
+        ${paras.map((p) => `<p>${esc(p)}</p>`).join('\n        ')}
+      </div>` : ''}
+      <p class="stk-intro text-sm text-np-muted">${esc(shelfIntro(books))}</p>
       <div class="stk-actions"><a class="btn btn--primary" href="/library.html#shelf=${encodeURIComponent(shelf.id)}">Open this shelf in The Stacks</a></div>
     </section>
 
@@ -441,14 +498,15 @@ function shelfPage(shelf, data, m) {
     </nav>`;
   const ld = {
     '@context': 'https://schema.org', '@type': 'CollectionPage',
-    name: `${shelf.name} — The Stacks`, description: shelf.note, url: pageUrl(shelf.id), inLanguage: 'en',
+    name: `${shelf.name} — The Stacks`, description, url: pageUrl(shelf.id), inLanguage: 'en-GB',
     isPartOf: { '@type': 'WebSite', name: 'Gatecast', url: SITE_ORIGIN + '/' },
     mainEntity: {
       '@type': 'ItemList', numberOfItems: books.length,
       itemListElement: books.map((b, i) => ({ '@type': 'ListItem', position: i + 1, url: pageUrl(b.id), name: b.title })),
     },
   };
-  return shell({ title: `${shelf.name} books — The Stacks · Gatecast`, description: metaDescription(shelf.note), id: shelf.id, ld: [ld, trail.ld], body });
+  const title = intro && intro.title ? intro.title : `${shelf.name} books — The Stacks · Gatecast`;
+  return shell({ title, description, id: shelf.id, ld: [ld, trail.ld], body });
 }
 
 /* ---------- The index ---------- */
@@ -482,7 +540,7 @@ ${shelves}`;
   const description = 'Every shelf and book in The Stacks: real books on true crime, unsolved mysteries, weird history, strange science, cults and cons, and classic fantasy and science fiction, described in our own words.';
   const ld = {
     '@context': 'https://schema.org', '@type': 'CollectionPage',
-    name: 'The Stacks', description, url: pageUrl(null), inLanguage: 'en',
+    name: 'The Stacks', description, url: pageUrl(null), inLanguage: 'en-GB',
     isPartOf: { '@type': 'WebSite', name: 'Gatecast', url: SITE_ORIGIN + '/' },
     mainEntity: {
       '@type': 'ItemList', numberOfItems: data.shelves.length,
@@ -516,7 +574,8 @@ ${shelves}
 /* ---------- Everything ---------- */
 
 // Every page as { id, path, file, html }: the index, the shelves, the books. Throws if an id would collide.
-function renderStacks(all, m) {
+function renderStacks(given, m) {
+  const all = given.intros ? given : { ...given, intros: readIntros() }; // read once for every page
   const data = stocked(all);
   const ids = [...all.shelves.map((s) => s.id), ...all.books.map((b) => b.id)]; // every shelf, with books or not
   const dup = ids.find((id, i) => ids.indexOf(id) !== i);
@@ -533,8 +592,8 @@ function renderStacks(all, m) {
 async function writeStacksPages(outDir, given) {
   const m = await loadModel();
   const data = given || await buildData({ m });
-  const errors = m.validate(data);
-  if (errors.length) throw new Error('data/books.json does not validate:\n' + errors.join('\n'));
+  const errors = [...m.validate(data), ...contentErrors(data)];
+  if (errors.length) throw new Error('data/books.json or data/shelf-intros.json does not validate:\n' + errors.join('\n'));
   const pages = renderStacks(data, m);
   for (const p of pages) {
     const file = path.join(outDir, p.file);
@@ -562,7 +621,8 @@ async function pageFor(urlPath) {
 }
 
 module.exports = {
-  SITE_ORIGIN, OG_IMAGE, OG_ALT, DESC_MAX, MORE_ON_SHELF, TAKE_MIN_WORDS, UI_TEXT, wordCount, takeParagraphs, indexable,
+  SITE_ORIGIN, OG_IMAGE, OG_ALT, DESC_MAX, MORE_ON_SHELF, TAKE_MIN_WORDS, TAKE_MAX_WORDS, INTRO_TITLE_MAX, INTRO_MIN_WORDS, INTRO_MAX_WORDS,
+  UI_TEXT, MONTHS, wordCount, takeParagraphs, indexable, longDate, contentErrors, readIntros, introFor,
   loadModel, readData, buildData, stocked, esc, pagePath, pageUrl, firstSentence, metaDescription, bookLastmod, stacksSitemapEntries, siblings, shelfIntro,
   bookPage, shelfPage, indexPage, renderStacks, writeStacksPages, pageFor, noscriptHtml,
 };

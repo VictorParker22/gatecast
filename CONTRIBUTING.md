@@ -1,6 +1,6 @@
 # Contributing to Gatecast
 
-Thanks for helping. Gatecast tells travellers, in one plain sentence, whether the weather is likely to disrupt their flight or connection. Every change should make that answer clearer, more honest or faster to reach.
+Thanks for helping. Gatecast is weird news from real outlets, each story linked to the original, with the weather where you are told in plain words, The Stacks (a library of strange true stories and classic fiction) and small weather checks for flights and connections. Every change should make the page more honest, clearer or faster to read: real sources, plain words, nothing made up.
 
 ## Set up
 
@@ -36,7 +36,7 @@ Pure logic lives in modules with no DOM and no network so it can be tested with 
 
 ## Code style
 
-- Plain JavaScript modules and CSS, no framework and no bundler.
+- Plain JavaScript modules and CSS, no framework. The one bundle is The Stacks (`library.html`): at build time `scripts/build-js.cjs` bundles and minifies its scripts with esbuild; in development they run unbundled through the import map.
 - Two-space indentation, single quotes in JavaScript, LF line endings, a final newline. `.editorconfig` sets this up in most editors.
 - Keep comments short and about why, not what.
 - Do not edit `vendor/`; those are third-party files with their own licences.

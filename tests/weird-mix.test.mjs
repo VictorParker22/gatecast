@@ -230,3 +230,26 @@ test('the shared round does not read disabled feeds; the debug round does', asyn
   await weird.loadRound({ fetchImpl, readDisabled: true, dbPicks: [], picks: [] });
   for (const s of off) assert.ok(seen.includes(s.feed), `${s.name} is read for debug`);
 });
+
+test('an outlet with pageReads off (UPI: its pages answer with a bot check) never has an article page read', async () => {
+  const upi = require('../data/weird-sources.json').sources.find((s) => s.id === 'upi-odd');
+  assert.equal(upi.pageReads, false);
+  const story = (src) => ({
+    title: 'A video story with no feed picture', url: 'https://www.upi.com/Odd_News/2026/11/17/fixture/1234567890/',
+    outlet: 'UPI', outletUrl: src.home, published: Date.UTC(2026, 10, 17), category: 'animals', pick: false, video: true, image: null, src,
+  });
+  const asked = [];
+  const fetchImpl = async (url) => { asked.push(String(url)); throw new Error('no page may be read'); };
+  const off = await respond({ pool: [story(normaliseSource(upi))], report: [] }, parseQuery(new URLSearchParams()), { fetchImpl, lookupImpl, pageCache: false });
+  assert.deepEqual(asked, []);
+  assert.equal(off.items[0].image, null);
+  assert.deepEqual(off.items[0].media, { video: null });
+  // The same story from an outlet that allows page reads: its page is read for the og:image.
+  const page = '<html><head><meta property="og:image" content="https://cdnph.upi.com/fixture/page.jpg"></head><body>NEVER-SHOW</body></html>';
+  const reads = [];
+  const pageFetch = async (url) => { reads.push(String(url)); return { ok: true, status: 200, headers: new Headers({ 'content-type': 'text/html' }), text: async () => page, body: null }; };
+  const on = await respond({ pool: [story(normaliseSource({ ...upi, pageReads: undefined }))], report: [] }, parseQuery(new URLSearchParams()), { fetchImpl: pageFetch, lookupImpl, pageCache: false });
+  assert.ok(reads.some((u) => u.includes('/Odd_News/2026/11/17/fixture/')));
+  assert.equal(on.items[0].image, 'https://cdnph.upi.com/fixture/page.jpg');
+  assert.ok(!JSON.stringify(on).includes('NEVER-SHOW'));
+});
