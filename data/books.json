@@ -7,7 +7,9 @@
     { "id": "unsolved", "name": "Unsolved Mysteries", "chip": "Unsolved mysteries", "object": "candle", "note": "Cases and questions that still have no settled answer, or took decades to get one." },
     { "id": "history", "name": "Weird History", "chip": "Weird history", "object": "glass", "note": "Manias, disasters and odd chapters of the past that really happened." },
     { "id": "science", "name": "Strange Science", "chip": "Strange science", "object": "flask", "note": "Bodies, brains, poisons and elements, from writers who make lab work readable." },
-    { "id": "cults", "name": "Cults & Cons", "chip": "Cults & cons", "object": "hat", "note": "Swindles, scams and groups that took people in, and how they came apart." }
+    { "id": "cults", "name": "Cults & Cons", "chip": "Cults & cons", "object": "hat", "note": "Swindles, scams and groups that took people in, and how they came apart." },
+    { "id": "fantasy", "name": "Fantasy & Magic", "chip": "Fantasy", "object": "dragon", "fiction": true, "note": "Invented worlds with maps, magic and long roads: the classics most fantasy shelves start from. Novels, not true stories." },
+    { "id": "scifi", "name": "Science Fiction Classics", "chip": "Sci-fi", "object": "rocket", "fiction": true, "note": "Rockets, robots and other worlds, imagined by the writers the genre grew from. Novels, not true stories." }
   ],
   "books": [
     {

@@ -27,6 +27,7 @@ const { api, parseFaa, FAA_PLANS_CACHE } = require('./lib/live.js');
 const news = require('./lib/news.js');
 const weird = require('./lib/weird.js');
 const books = require('./lib/books.js');
+const stacks = require('./lib/stacks-db.js');
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
@@ -52,6 +53,12 @@ const server = http.createServer(async (req, res) => {
       return send(200, JSON.stringify(out), TYPES['.json'], { 'Cache-Control': books.cacheControlFor(out) });
     }
     catch (err) { return send(502, JSON.stringify({ error: 'upstream unavailable' }), TYPES['.json'], { 'Cache-Control': 'no-store' }); }
+  }
+  if (url.pathname === '/api/books') {
+    try {
+      const out = await stacks.booksFor();
+      return send(200, JSON.stringify(out.body), TYPES['.json'], { 'Cache-Control': out.cacheControl });
+    } catch (err) { return send(502, JSON.stringify({ error: 'upstream unavailable' }), TYPES['.json'], { 'Cache-Control': 'no-store' }); }
   }
   if (url.pathname === '/api/weird') {
     try {

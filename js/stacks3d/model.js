@@ -60,8 +60,15 @@ export const BAY = {
 };
 BAY.inner = BAY.width - 2 * BAY.side;
 BAY.pitch = BAY.width + BAY.gap;
-// The world rectangle the camera fits into the page's reserved frame: n bays plus a margin.
-export const frameWorld = (n) => ({ w: spanOf(n) + 0.08, h: BAY.height + 0.03 });
+// Room kept above the cases for the Book of the Week on its stand and the figurines on the cornices (m).
+export const HEADROOM = 0.36;
+// The world rectangle the camera fits into the page's reserved frame: n bays plus a margin, from just under the
+// floor to the headroom over the cornices. Its centre height is FRAME_CY (the camera looks at it level).
+export const frameWorld = (n) => ({ w: round3(spanOf(n) + 0.08), h: round3(BAY.height + HEADROOM + 0.03) });
+export const FRAME_CY = round3((BAY.height + HEADROOM) / 2);
+// The frame shapes the stylesheet reserves (.lib-cases aspect-ratio, styles/components/library.css), widest first:
+// 4 bays from 1100px, 3 from 940px, 2 from 600px, 1 below. Tested against the CSS.
+export const MAX_BAYS = 4;
 
 export const bayX = (i, count = 6) => round3((i - (count - 1) / 2) * BAY.pitch);
 // Width of n bays side by side.
@@ -116,6 +123,56 @@ export function frameCamera({ canvasW, canvasH, rect, worldW, worldH, fov }) {
   const ndcX = (2 * (rect.x + rect.w / 2)) / canvasW - 1;
   const ndcY = 1 - (2 * (rect.y + rect.h / 2)) / canvasH;
   return { distance, shiftX: ndcX, shiftY: ndcY, perPx };
+}
+
+// How many bays fit the reserved frame (w x h CSS px): the most bays, up to MAX_BAYS, whose world rectangle is no
+// wider in shape than the frame (5% slack for rounding in the stylesheet's aspect ratios).
+export function fitBays(w, h, max = MAX_BAYS) {
+  const ar = w / Math.max(1, h);
+  for (let n = max; n > 1; n--) { const f = frameWorld(n); if (f.w / f.h <= ar * 1.05) return n; }
+  return 1;
+}
+
+// How many bays to show at once, given how many fit and how many shelves there are: as few pages as possible, then
+// pages that divide the shelves evenly (no bay shown on two pages), then the wider view. 8 shelves in a 4-wide frame
+// are two pages of 4; 6 shelves in the same frame are two pages of 3, not 4 + an overlapping 4.
+export function visibleBays(fit, count) {
+  const n = Math.max(1, count | 0);
+  const top = Math.max(1, Math.min(fit | 0, n));
+  let best = top, bestKey = null;
+  for (let v = top; v >= Math.max(1, top - 1); v--) {
+    const pages = Math.ceil(n / v), waste = pages * v - n;
+    const key = [pages, waste, -v];
+    if (!bestKey || key[0] < bestKey[0] || (key[0] === bestKey[0] && (key[1] < bestKey[1] || (key[1] === bestKey[1] && key[2] < bestKey[2])))) { best = v; bestKey = key; }
+  }
+  return best;
+}
+
+// Where the Book of the Week stands: on the cornices at the centre of the first page, so it is the first thing in
+// view at every width (on top of bay 0 on a phone, bay 1 of three, straddling bays 1 and 2 of four). `bay` is the
+// bay whose page shows it.
+export function featuredSpot(visible, count) {
+  const v = Math.max(1, Math.min(visible, count));
+  return { x: windowX(0, v, count), bay: Math.floor((v - 1) / 2) };
+}
+
+// Which end of its cornice a bay's figurine stands on: away from the Book of the Week (-1 left, +1 right), so the
+// two never touch. Bays left of the stand put theirs on the left; the bay under it and those to the right, right.
+export function figurineSide(i, count, featuredX) {
+  return bayX(i, count) < featuredX - 1e-6 ? -1 : 1;
+}
+
+// The picture lamps over the cases, as offsets from the middle of the window in bay pitches: one over each bay in
+// view (up to four), and the spare ones over the next bays out, so a pan never slides into the dark.
+export function lampOffsets(visible, lamps = 4) {
+  const v = Math.max(1, Math.min(visible, lamps));
+  const own = Array.from({ length: v }, (_, k) => k - (v - 1) / 2);
+  const spare = [];
+  for (let d = 1; own.length + spare.length < lamps; d++) {
+    spare.push((v - 1) / 2 + d);
+    if (own.length + spare.length < lamps) spare.push(-(v - 1) / 2 - d);
+  }
+  return [...own, ...spare];
 }
 
 // Which bays a window of `visible` bays shows so that bay `index` is in it, as the index of the first bay.

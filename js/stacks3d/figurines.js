@@ -1,0 +1,79 @@
+// The Stacks in 3D: one figurine on top of each bookcase (assets/figurines/<shelfId>.glb), standing on the cornice
+// at the end away from the Book of the Week (model.js figurineSide). Pure: the tuning table and the maths that
+// fits a model of any size onto a cornice. The loading (GLTFLoader, meshopt and Draco decoders) is in index.js,
+// lazily, after the room is interactive, on the 3D tiers only; a missing or broken file leaves the case as it was.
+//
+// TUNING TABLE (the lead adjusts these when the real files land; units are metres in the room):
+//   file    the GLB under assets/figurines/, or null until it exists (null = no request at all, so no 404s;
+//           ?figurines=try on library.html requests assets/figurines/<shelfId>.glb for every shelf, for testing)
+//   height  how tall the figurine stands; the model is scaled so its bounding box is this tall (a case is 0.94 m,
+//           its books 0.22 to 0.30 m; the headroom over the cornice is 0.36 m and the Book of the Week uses ~0.33)
+//   maxW    the widest it may be across the case (x) or deep (z); if the box is wider, it is scaled down to fit
+//   scale   a final multiplier after the fit (1 = as fitted)
+//   y       lift above the cornice top (m), for models whose base is not at the bottom of their box
+//   x       nudge toward the middle of the cornice (m, positive = inward), after the end it stands on is chosen
+//   rotY    turn about the vertical (radians). glTF models face +Z, toward the visitor; with mirror (the default) a
+//           positive rotY turns the figurine toward the middle of its case whichever end it stands on (about 0.3
+//           reads best); with mirror: false it is applied as is (positive = counter-clockwise seen from above)
+export const FIGURINE_DIR = 'assets/figurines/';
+
+export const FIGURINES = {
+  crime: { file: null, height: 0.15, maxW: 0.2, scale: 1, y: 0, x: 0, rotY: 0.35, mirror: true }, // brass magnifying glass on case folders
+  serial: { file: null, height: 0.13, maxW: 0.2, scale: 1, y: 0, x: 0, rotY: 0.3, mirror: true }, // 1950s typewriter
+  unsolved: { file: null, height: 0.16, maxW: 0.16, scale: 1, y: 0, x: 0, rotY: 0.4, mirror: true }, // ship in a bottle
+  history: { file: null, height: 0.17, maxW: 0.12, scale: 1, y: 0, x: 0, rotY: 0, mirror: false }, // hourglass
+  science: { file: null, height: 0.19, maxW: 0.14, scale: 1, y: 0, x: 0, rotY: 0.5, mirror: true }, // brass microscope
+  cults: { file: null, height: 0.15, maxW: 0.18, scale: 1, y: 0, x: 0, rotY: 0.3, mirror: true }, // magician's top hat and cards
+  fantasy: { file: null, height: 0.2, maxW: 0.2, scale: 1, y: 0, x: 0, rotY: 0.45, mirror: true }, // bronze dragon on old books
+  scifi: { file: null, height: 0.21, maxW: 0.12, scale: 1, y: 0, x: 0, rotY: 0.2, mirror: true }, // retro tin rocket
+};
+// Any shelf without an entry (a shelf added later) gets these, with the default file name.
+export const FIGURINE_DEFAULT = { file: null, height: 0.16, maxW: 0.18, scale: 1, y: 0, x: 0, rotY: 0.3, mirror: true };
+// How far from the middle of the cornice a figurine stands (m); the cornice's top is ±0.365 wide.
+export const FIGURINE_INSET = 0.235;
+// A file bigger than this is not used (bytes): the perf budget is ~400 KB per figurine.
+export const FIGURINE_MAX_BYTES = 600 * 1024;
+
+const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const FILE = /^[a-z0-9]+(?:[-_][a-z0-9]+)*\.glb$/;
+
+// The figurine to load for a shelf, or null. `tryAll`: request <shelfId>.glb even where the table has no file yet.
+export function figurineFor(shelfId, { tryAll = false, table = FIGURINES } = {}) {
+  if (!SLUG.test(String(shelfId || ''))) return null;
+  const t = { ...FIGURINE_DEFAULT, ...(Object.hasOwn(table, shelfId) ? table[shelfId] : {}) };
+  const file = t.file || (tryAll ? `${shelfId}.glb` : null);
+  if (!file || !FILE.test(file)) return null;
+  const num = (v, d, lo, hi) => (Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : d);
+  return {
+    url: FIGURINE_DIR + file,
+    height: num(t.height, 0.16, 0.03, 0.34),
+    maxW: num(t.maxW, 0.18, 0.03, 0.3),
+    scale: num(t.scale, 1, 0.1, 3),
+    y: num(t.y, 0, -0.1, 0.2),
+    x: num(t.x, 0, -0.2, 0.2),
+    rotY: num(t.rotY, 0, -Math.PI * 2, Math.PI * 2),
+    mirror: t.mirror !== false,
+  };
+}
+
+// How to place a model whose bounding box (after rotation) is `box` ({ min: {x,y,z}, max: {x,y,z} }, any units)
+// so it stands `t.height` tall (or less, to keep within t.maxW across and deep), times t.scale, its base on y = 0
+// and its middle on x = z = 0. Returns { scale, offset: { x, y, z } }: put the model in a group, set its scale,
+// then its position to offset (in the group's units, i.e. already scaled). null for an empty or flat box.
+export function fitFigurine(box, t) {
+  const sx = box.max.x - box.min.x, sy = box.max.y - box.min.y, sz = box.max.z - box.min.z;
+  if (![sx, sy, sz].every(Number.isFinite) || sy <= 1e-9) return null;
+  let s = t.height / sy;
+  const wide = Math.max(sx, sz) * s;
+  if (wide > t.maxW) s *= t.maxW / wide;
+  s *= t.scale ?? 1;
+  return {
+    scale: s,
+    offset: { x: -((box.min.x + box.max.x) / 2) * s, y: -box.min.y * s + (t.y || 0), z: -((box.min.z + box.max.z) / 2) * s },
+  };
+}
+
+// Where on the cornice (x relative to the bay's centre) and which way it turns, for the end it stands on.
+export function figurinePose(t, side) {
+  return { x: side * (FIGURINE_INSET - (t.x || 0)), rotY: t.mirror ? -side * t.rotY : t.rotY };
+}
