@@ -33,8 +33,8 @@ const todayEl = $('#today');
 const findEl = $('#wx-find');
 const changeBtn = $('#wx-change');
 const FIRST_HTML = heroEl.innerHTML; // the first-visit prompt as index.html wrote it
-// On a phone the weather box folds to its title bar (with the temperature once known) so the news leads the first
-// screen; the button opens it. Wider screens never fold (the button is hidden there by the stylesheet).
+// The weather box folds to its title bar (with the temperature once known) on every screen, so the news leads the
+// first screen; the button opens it, and choosing a place keeps it open.
 const boxEl = $('#wxbox');
 const foldBtn = $('#wx-fold');
 const miniEl = $('#wx-mini');
