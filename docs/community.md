@@ -6,13 +6,13 @@ These features let readers take part on the weird-news front page and let the ow
 |---|---|---|
 | **Weird-o-meter** | Rates the lead story from 1 (mildly odd) to 5 (totally bonkers). One vote per visitor per story; voting again changes it. | `public.weird_votes`, written through the `community` Edge Function |
 | **Guestbook** ("Sign the guestbook") | Sends a link to a weird story from a real outlet, with an optional one-line note. A person reads every tip. | `public.weird_tips`, written through the `community` Edge Function, read in the reviewer console |
-| **Editor's picks** | Nothing: the owner adds, edits, publishes and withdraws picks in the reviewer console, each with an optional hook line under the headline. Visitors see published picks. | `public.weird_picks`, read by the site with the publishable key (`lib/picks-db.js`) |
+| **Editor's picks** | Nothing: the owner adds, edits, publishes and withdraws picks in the reviewer console, each with an optional hook line under the headline and an optional 2–4 sentence summary in the editor's own words ("In our words" in story mode). Visitors see published picks. | `public.weird_picks`, read by the site with the publishable key (`lib/picks-db.js`) |
 | **Favourites row** | Nothing directly: the row under the lead is the editor's picks in the editor's order, until a story has 10+ Weird-o-meter votes in the past 7 days; such stories rank first by readers' votes. | `public.weird_favourites()`, through the `community` function |
 | **Books put forward** (The Stacks) | An author or their publisher puts a book forward with a form at the end of The Stacks. The editor reads every one, and approves it by writing the shelf text, or rejects it. Approved books carry "Suggested by the author" (or "by the publisher"). | `public.stacks_submissions` through the `community` function; `public.stacks_books`, read by `/api/books` |
 | **Book of the Week** | Nothing: the editor picks any book on the shelves, with a one-line reason, in the console. It shows within about 5 minutes and stays until the next pick. | `public.stacks_featured`, read by `/api/books` |
 | **Click totals** | Following a weird story's link adds one to that story's anonymous total for the day (skipped under Do Not Track or Global Privacy Control). Only the editor sees the totals; they rank nothing. | `public.weird_clicks`, written through the `community` function, read in the reviewer console |
 
-The database migrations are `supabase/migrations/20261116160000_weird_community.sql`, `20261117090000_reader_favourites.sql` (favourites, the 140-character hook, clicks) and `20261117120000_stacks_submissions.sql` (books put forward, the Book of the Week; written, not applied yet); the function is `supabase/functions/community/` (pure logic in `logic.mjs`, tested by `tests/community.test.mjs`); the browser module is `js/community.js`. Hook lines can be drafted by the reviewer assistant (`draft_hook`, `docs/assist.md`).
+The database migrations are `supabase/migrations/20261116160000_weird_community.sql`, `20261117170000_pick_summary.sql` (the summary and videos from any provider; written, not applied yet), `20261117090000_reader_favourites.sql` (favourites, the 140-character hook, clicks) and `20261117120000_stacks_submissions.sql` (books put forward, the Book of the Week; written, not applied yet); the function is `supabase/functions/community/` (pure logic in `logic.mjs`, tested by `tests/community.test.mjs`); the browser module is `js/community.js`. Hook lines and summaries can be drafted by the reviewer assistant (`draft_hook`, `draft_summary`, `docs/assist.md`).
 
 ## The 50-vote rule
 
@@ -51,7 +51,7 @@ How it works:
 - IPv6 addresses are cut to their /64, because one home or phone usually holds a whole /64 and can rotate the rest at will. Several people behind one address (an office, a school, a mobile carrier's NAT) share one vote per story. That is the accepted cost of not having accounts.
 - Reviewers can read a tip's link, note, time and status, but **not** its hash (column-level grant). Visitors' notes are never published or sent to the assistant; a pick's hook is written by a reviewer or drafted by Claude from the outlet's headline, and a reviewer checks, edits and approves every one.
 - Tipped links are **never fetched** by Gatecast. The console opens them in the reviewer's own browser, in a new tab, with `rel="noopener noreferrer"`.
-- **Clicks** are sent only from the front page's weird-story links (ticker, lead, favourites, Also odd, the grid), as the link opens: a keepalive `fetch` (or `sendBeacon` where that is missing) with the story's normalised address as the whole body, no credentials and no referrer. It is never waited for and never stops the link. Nothing is sent when the browser has Do Not Track (`navigator.doNotTrack`, `window.doNotTrack`, `navigator.msDoNotTrack`) or Global Privacy Control (`navigator.globalPrivacyControl`) on. Clicks on The brief's headlines are not counted, and click totals never rank anything on the site.
+- **Clicks** are sent only when a reader follows a link to a weird story's original: the lead's "Read it at <outlet>", a card's "Read at <outlet>", and story mode's "Read the full story at <outlet>" (since 17 Nov 2026 a story's headline opens it on Gatecast, in story mode, and is not counted), as the link opens: a keepalive `fetch` (or `sendBeacon` where that is missing) with the story's normalised address as the whole body, no credentials and no referrer. It is never waited for and never stops the link. Nothing is sent when the browser has Do Not Track (`navigator.doNotTrack`, `window.doNotTrack`, `navigator.msDoNotTrack`) or Global Privacy Control (`navigator.globalPrivacyControl`) on. Clicks on The brief's headlines are not counted, and click totals never rank anything on the site.
 
 ### Retention
 
@@ -145,7 +145,7 @@ None of them throws. The visitor's own votes are remembered in `localStorage` (`
 
 Picks are curated in the reviewer console (`review.html` → Weird news → Picks): link, the outlet's own headline, outlet, the date the outlet published it, category, an optional weird rating (the editor's opinion, 1–5), an optional **hook** (≤140 characters), shown under the headline on the front page, and optional **media**: "Video (YouTube link)" and "Picture (link to the image)" (see Pick media below). A pick is a **draft** until published; **withdrawn** takes it off the page without deleting it. Only reviewers can publish, edit a published pick or withdraw one (a trigger enforces this even for the service key), and a published pick must be withdrawn before it can be deleted. Every publish, withdraw, edit-while-published and delete is logged in `private.weird_picks_log` and shown in the console.
 
-Visitors (the publishable key) can read only published picks, and only the columns a page needs. `lib/picks-db.js` reads them for the site as `{ url, title, outlet, published, category, rating, note, videoId, imageUrl }`, the same shape as `data/weird-picks.json`, and returns `[]` on any failure so the site can fall back to the file. Until the pick-media migration is applied the database refuses the two media columns; the picks are then read again without them.
+Visitors (the publishable key) can read only published picks, and only the columns a page needs. `lib/picks-db.js` reads them for the site as `{ url, title, outlet, published, category, rating, note, videoId, imageUrl, video, summary }` (`video` is `{ provider, ref }`), the same shape as `data/weird-picks.json`, and returns `[]` on any failure so the site can fall back to the file. Until a migration is applied the database refuses its new columns; the picks are then read again with the columns of the migration before it (summary and provider video, then picture and YouTube id, then neither).
 
 ### Pick media
 
@@ -159,6 +159,25 @@ In the pick form (`js/review.js`, rules in `js/storymedia.js` and `js/reviewmode
 - The front page shows the picture (with a small "Has video" control when there is a video too), else the video's click-to-play still, else the story text-led.
 
 Tips feed picks: **Accept** on a tip starts a new pick draft with the tip's link. The headline, outlet and date are then copied from the story itself, and the hook is the reviewer's (see Hook lines).
+
+### Pick summary and videos from any provider
+
+`supabase/migrations/20261117170000_pick_summary.sql` (written 17 Nov 2026, not applied yet) adds:
+
+- `weird_picks.summary`: the editor's own summary, 1–700 characters, or null. Shown in story mode under the label "In our words", never on a feed story.
+- `weird_picks.video_provider` (`youtube`, `vimeo`, `facebook`, `x`, `tiktok` or `instagram`) and `weird_picks.video_ref` (the provider's reference in the shape `js/mediaproviders.js` writes: a YouTube id, a Vimeo number, a public Facebook video address, an X post number, `account/number` for TikTok, `reel/<code>` for Instagram), set together or both null. Existing `video_id` rows are copied to `youtube` (with the guard switched off for that one copy, so nothing is logged and `updated_at` does not move). `video_id` is kept for one release and stays readable: the console still writes it for a YouTube video, and the site reads `video_provider`/`video_ref` first.
+
+Visitors read all three on published picks, and a change to any of them on a published pick is an edit (reviewers only, logged): `private.weird_picks_guard()` is replaced with the pick-media version plus the three columns in its comparison.
+
+In the pick form: a single **Media: paste any link** box puts a video link (any of the six providers) in the Video field and any other https link in the Picture field; the Video field takes all the providers' link forms (`docs/content-sources.md` has the table) with a live preview of the facade (Gatecast's still, or Gatecast's poster for Facebook, X and Instagram). Before the migration is applied, a pick without a summary and with a YouTube video (or none) still saves; otherwise the console says the migration is needed.
+
+### Summaries ("In our words")
+
+Owner decision (17 Nov 2026): **picks get a 2–4 sentence summary in the editor's own words; Claude can draft it, and the editor edits and approves every one**, like the hook lines. Feed stories show the headline, the picture or video and the read-more button only. In the pick form, "Summary (your words, 2–4 sentences)" has:
+
+- a live checklist (`summaryChecks()` in `js/summaryrules.js`, the same file the assistant deploys as `summaryrules.mjs`): at most 700 characters, 2 to 4 sentences, no run of 8 or more words in a row that is also in the headline, and none from the story page when Claude has read it (the assistant sends back the page's 8-word runs hashed, `page_grams`, never its text) — all hard rules, also checked on Save; ending with a full stop and no exclamation marks are warnings;
+- **Notes for Claude** (not saved): facts the editor knows, in their own words, for outlets whose pages cannot be read (UPI's bot wall);
+- **Draft with Claude** (`draft_summary`), with "Let Claude read the story page"; up to 2 drafts, each already re-checked on the server (and against the notes too). Clicking one puts it in the field; nothing is saved until the reviewer presses Save, and a summary is public only on a published pick.
 
 ## Hook lines
 

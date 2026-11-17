@@ -5,19 +5,23 @@
 // Deployed with verify_jwt on, so Supabase rejects calls without a valid JWT before this code runs.
 // This code then checks that the caller is a signed-in user who is listed in public.reviewers.
 //
-// POST /functions/v1/assist   { action: "check_topic" | "verify_quote" | "draft_from_source" | "draft_hook" | "status", ... }
+// POST /functions/v1/assist   { action: "check_topic" | "verify_quote" | "draft_from_source" | "draft_hook" | "draft_summary" | "status", ... }
 //
 // Advisory only: it writes nothing to the database, every quote it drafts is re-checked word for word against the
 // page it fetched, and every hook line it drafts is re-checked against the house rules (length, clickbait, capitals,
-// marks, numbers not in the headline or page) before the reviewer sees it. The pure logic is in logic.mjs (tested from Node in tests/assist.test.mjs).
+// marks, numbers not in the headline or page) before the reviewer sees it, and every summary it drafts against the
+// summary rules (2-4 sentences, at most 700 characters, no run of 8+ words shared with the headline, the page or the
+// editor's notes). A page behind a bot wall (UPI's Cloudflare check) is reported, never worked around. The pure logic
+// is in logic.mjs and summaryrules.mjs (tested from Node in tests/assist.test.mjs and tests/summary.test.mjs).
+// Deploy all three files: index.ts, logic.mjs, summaryrules.mjs.
 
 import Anthropic from 'npm:@anthropic-ai/sdk@1.8.0';
 import {
   addressesAllowed, bearerToken, capText, checkTopicContent, CHECK_TOPIC_SCHEMA, checkUrl, claudeRequest,
   CLAUDE_ACTIONS, contentKind, corsHeaders, createRateLimiter, DRAFT_SCHEMA, draftContent, FETCH_MAX_BYTES,
   FETCH_MAX_REDIRECTS, FETCH_MESSAGES, FETCH_TIMEOUT_MS, findVerbatim, hookContent, HOOK_PAGE_MAX_CHARS, HOOK_SCHEMA,
-  htmlToText, normalizeText, RATE_LIMIT, readable, readClaudeReply, shapeCheckResult, shapeDraftResult, shapeHookResult,
-  usageSummary, validateRequest,
+  htmlToText, isBotWall, normalizeText, pageGrams, RATE_LIMIT, readable, readClaudeReply, shapeCheckResult, shapeDraftResult,
+  shapeHookResult, shapeSummaryResult, summaryContent, SUMMARY_PAGE_MAX_CHARS, SUMMARY_SCHEMA, usageSummary, validateRequest,
 } from './logic.mjs';
 
 const SB_URL = Deno.env.get('SUPABASE_URL') ?? '';
@@ -48,6 +52,7 @@ type Validated =
   | { ok: true; action: 'verify_quote'; input: { quote: string; source_url: string } }
   | { ok: true; action: 'draft_from_source'; input: { source_url: string; topic_hint: string } }
   | { ok: true; action: 'draft_hook'; input: { title: string; outlet: string; url: string } }
+  | { ok: true; action: 'draft_summary'; input: { title: string; outlet: string; url: string; notes: string } }
   | { ok: true; action: 'check_topic'; input: { topic: Json } };
 type UrlCheck = { ok: false; reason: string } | { ok: true; url: string; host: string; ip: string | null };
 const fetchMessage = (reason: string) => (FETCH_MESSAGES as Record<string, string>)[reason] ?? 'The page could not be read.';
@@ -128,7 +133,11 @@ async function fetchPage(start: string): Promise<Page> {
         next = new URL(location, shape.url).href; // checked again at the top of the loop
         continue;
       }
-      if (!res.ok) { await res.body?.cancel(); return { ok: false, reason: 'http_error', http_status: res.status }; }
+      if (!res.ok) {
+        const wall = isBotWall({ status: res.status, server: res.headers.get('server') ?? '', mitigated: res.headers.get('cf-mitigated') ?? '' });
+        await res.body?.cancel();
+        return { ok: false, reason: wall ? 'blocked' : 'http_error', http_status: res.status };
+      }
       const declared = contentKind(res.headers.get('content-type'));
       if (declared.kind === 'pdf') { await res.body?.cancel(); return { ok: false, reason: 'pdf' }; }
       if (declared.kind === 'other') { await res.body?.cancel(); return { ok: false, reason: 'unsupported_type' }; }
@@ -140,6 +149,7 @@ async function fetchPage(start: string): Promise<Page> {
       let decoder: TextDecoder;
       try { decoder = new TextDecoder(kind.charset || 'utf-8'); } catch { decoder = new TextDecoder('utf-8'); }
       const raw = decoder.decode(bytes);
+      if (isBotWall({ status: res.status, mitigated: res.headers.get('cf-mitigated') ?? '', text: raw })) return { ok: false, reason: 'blocked', http_status: res.status };
       const text = kind.kind === 'html' ? htmlToText(raw) : readable(raw);
       return text ? { ok: true, text, url: shape.url } : { ok: false, reason: 'empty' };
     }
@@ -244,6 +254,34 @@ Deno.serve(async (req: Request) => {
       ...shapeHookResult(r.data, { title: v.input.title, pageText: read?.text ?? '' }),
       source: read ? 'page' : 'headline',
       page_problem: pageProblem,
+      truncated: read?.truncated ?? false,
+      model: r.model,
+      fallback: r.fallback,
+    });
+  }
+
+  if (v.action === 'draft_summary') {
+    // The same fences as draft_hook: the headline and the editor's notes, plus the page when a link was given and it
+    // could be read. A page that cannot be read (a bot wall, an error) is reported and the drafts use the rest.
+    let read: { text: string; url: string; truncated: boolean } | null = null;
+    let pageProblem: Json | null = null;
+    if (v.input.url) {
+      const got = await fetchPage(v.input.url);
+      if (got.ok) {
+        const cut = capText(got.text, SUMMARY_PAGE_MAX_CHARS);
+        read = { text: cut.text, url: got.url, truncated: cut.truncated };
+      } else {
+        pageProblem = { reason: got.reason, message: fetchMessage(got.reason), http_status: got.http_status ?? null };
+      }
+    }
+    const r = await askClaude(apiKey, v.action, summaryContent({ title: v.input.title, outlet: v.input.outlet, notes: v.input.notes, page: read }), SUMMARY_SCHEMA as Json);
+    if (!r.ok) return reply(r.body, r.status);
+    return reply({
+      ...shapeSummaryResult(r.data, { title: v.input.title, pageText: read?.text ?? '', notes: v.input.notes }),
+      source: read ? 'page' : 'headline',
+      notes_used: Boolean(v.input.notes),
+      page_problem: pageProblem,
+      page_grams: pageGrams(read?.text ?? ''),
       truncated: read?.truncated ?? false,
       model: r.model,
       fallback: r.fallback,

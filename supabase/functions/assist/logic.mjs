@@ -550,7 +550,9 @@ export function shapeSummaryResult(raw, { title = '', pageText = '', notes = '' 
   const out = [];
   const seen = new Set();
   let dropped = 0;
-  for (const x of (Array.isArray(raw?.summaries) ? raw.summaries : []).slice(0, 6)) {
+  const all = Array.isArray(raw?.summaries) ? raw.summaries : [];
+  dropped += Math.max(0, all.length - 8);
+  for (const x of all.slice(0, 8)) {
     let text = typeof x?.text === 'string' ? x.text.replace(/\s+/g, ' ').trim() : '';
     const outer = /^["“](.*)["”]$/.exec(text);
     if (outer) text = outer[1].trim();

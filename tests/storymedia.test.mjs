@@ -521,11 +521,13 @@ test('the player exists only on request: youtube-nocookie.com, autoplay, a title
   const html = playerHTML(ID, 'Moose rides the bus');
   assert.match(html, /^<iframe class="smedia__player" src="https:\/\/www\.youtube-nocookie\.com\/embed\/dQw4w9WgXcQ\?autoplay=1&amp;rel=0" title="Video: Moose rides the bus"/);
   assert.equal(playerHTML('nope'), '');
-  // front.js builds the player only in the Play handler, and names no YouTube address of its own.
+  // front.js builds the player only in the Play handler (playerFor, any provider), and names no provider address of
+  // its own: X's widget script address comes from js/mediaproviders.js and is loaded only after an X Play.
   const src = fs.readFileSync(new URL('../js/front.js', import.meta.url), 'utf8');
   const code = src.split('\n').filter((l) => !/^\s*\/\//.test(l)).join('\n');
-  assert.ok(!/ytimg|youtube\.com|youtube-nocookie|youtu\.be/.test(code));
-  assert.equal(src.match(/playerHTML\(/g).length, 1);
+  assert.ok(!/ytimg|youtube\.com|youtube-nocookie|youtu\.be|vimeo|facebook\.com|twitter\.com|tiktok|instagram/.test(code));
+  assert.equal(src.match(/playerFor\(/g).length, 1);
+  assert.ok(!/playerHTML\(/.test(src));
   assert.ok(!/tileHTML|Picture at the source/.test(src), 'the placeholder tile is gone');
   const css = fs.readFileSync(new URL('../styles/components/front.css', import.meta.url), 'utf8');
   assert.ok(!/\.ftile/.test(css));
@@ -553,7 +555,7 @@ test('pick form: the two media fields are optional and checked like the site che
 test('pick form previews: Gatecast\'s still for the video, the publisher\'s picture before saving', () => {
   assert.deepEqual(pickMediaView(FORM), { video: null, image: null });
   const m = pickMediaView({ ...FORM, video: `https://youtu.be/${ID}`, image_url: 'https://cdnph.upi.com/m.jpg' }, { sources: SOURCES });
-  assert.deepEqual(m.video, { id: ID, thumb: `api/yt-thumb?id=${ID}`, watch: `https://www.youtube.com/watch?v=${ID}` });
+  assert.deepEqual(m.video, { id: ID, thumb: `api/yt-thumb?id=${ID}`, watch: `https://www.youtube.com/watch?v=${ID}`, provider: 'youtube', name: 'YouTube', embeddable: true });
   assert.deepEqual(m.image, { url: 'https://cdnph.upi.com/m.jpg', host: 'cdnph.upi.com', site: 'upi.com', outlet: 'UPI' });
   assert.match(pickMediaView({ ...FORM, video: 'nope' }).video.problem, /YouTube/);
   assert.match(pickMediaView({ ...FORM, image_url: 'https://i.imgur.com/x.jpg' }).image.problem, /own site/);
