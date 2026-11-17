@@ -3,13 +3,18 @@
 // activity, internal notes and an assistant panel. The Weird news views hold the guestbook tips visitors send
 // and the editor's picks (public.weird_tips, public.weird_picks; docs/community.md): each pick's hook line, with a
 // live checklist and "Draft with Claude" (the assist function's draft_hook), each published pick's anonymous click
-// total for the last 7 days (weird_click_totals), and the front page's favourites row as visitors see it now.
+// total for the last 7 days (weird_click_totals), and the front page's favourites row as visitors see it now. The
+// Books view (The Stacks) holds books their author or publisher put forward (public.stacks_submissions): the editor
+// approves one with their own description, notes and tags (stacks_approve_submission), or rejects it; approved books
+// can be hidden; and the Book of the Week is picked there (stacks_set_featured).
 //
 // It talks to Supabase directly over REST, with no client library:
 //   sign-in   GoTrue: POST /auth/v1/otp (magic link), /auth/v1/token?grant_type=refresh_token, /auth/v1/logout
 //   data      PostgREST /rest/v1/* with the reviewer's access token; row rules and triggers decide what works
 //   assistant the assist Edge Function, POST /functions/v1/assist
-//   front     /api/weird (this site) and the community function's /favourites, for the favourites preview
+//   front     /api/weird (this site) and the community function's /favourites, for the favourites preview;
+//             /api/books (or data/books.json) for the shelves and the books on them
+//   covers    https://openlibrary.org/isbn/<isbn>.json, only when the reviewer clicks "Look up cover"
 // The access and refresh tokens live in sessionStorage only (gone when the tab closes).
 // Pure rules (views, sorting, coverage, forms, replies) are in js/reviewmodel.js and tested there.
 import { SUPABASE_URL, SUPABASE_KEY } from './config.js';
@@ -23,6 +28,9 @@ import {
   CATEGORY_LABEL, PICK_STATUS_LABEL, TIP_STATUS_LABEL, PICK_LIMITS, WEIRD_OFF, pickErrors,
   cleanPick, pickBlock, picksForView, tipsForView, tipHost, pickFromTip, pickSaveError, pickTimeline,
   HOOK_LABEL, HOOK_GUIDANCE, hookChecks, hookDraftRequest, hookSuggestions, hookDraftNotes, clicksLabel,
+  BOOKS_OFF, STACKS_LIMITS, RELATION_LABEL, SUB_STATUS_LABEL, COPY_RUN, approvalFromSubmission, approveErrors, cleanApproval,
+  descriptionChecks, stacksReplyError, pendingCount, booksRows, currentFeatured, featuredErrors, weekLabel, thisMonday,
+  openLibraryIsbnUrl, coverImageUrl, coverFromEdition,
 } from './reviewmodel.js';
 import { normaliseStoryUrl, storyId, loadFavourites } from './community.js';
 import { cleanWeird, favourites, favCaption, favVotes } from './frontmodel.js';
@@ -59,6 +67,10 @@ const S = {
   clicks: {}, clicksOn: true,
   // favRow: the front page's favourites row as visitors see it now (null while loading), favsOpen: the panel.
   favRow: null, favsOpen: !PHONE.matches,
+  // The Stacks. off: a sentence when the migration is not applied. subs: submissions waiting; books: approved author
+  // books (hidden ones too); featured: Book of the Week rows, newest week first; site: /api/books (shelves and every
+  // book on them). draft / featDraft: half-typed form values; cover: the "Look up cover" result for the open submission.
+  stacks: { off: null, error: null, subs: [], books: [], featured: [], site: null, draft: null, featDraft: null, cover: null },
 };
 const freshHook = () => ({ busy: false, started: 0, reply: null, error: '', readPage: false });
 
@@ -207,6 +219,38 @@ async function loadFavRow() {
   } catch { S.favRow = { ok: false }; }
 }
 
+// The Stacks: submissions waiting (never their address hash: reviewers are not granted that column), every approved
+// author book, and the Book of the Week history.
+const SUB_COLS = 'id,created_at,title,authors,isbn13,year,publisher,shelf,pitch,relation,contact_email,status,reviewed_at,review_note,book_id';
+async function loadStacks() {
+  const [sub, bk, ft] = await Promise.all([
+    db(`stacks_submissions?select=${SUB_COLS}&status=eq.pending&order=created_at.desc&limit=300`),
+    db('stacks_books?select=*&order=approved_at.desc&limit=1000'),
+    db('stacks_featured?select=*&order=starts_on.desc&limit=52'),
+  ]);
+  if ([sub, bk, ft].some((r) => !r.ok && isMissingFeature(r.status, r.data))) {
+    Object.assign(S.stacks, { off: BOOKS_OFF, error: null, subs: [], books: [], featured: [] });
+    return;
+  }
+  S.stacks.off = null;
+  if (sub.ok && Array.isArray(sub.data)) S.stacks.subs = sub.data;
+  if (bk.ok && Array.isArray(bk.data)) S.stacks.books = bk.data;
+  if (ft.ok && Array.isArray(ft.data)) S.stacks.featured = ft.data;
+  S.stacks.error = [sub, bk, ft].find((r) => !r.ok)?.error ?? null;
+}
+
+// The shelves and every book on them, as the site serves them (static and approved). Falls back to the static file.
+async function loadSiteBooks() {
+  for (const path of ['api/books', 'data/books.json']) {
+    try {
+      const res = await fetch(path, { headers: { Accept: 'application/json' }, cache: 'no-cache' });
+      const d = res.ok ? await res.json() : null;
+      if (Array.isArray(d?.shelves) && Array.isArray(d?.books)) { S.stacks.site = d; return; }
+    } catch {}
+  }
+  S.stacks.site = { shelves: [], books: [], failed: true };
+}
+
 async function loadPickActivity(id) {
   if (!S.pickActivityOn) return;
   const r = await db('rpc/weird_pick_activity', { method: 'POST', body: { pick: id } });
@@ -295,7 +339,7 @@ function ask({ title, body, confirm, danger = false, reason = null }) {
     <h2 class="rv-dialog__title" id="dialog-title">${esc(title)}</h2>
     <div class="rv-dialog__body">${body}</div>
     ${reason ? `<div class="rv-field"><label for="dialog-reason">${esc(reason.label)} <span class="rv-hint">optional</span></label>
-      <textarea id="dialog-reason" rows="3" maxlength="${LIMITS.note}"></textarea>
+      <textarea id="dialog-reason" rows="3" maxlength="${reason.max ?? LIMITS.note}"></textarea>
       <p class="rv-hint">${esc(reason.hint)}</p></div>` : ''}
     <div class="rv-dialog__actions">
       <button type="submit" value="cancel" class="btn btn--ghost">Cancel</button>
@@ -414,6 +458,8 @@ function renderNav() {
     <ul class="rv-nav" aria-labelledby="nav-topics">${item('needs', c.needs)}${item('published', c.published)}${item('rejected', c.rejected)}${item('all', c.all)}</ul>
     <p class="rv-nav__group" id="nav-weird">Weird news</p>
     <ul class="rv-nav" aria-labelledby="nav-weird">${item('tips', S.weirdOff ? null : tipsForView(S.tips).length)}${item('picks', S.weirdOff ? null : S.picks.length)}</ul>
+    <p class="rv-nav__group" id="nav-stacks">The Stacks</p>
+    <ul class="rv-nav" aria-labelledby="nav-stacks">${item('books', S.stacks.off ? null : pendingCount(S.stacks.subs))}</ul>
     <p class="rv-nav__group" id="nav-state">Statehouse</p>
     <ul class="rv-nav" aria-labelledby="nav-state">${item('votes', S.votesError ? null : S.votes.length)}${S.collector ? item('collector', null) : ''}</ul>`;
 }
@@ -422,6 +468,7 @@ function rows() {
   if (S.view === 'votes') return S.votes.filter((v) => matchesVote(v, S.q));
   if (S.view === 'tips') return tipsForView(S.tips, S.q);
   if (S.view === 'picks') return picksForView(S.picks, S.q);
+  if (S.view === 'books') return S.stacks.off ? [] : booksRows(S.stacks.subs, S.stacks.books, S.q);
   if (S.view === 'collector') {
     const q = S.q.trim().toLowerCase();
     return (S.collector?.states || []).filter((s) => !q || s.state.toLowerCase().includes(q) || (STATE_NAMES[s.state] || '').toLowerCase().includes(q));
@@ -460,6 +507,26 @@ function pickRow(p) {
       ${p.published ? `<span>${esc(fmtDate(p.published))}</span>` : ''}${p.rating ? `<span>weird ${esc(p.rating)}/5</span>` : ''}${clicksBadge(p)}</span>`;
 }
 
+// The Books view's rows: the Book of the Week, a submission waiting, or an approved author book.
+function booksRow(r) {
+  if (r.kind === 'featured') {
+    const cur = currentFeatured(S.stacks.featured);
+    const b = cur ? bookById(cur.book_id) : null;
+    return `<span class="rv-row__title">Book of the week</span>
+      <span class="rv-row__meta">${cur ? `<span>${esc(b?.title || cur.book_id)}</span><span>${esc(weekLabel(cur.starts_on))}</span>` : '<span>No pick yet</span>'}</span>`;
+  }
+  if (r.kind === 'sub') {
+    const s = r.item;
+    return `<span class="rv-row__title">${esc(s.title)}</span>
+      <span class="rv-row__meta"><span class="rv-pill">${esc(SUB_STATUS_LABEL[s.status] || s.status)}</span><span>${esc(s.authors)}</span>
+        <span>${esc(shelfName(s.shelf))}</span><span>from ${esc((RELATION_LABEL[s.relation] || '').toLowerCase())}</span><span>sent ${esc(relTime(s.created_at))}</span></span>`;
+  }
+  const b = r.item;
+  return `<span class="rv-row__title">${esc(b.title)}</span>
+    <span class="rv-row__meta">${b.hidden ? '<span class="rv-pill rv-pill--hidden">Hidden</span>' : '<span class="rv-pill rv-pill--published">On the shelves</span>'}
+      <span>${esc((b.authors || []).join(', '))}</span><span>${esc(shelfName(b.shelf))}</span><span>approved ${esc(relTime(b.approved_at))}</span></span>`;
+}
+
 // The front page's favourites row, as visitors see it now: a small panel above the picks.
 function favPanelHTML() {
   const f = S.favRow;
@@ -492,23 +559,26 @@ function renderList() {
   const def = VIEWS[S.view];
   const list = rows();
   const total = S.view === 'votes' ? S.votes.length : S.view === 'collector' ? S.collector?.states.length ?? 0
-    : S.view === 'tips' ? tipsForView(S.tips).length : S.view === 'picks' ? S.picks.length : topicsForView(S.topics, S.view).length;
+    : S.view === 'tips' ? tipsForView(S.tips).length : S.view === 'picks' ? S.picks.length
+      : S.view === 'books' ? (S.stacks.off ? 0 : booksRows(S.stacks.subs, S.stacks.books).length) : topicsForView(S.topics, S.view).length;
   const isTopics = 'status' in def;
   const weird = S.view === 'tips' || S.view === 'picks';
   if (S.active >= list.length) S.active = list.length - 1;
   const empty = S.q.trim() && total ? 'Nothing in this view matches your search.' : S.view === 'votes' && S.votesError ? `Couldn’t load votes: ${S.votesError}`
-    : weird && S.weirdOff ? S.weirdOff : weird && S.weirdError ? `Couldn’t load ${def.title.toLowerCase()}: ${S.weirdError}` : def.empty;
+    : weird && S.weirdOff ? S.weirdOff : weird && S.weirdError ? `Couldn’t load ${def.title.toLowerCase()}: ${S.weirdError}`
+      : S.view === 'books' && S.stacks.off ? S.stacks.off : def.empty;
   $('#list-pane').innerHTML = `<div class="rv-list__head">
       <h2 class="rv-list__title signage" id="list-title">${esc(def.title)} <span class="num rv-list__n">${list.length === total ? total : `${list.length} of ${total}`}</span></h2>
       ${isTopics ? '<button type="button" class="btn btn--primary rv-new" id="new-topic">New topic</button>' : ''}
       ${S.view === 'picks' && !S.weirdOff ? '<button type="button" class="btn btn--primary rv-new" id="new-pick">New pick</button>' : ''}
     </div>
     ${S.view === 'picks' && !S.weirdOff ? favPanelHTML() : ''}
+    ${S.view === 'books' && S.stacks.error ? `<p class="rv-quiet">Couldn’t load everything: ${esc(S.stacks.error)}</p>` : ''}
     ${S.view === 'votes' && !S.features.notes ? '<p class="rv-quiet">Until the reviewer-console migration is applied, this shows only what visitors see: nothing while the switch is off.</p>' : ''}
     ${list.length ? `<p class="rv-keys" id="list-keys"><kbd>j</kbd> <kbd>k</kbd> or <kbd>↑</kbd> <kbd>↓</kbd> to move, <kbd>Enter</kbd> to open</p>
     <ul class="rv-rows" id="rows" role="listbox" tabindex="0" aria-labelledby="list-title" aria-describedby="list-keys"${S.active >= 0 ? ` aria-activedescendant="row-${S.active}"` : ''}>
       ${list.map((r, i) => `<li role="option" id="row-${i}" class="rv-row${i === S.active ? ' is-active' : ''}" data-i="${i}" data-id="${esc(rowId(r))}" aria-selected="${rowId(r) === S.selected ? 'true' : 'false'}">
-        ${S.view === 'votes' ? voteRow(r) : S.view === 'collector' ? stateRow(r) : S.view === 'tips' ? tipRow(r) : S.view === 'picks' ? pickRow(r) : topicRow(r)}</li>`).join('')}
+        ${S.view === 'votes' ? voteRow(r) : S.view === 'collector' ? stateRow(r) : S.view === 'tips' ? tipRow(r) : S.view === 'picks' ? pickRow(r) : S.view === 'books' ? booksRow(r) : topicRow(r)}</li>`).join('')}
     </ul>` : `<p class="rv-empty">${esc(empty)}</p>`}`;
 }
 
@@ -528,6 +598,7 @@ async function select(id, { focus = true } = {}) {
   S.creating = false;
   S.editTopic = false; S.editStatement = null; S.topicDraft = null; S.prefill = null; S.editValues = null; S.noteDraft = ''; S.draftUrl = null;
   S.editPick = false; S.pickDraft = null; S.hook = freshHook();
+  S.stacks.draft = null; S.stacks.cover = null; S.stacks.featDraft = null;
   setPane('detail');
   renderList();
   renderDetail();
@@ -834,6 +905,7 @@ function renderDetail({ keepFocus = false } = {}) {
   const focusId = keepFocus ? document.activeElement?.id : null;
   if (S.creating) el.innerHTML = S.view === 'picks' ? newPickDetail() : newTopicDetail();
   else if (S.view === 'tips' || S.view === 'picks') el.innerHTML = weirdDetail();
+  else if (S.view === 'books') el.innerHTML = booksDetail();
   else if (S.view === 'votes') { const v = S.votes.find((x) => x.id === S.selected); el.innerHTML = v ? voteDetail(v) : emptyDetail('Choose a vote to see its record.'); }
   else if (S.view === 'collector') el.innerHTML = S.selected ? collectorDetail(S.selected) : emptyDetail('Choose a state to see how its last collection went.');
   else { const t = topic(S.selected); el.innerHTML = t ? topicDetail(t) : emptyDetail(S.topics.length ? 'Choose a topic from the list.' : 'No topics yet. Start one with New topic.'); }
@@ -966,6 +1038,7 @@ async function setStatus(status, { ok, verb }) {
 
 async function act(name, btn) {
   if (/^(tip|pick|hook)-|^(edit|cancel)-pick$/.test(name)) return weirdAct(name, btn);
+  if (/^(sub|book|feat)-/.test(name)) return booksAct(name, btn);
   const t = topic(S.selected);
   switch (name) {
     case 'back': setPane('list'); S.creating = false; renderDetail(); $('#rows')?.focus(); return;
@@ -1401,6 +1474,367 @@ async function draftHook() {
   if (out.kind === 'ok') $('.rv-hook__pick')?.focus();
 }
 
+/* ---------- The Stacks: books put forward and the Book of the Week ---------- */
+
+const siteShelves = () => (Array.isArray(S.stacks.site?.shelves) ? S.stacks.site.shelves : []);
+const shelfName = (id) => siteShelves().find((x) => x?.id === id)?.name || id || '';
+// Every book on the shelves: the site's list (static and approved, as visitors see it), plus approved books the
+// site's 5-minute cache may not show yet, plus hidden ones (for the history only).
+function allBooks({ visibleOnly = false } = {}) {
+  const out = [...(Array.isArray(S.stacks.site?.books) ? S.stacks.site.books : [])];
+  const ids = new Set(out.map((b) => b?.id));
+  for (const b of S.stacks.books) if (!ids.has(b.id) && (!visibleOnly || !b.hidden)) { ids.add(b.id); out.push(b); }
+  return out;
+}
+const bookById = (id) => allBooks().find((b) => b?.id === id) || null;
+const takenIds = () => new Set(allBooks().map((b) => b?.id));
+const subById = (id) => S.stacks.subs.find((x) => x.id === id) || null;
+const stacksBookById = (id) => S.stacks.books.find((x) => x.id === id) || null;
+const selectedRow = () => {
+  const id = String(S.selected ?? '');
+  if (id === 'featured') return { kind: 'featured' };
+  if (id.startsWith('sub:')) return { kind: 'sub', item: subById(id.slice(4)) };
+  if (id.startsWith('book:')) return { kind: 'book', item: stacksBookById(id.slice(5)) };
+  return null;
+};
+
+function booksDetail() {
+  if (S.stacks.off) return emptyDetail(S.stacks.off);
+  const r = selectedRow();
+  if (r?.kind === 'featured') return featuredDetail();
+  if (r?.kind === 'sub' && r.item) return submissionDetail(r.item);
+  if (r?.kind === 'book' && r.item) return stacksBookDetail(r.item);
+  return emptyDetail(S.stacks.subs.length ? 'Choose a book from the list.' : 'No books waiting. Open Book of the week to choose this week’s book.');
+}
+
+const shelfOptions = (cur) => siteShelves().map((x) => `<option value="${esc(x.id)}"${x.id === cur ? ' selected' : ''}>${esc(x.name || x.id)}</option>`).join('');
+
+// The description's live checklist (js/reviewmodel.js descriptionChecks), like the hook's.
+function descChecksHTML(values, pitch) {
+  return `<ul class="rv-checks" id="ap-desc-checks" aria-label="Description checklist">${descriptionChecks(values, pitch).map((c) => `<li class="rv-check-item${c.ok ? ' is-ok' : c.hard ? ' is-bad' : ' is-warn'}">
+      ${c.ok ? ICON_YES : c.hard ? ICON_NO : MARK_WARN}<span>${esc(c.label)}${c.detail ? ` <span class="rv-muted">${esc(c.detail)}</span>` : ''}</span>
+      <span class="sr-only">${c.ok ? 'passes' : c.hard ? 'must be fixed before approving' : 'warning'}</span></li>`).join('')}</ul>`;
+}
+
+function coverOutHTML(v) {
+  const c = S.stacks.cover;
+  const id = c?.id ?? (v.cover_id ? Number(v.cover_id) : null);
+  if (c?.busy) return '<p class="rv-loading"><span class="rv-spin" aria-hidden="true"></span><span>Asking Open Library…</span></p>';
+  if (c?.error) return `<p class="rv-err">${esc(c.error)}</p>`;
+  if (!id) return '<p class="rv-muted">No cover chosen: the shelf shows the plain stand-in.</p>';
+  return `<figure class="rv-cover"><img src="${esc(coverImageUrl(id, 'M'))}" alt="The cover Open Library has for this ISBN" width="120" height="180" referrerpolicy="no-referrer">
+    <figcaption class="rv-muted">Open Library cover ${esc(id)}. Check it is this book’s cover.</figcaption></figure>`;
+}
+const renderCoverOut = () => { const el = $('#ap-cover-out'); if (el) el.innerHTML = coverOutHTML(approveValues(subById(String(S.selected).slice(4)))); };
+
+function approveValues(sub) {
+  const base = approvalFromSubmission(sub, { taken: takenIds() });
+  return { ...base, ...(S.stacks.draft || {}) };
+}
+
+function approveForm(sub) {
+  const v = approveValues(sub);
+  const ta = (id, name, label, rows, hint, max) => field(id, label, `<textarea id="${id}" name="${name}" rows="${rows}" aria-describedby="${id}-err ${id}-n${name === 'description' ? ' ap-desc-checks' : ''}">${esc(v[name])}</textarea>`,
+    { hint, counterId: counterHTML(`${id}-n`, v[name], max) });
+  return `<form class="rv-form" id="approve-form" novalidate>
+    <div class="rv-form__row">
+      ${field('ap-id', 'Id', `<input id="ap-id" name="id" type="text" value="${esc(v.id)}" spellcheck="false" autocomplete="off" aria-describedby="ap-id-err">`, { hint: esc('the end of its address: /stacks/<id>/') })}
+      ${field('ap-shelf', 'Shelf', `<select id="ap-shelf" name="shelf" aria-describedby="ap-shelf-err">${siteShelves().some((x) => x.id === v.shelf) ? '' : '<option value="">Choose a shelf</option>'}${shelfOptions(v.shelf)}</select>`, { hint: `they asked for ${esc(shelfName(sub.shelf))}` })}
+    </div>
+    ${field('ap-title', 'Title', `<input id="ap-title" name="title" type="text" value="${esc(v.title)}" aria-describedby="ap-title-err">`, { hint: 'as on the cover' })}
+    <div class="rv-form__row">
+      ${field('ap-authors', 'Authors', `<textarea id="ap-authors" name="authors" rows="2" aria-describedby="ap-authors-err">${esc(v.authors)}</textarea>`, { hint: 'one per line' })}
+      ${field('ap-year', 'Year', `<input id="ap-year" name="year" type="text" inputmode="numeric" maxlength="4" value="${esc(v.year)}" aria-describedby="ap-year-err">`, { hint: 'first published' })}
+    </div>
+    ${ta('ap-description', 'description', 'Description', 4, 'your words: one or two sentences, what happened and who told it', STACKS_LIMITS.description)}
+    ${descChecksHTML(v, sub.pitch)}
+    ${ta('ap-content_note', 'content_note', 'Content note', 2, 'optional: what a reader should know first', STACKS_LIMITS.content_note)}
+    ${ta('ap-caveat', 'caveat', 'Caveat', 2, 'optional: disputes about its accuracy, or what it leaves out', STACKS_LIMITS.caveat)}
+    ${field('ap-tags', 'Tags', `<input id="ap-tags" name="tags" type="text" value="${esc(v.tags)}" aria-describedby="ap-tags-err">`, { hint: 'up to 6, separated by commas, e.g. Kansas, 1959, Investigation' })}
+    <div class="rv-form__row">
+      ${field('ap-isbn', 'ISBN', `<input id="ap-isbn" type="text" value="${esc(sub.isbn13)}" readonly>`, { hint: 'as sent, checked' })}
+      <div class="rv-field">
+        <span class="rv-field__label">Cover</span>
+        <div class="rv-form__actions">
+          <button type="button" class="btn btn--ghost rv-btn--sm" id="ap-cover" data-act="book-cover" aria-describedby="ap-cover-err"${S.stacks.cover?.busy ? ' disabled' : ''}>Look up cover</button>
+          <label class="rv-check"><input type="checkbox" id="ap-show_cover" name="show_cover"${v.show_cover ? ' checked' : ''}> Show cover</label>
+        </div>
+        <p class="rv-err" id="ap-cover-err" hidden></p>
+      </div>
+    </div>
+    <input type="hidden" name="cover_id" id="ap-cover_id" value="${esc(v.cover_id)}">
+    <div id="ap-cover-out" aria-live="polite">${coverOutHTML(v)}</div>
+    <p class="rv-muted">“Look up cover” asks Open Library for this ISBN from your browser. ${COVER_OFF_SHELF_HINT}</p>
+    <div class="rv-form__actions"><button type="submit" class="btn btn--primary">Approve and shelve</button></div>
+  </form>`;
+}
+const COVER_OFF_SHELF_HINT = 'On the true crime and case-file shelves the cover is off by default; tick Show cover only for a sober jacket.';
+
+function submissionDetail(sub) {
+  const mail = sub.contact_email ? `<a href="mailto:${esc(sub.contact_email)}">${esc(sub.contact_email)}</a>` : '<span class="rv-quiet">No address left: there is no one to tell.</span>';
+  return `<div class="rv-ticket"><div class="rv-ticket__main">
+    ${backTo()}
+    <header class="rv-ticket__head">
+      <p class="rv-ticket__tags"><span class="rv-pill">${esc(SUB_STATUS_LABEL[sub.status] || sub.status)}</span><span class="rv-chip">${esc(shelfName(sub.shelf))}</span><span>${esc(RELATION_LABEL[sub.relation] || '')} put it forward</span></p>
+      <h2 class="rv-ticket__title" id="detail-title" tabindex="-1">${esc(sub.title)}</h2>
+      <p class="rv-muted">${esc(sub.authors)} · ${esc(sub.year)}${sub.publisher ? ` · ${esc(sub.publisher)}` : ''} · Sent ${esc(abs(sub.created_at))} (${when(sub.created_at)})</p>
+    </header>
+    <section class="rv-block" aria-labelledby="sub-what-title">
+      <h3 id="sub-what-title">What they sent</h3>
+      <dl class="rv-dl">
+        <dt>Title</dt><dd>${esc(sub.title)}</dd>
+        <dt>Authors</dt><dd>${esc(sub.authors)}</dd>
+        <dt>ISBN</dt><dd><span class="code">${esc(sub.isbn13)}</span> · ${ext(`https://openlibrary.org/isbn/${encodeURIComponent(sub.isbn13)}`, 'Open Library')}</dd>
+        <dt>Year</dt><dd>${esc(sub.year)}</dd>
+        <dt>Publisher</dt><dd>${sub.publisher ? esc(sub.publisher) : '<span class="rv-quiet">Not given</span>'}</dd>
+        <dt>Shelf</dt><dd>${esc(shelfName(sub.shelf))}${siteShelves().length && !siteShelves().some((x) => x.id === sub.shelf) ? ' <span class="rv-muted">(not a shelf on the site now)</span>' : ''}</dd>
+        <dt>From</dt><dd>${esc(RELATION_LABEL[sub.relation] || sub.relation)}</dd>
+        <dt>Email</dt><dd>${mail}</dd>
+      </dl>
+    </section>
+    <section class="rv-block" aria-labelledby="sub-pitch-title">
+      <h3 id="sub-pitch-title">Their pitch</h3>
+      <blockquote class="rv-card__quote rv-pitch"><p>${esc(sub.pitch)}</p></blockquote>
+      <p class="rv-muted">The sender’s words, to help you judge the book. Never published: write the shelf text yourself. The checklist flags ${COPY_RUN} words or more in a row taken from it.</p>
+    </section>
+    <section class="rv-block" aria-labelledby="sub-approve-title">
+      <h3 id="sub-approve-title">Approve</h3>
+      <p class="rv-muted">Only real, published books that fit a shelf. Everything below goes on the shelf as your words, with “Suggested by ${esc(sub.relation === 'publisher' ? 'the publisher' : 'the author')}” beside it.</p>
+      ${approveForm(sub)}
+    </section>
+  </div>
+  <div class="rv-actions" role="group" aria-label="Submission actions">
+    <button type="button" class="btn btn--ghost" data-act="sub-reject">Reject</button>
+    <p class="rv-actions__why">Rejecting takes it out of the queue. Nothing is sent: if they left an address, write to them yourself.</p>
+  </div></div>`;
+}
+
+function stacksBookDetail(b) {
+  const on = !b.hidden;
+  return `<div class="rv-ticket"><div class="rv-ticket__main">
+    ${backTo()}
+    <header class="rv-ticket__head">
+      <p class="rv-ticket__tags">${on ? '<span class="rv-pill rv-pill--published">On the shelves</span>' : '<span class="rv-pill rv-pill--hidden">Hidden</span>'}<span class="rv-chip">${esc(shelfName(b.shelf))}</span><span>Suggested by ${esc(b.origin === 'publisher' ? 'the publisher' : 'the author')}</span></p>
+      <h2 class="rv-ticket__title" id="detail-title" tabindex="-1">${esc(b.title)}</h2>
+      <p class="rv-muted">${esc((b.authors || []).join(', '))} · ${esc(b.year)} · Approved ${esc(abs(b.approved_at))} (${when(b.approved_at)})</p>
+    </header>
+    <section class="rv-block" aria-labelledby="bk-shelf-title">
+      <h3 id="bk-shelf-title">On the shelf</h3>
+      <dl class="rv-dl">
+        <dt>Description</dt><dd>${esc(b.description)}</dd>
+        <dt>Content note</dt><dd>${b.content_note ? esc(b.content_note) : '<span class="rv-quiet">None</span>'}</dd>
+        <dt>Caveat</dt><dd>${b.caveat ? esc(b.caveat) : '<span class="rv-quiet">None</span>'}</dd>
+        <dt>Tags</dt><dd>${esc((b.tags || []).join(', '))}</dd>
+        <dt>ISBN</dt><dd class="code">${esc(b.isbn13)}</dd>
+        <dt>Id</dt><dd class="code">${esc(b.id)}</dd>
+        <dt>Cover</dt><dd>${b.cover_id ? `<img class="rv-cover__img" src="${esc(coverImageUrl(b.cover_id, 'S'))}" alt="Its cover" width="40" height="60" referrerpolicy="no-referrer"> Open Library ${esc(b.cover_id)}` : 'Stand-in'}</dd>
+      </dl>
+      <p class="rv-muted">To change the text, hide it and ask the project owner to edit the row; its /stacks/ page follows at the next deploy.</p>
+    </section>
+  </div>
+  <div class="rv-actions" role="group" aria-label="Book actions">
+    <button type="button" class="btn btn--primary" data-act="book-hide">${on ? 'Hide from shelves' : 'Show on shelves again'}</button>
+    ${on ? '<button type="button" class="btn btn--ghost" data-act="feat-choose" data-id="' + esc(b.id) + '">Make it book of the week</button>' : ''}
+    <p class="rv-actions__why">${on ? 'Hiding takes it off The Stacks within about 5 minutes. Nothing is deleted.' : 'Hidden: visitors do not see it.'}</p>
+  </div></div>`;
+}
+
+function featuredDetail() {
+  const cur = currentFeatured(S.stacks.featured);
+  const curBook = cur ? bookById(cur.book_id) : null;
+  const onShelf = cur && allBooks({ visibleOnly: true }).some((b) => b.id === cur.book_id && !b.hidden);
+  const v = { book_id: '', reason: '', starts_on: thisMonday(), ...(S.stacks.featDraft || {}) };
+  const books = allBooks({ visibleOnly: true }).filter((b) => !b.hidden);
+  const groups = siteShelves().map((sh) => {
+    const list = books.filter((b) => b.shelf === sh.id).sort((a, b) => a.title.localeCompare(b.title));
+    return list.length ? `<optgroup label="${esc(sh.name || sh.id)}">${list.map((b) => `<option value="${esc(b.id)}"${b.id === v.book_id ? ' selected' : ''}>${esc(b.title)}${b.origin ? ' (suggested by the ' + esc(b.origin) + ')' : ''}</option>`).join('')}</optgroup>` : '';
+  }).join('');
+  const history = S.stacks.featured.slice().sort((a, b) => b.starts_on.localeCompare(a.starts_on));
+  return `<div class="rv-ticket"><div class="rv-ticket__main">
+    ${backTo()}
+    <header class="rv-ticket__head">
+      <h2 class="rv-ticket__title" id="detail-title" tabindex="-1">Book of the week</h2>
+      <p class="rv-muted">It stands on top of the shelves in The Stacks, leads the shelves and the cards, and opens the book on click. It stays up until you pick another, so a skipped week keeps the last one.</p>
+    </header>
+    <section class="rv-block" aria-labelledby="ft-now-title">
+      <h3 id="ft-now-title">Showing now</h3>
+      ${cur ? `<p class="rv-fact">${esc(curBook?.title || cur.book_id)}</p>
+        <p>${esc(cur.reason)}</p>
+        <p class="rv-muted">${esc(weekLabel(cur.starts_on))}${curBook?.authors ? ` · ${esc(curBook.authors.join(', '))}` : ''}</p>
+        ${onShelf ? '' : '<p class="rv-alert">That book is not on the shelves now, so no book of the week shows. Pick another.</p>'}`
+        : '<p class="rv-quiet">No pick yet. The Stacks shows no book of the week until you choose one.</p>'}
+    </section>
+    <section class="rv-block" aria-labelledby="ft-pick-title">
+      <h3 id="ft-pick-title">Pick a book</h3>
+      ${books.length ? `<form class="rv-form" id="feat-form" novalidate>
+        ${field('ft-book_id', 'Book', `<select id="ft-book_id" name="book_id" aria-describedby="ft-book_id-err"><option value="">Choose a book</option>${groups}</select>`, { hint: 'any book on the shelves' })}
+        ${field('ft-reason', 'Why this book, this week', `<textarea id="ft-reason" name="reason" rows="2" aria-describedby="ft-reason-err ft-reason-n">${esc(v.reason)}</textarea>`, { hint: 'one line, your words', counterId: counterHTML('ft-reason-n', v.reason, STACKS_LIMITS.reason) })}
+        ${field('ft-starts_on', 'Week starting', `<input id="ft-starts_on" name="starts_on" type="date" value="${esc(v.starts_on)}" aria-describedby="ft-starts_on-err">`, { hint: 'a Monday; another day counts as its week' })}
+        <p class="rv-muted">Picking again for the same week replaces that week’s pick.</p>
+        <div class="rv-form__actions"><button type="submit" class="btn btn--primary">Set book of the week</button></div>
+      </form>` : `<p class="rv-quiet">${S.stacks.site?.failed ? 'Couldn’t load the shelves. Reload the console.' : 'Loading the shelves…'}</p>`}
+    </section>
+    <section class="rv-block" aria-labelledby="ft-hist-title">
+      <h3 id="ft-hist-title">Earlier picks</h3>
+      ${history.length ? `<ol class="rv-timeline">${history.map((x) => `<li><span>${esc(weekLabel(x.starts_on))}: <strong>${esc(bookById(x.book_id)?.title || x.book_id)}</strong></span> <span class="rv-muted">${esc(x.reason)}</span></li>`).join('')}</ol>`
+        : '<p class="rv-quiet">None yet.</p>'}
+    </section>
+  </div></div>`;
+}
+
+// Counters, the description checklist and the half-typed values, for the approve and Book of the Week forms.
+function booksInput(el) {
+  const form = el.form;
+  const val = el.type === 'checkbox' ? el.checked : el.value;
+  if (form.id === 'feat-form') {
+    S.stacks.featDraft = { ...(S.stacks.featDraft || {}), [el.name]: val };
+    if (el.name === 'reason') { const c = counter(el.value, STACKS_LIMITS.reason); const out = $('#ft-reason-n'); if (out) { out.textContent = c.text; out.classList.toggle('is-over', c.over); } }
+    return;
+  }
+  if (!el.name) return;
+  S.stacks.draft = { ...(S.stacks.draft || {}), [el.name]: val };
+  const max = { description: STACKS_LIMITS.description, content_note: STACKS_LIMITS.content_note, caveat: STACKS_LIMITS.caveat }[el.name];
+  const out = document.getElementById(`${el.id}-n`);
+  if (max && out) { const c = counter(el.value, max); out.textContent = c.text; out.classList.toggle('is-over', c.over); }
+  if (['description', 'content_note', 'caveat'].includes(el.name)) {
+    const sub = subById(String(S.selected).slice(4));
+    const list = $('#ap-desc-checks');
+    if (sub && list) list.outerHTML = descChecksHTML(approveValues(sub), sub.pitch);
+  }
+}
+
+const AP_MAP = { cover_id: 'cover' };
+
+async function submitApprove(form) {
+  const sub = subById(String(S.selected).slice(4));
+  if (!sub) return;
+  const f = { ...Object.fromEntries(new FormData(form)), show_cover: form.elements.show_cover?.checked === true };
+  const errors = approveErrors(f, { shelves: siteShelves().map((x) => x.id), taken: takenIds(), pitch: sub.pitch });
+  if (!showErrors(form, 'ap', errors, AP_MAP)) return;
+  const btn = $('button[type="submit"]', form);
+  btn.disabled = true;
+  const book = cleanApproval(f);
+  const r = await db('rpc/stacks_approve_submission', { method: 'POST', body: { p_submission: sub.id, p_book: book } });
+  btn.disabled = false;
+  if (!r.ok) return toast(`Couldn’t approve: ${r.error}`, { error: true });
+  if (r.data?.ok !== true) {
+    if (r.data?.error === 'bad_field' && r.data.field) showErrors(form, 'ap', { [r.data.field]: stacksReplyError(r.data) }, AP_MAP);
+    if (r.data?.error === 'id_taken') showErrors(form, 'ap', { id: stacksReplyError(r.data) });
+    return toast(`Couldn’t approve: ${stacksReplyError(r.data)}`, { error: true });
+  }
+  toast('Approved: it joins The Stacks within about 5 minutes; its own /stacks/ page comes with the next deploy.');
+  await loadStacks();
+  S.active = rows().findIndex((x) => x.id === `book:${book.id}`);
+  renderNav();
+  await select(`book:${book.id}`);
+}
+
+async function submitFeatured(form) {
+  const f = Object.fromEntries(new FormData(form));
+  const ids = new Set(allBooks({ visibleOnly: true }).filter((b) => !b.hidden).map((b) => b.id));
+  if (!showErrors(form, 'ft', featuredErrors(f, { bookIds: ids }))) return;
+  const btn = $('button[type="submit"]', form);
+  btn.disabled = true;
+  const r = await db('rpc/stacks_set_featured', { method: 'POST', body: { p_book_id: f.book_id, p_reason: String(f.reason).replace(/\s+/g, ' ').trim(), p_starts_on: f.starts_on } });
+  btn.disabled = false;
+  if (!r.ok) return toast(`Couldn’t set the book of the week: ${r.error}`, { error: true });
+  if (r.data?.ok !== true) return toast(`Couldn’t set the book of the week: ${stacksReplyError(r.data)}`, { error: true });
+  const week = String(r.data.starts_on ?? '');
+  toast(week && week > new Date().toISOString().slice(0, 10)
+    ? `Book of the week set for the ${weekLabel(week).toLowerCase()}; it shows from that Monday.`
+    : 'Book of the week set; it shows in The Stacks within about 5 minutes');
+  S.stacks.featDraft = null;
+  await loadStacks();
+  renderAll();
+  $('#ft-now-title')?.focus();
+}
+
+// "Look up cover": one request to Open Library from the reviewer's browser, only on this click.
+async function lookupCover() {
+  const sub = subById(String(S.selected).slice(4));
+  if (!sub || S.stacks.cover?.busy) return;
+  S.stacks.cover = { busy: true };
+  renderCoverOut();
+  const btn = $('#ap-cover'); if (btn) btn.disabled = true;
+  let next;
+  try {
+    const res = await fetch(openLibraryIsbnUrl(sub.isbn13), { headers: { Accept: 'application/json' }, referrerPolicy: 'no-referrer', credentials: 'omit' });
+    if (res.status === 404) next = { error: 'Open Library has no edition with this ISBN. Leave the stand-in cover.' };
+    else if (!res.ok) next = { error: `Open Library answered ${res.status}. Try again later, or leave the stand-in cover.` };
+    else {
+      const id = coverFromEdition(await res.json());
+      next = id ? { id } : { error: 'This edition has no cover on Open Library. Leave the stand-in cover.' };
+    }
+  } catch {
+    next = { error: 'Couldn’t reach Open Library. Try again, or leave the stand-in cover.' };
+  }
+  if (String(S.selected) !== `sub:${sub.id}`) return;
+  S.stacks.cover = next;
+  const hidden = $('#ap-cover_id');
+  if (next.id && hidden) { hidden.value = String(next.id); S.stacks.draft = { ...(S.stacks.draft || {}), cover_id: String(next.id) }; }
+  renderCoverOut();
+  if (btn) { btn.disabled = false; btn.focus(); }
+}
+
+async function booksAct(name, btn) {
+  const r = selectedRow();
+  switch (name) {
+    case 'book-cover': return lookupCover();
+    case 'sub-reject': {
+      const sub = r?.kind === 'sub' ? r.item : null;
+      if (!sub) return;
+      const note = await ask({
+        title: `Reject “${sub.title}”?`,
+        body: '<p>It leaves the queue and never reaches the shelves. Nothing is sent to the sender.</p>',
+        confirm: 'Reject book',
+        reason: { label: 'Short note', hint: 'For reviewers only, at most 300 characters.', max: STACKS_LIMITS.note },
+      });
+      if (note == null) return;
+      const at = rows().findIndex((x) => x.id === `sub:${sub.id}`);
+      const res = await db('rpc/stacks_reject_submission', { method: 'POST', body: { p_submission: sub.id, p_note: note.slice(0, STACKS_LIMITS.note) } });
+      if (!res.ok) return toast(`Couldn’t reject: ${res.error}`, { error: true });
+      if (res.data?.ok !== true) return toast(`Couldn’t reject: ${stacksReplyError(res.data)}`, { error: true });
+      toast('Rejected');
+      await loadStacks();
+      const list = rows();
+      const next = list[Math.min(Math.max(at, 0), list.length - 1)];
+      S.selected = next?.id ?? null;
+      S.active = next ? list.indexOf(next) : -1;
+      renderAll();
+      if (!next) setPane('list');
+      ($('#detail-title') || $('#rows'))?.focus();
+      return;
+    }
+    case 'book-hide': {
+      const b = r?.kind === 'book' ? r.item : null;
+      if (!b) return;
+      if (!b.hidden) {
+        const yes = await ask({ title: `Hide “${b.title}”?`, body: '<p>It leaves The Stacks within about 5 minutes. Nothing is deleted; you can show it again.</p>', confirm: 'Hide from shelves' });
+        if (yes == null) return;
+      }
+      const res = await db('rpc/stacks_set_hidden', { method: 'POST', body: { p_book: b.id, p_hidden: !b.hidden } });
+      if (!res.ok) return toast(`Couldn’t change it: ${res.error}`, { error: true });
+      if (res.data?.ok !== true) return toast(`Couldn’t change it: ${stacksReplyError(res.data)}`, { error: true });
+      toast(b.hidden ? 'Back on the shelves within about 5 minutes' : 'Hidden: it leaves The Stacks within about 5 minutes');
+      await loadStacks();
+      renderAll();
+      $('[data-act="book-hide"]')?.focus();
+      return;
+    }
+    case 'feat-choose': {
+      const id = btn?.dataset.id;
+      S.q = ''; $('#search').value = '';
+      S.active = rows().findIndex((x) => x.id === 'featured');
+      await select('featured', { focus: false });
+      S.stacks.featDraft = { book_id: id };
+      renderDetail();
+      $('#ft-reason')?.focus();
+      return;
+    }
+    default:
+  }
+}
+
 /* ---------- Events ---------- */
 
 function wire() {
@@ -1461,6 +1895,8 @@ function wire() {
     else if (f.id === 'note-form') submitNote(f);
     else if (f.id === 'draft-form') submitDraft(f);
     else if (f.id === 'pick-form') submitPick(f);
+    else if (f.id === 'approve-form') submitApprove(f);
+    else if (f.id === 'feat-form') submitFeatured(f);
   });
   // toggle does not bubble, so listen while it travels down. Remembers whether the assistant is open.
   detail.addEventListener('toggle', (e) => { if (e.target.id === 'assist') S.assistOpen = e.target.open; }, true);
@@ -1468,6 +1904,7 @@ function wire() {
     const el = e.target;
     if (el.id === 'pk-hook-read') { S.hook.readPage = el.checked; return; }
     if (el.id === 'pk-note') syncHookField(el);
+    if (el.form?.id === 'approve-form' || el.form?.id === 'feat-form') return booksInput(el);
     const pickForm = el.form?.id === 'pick-form';
     const max = pickForm ? { title: PICK_LIMITS.title, note: PICK_LIMITS.note }[el.name]
       : { title: LIMITS.title, neutral_fact: LIMITS.neutral_fact, quote: LIMITS.quote, body: LIMITS.note }[el.name];
@@ -1508,7 +1945,7 @@ async function start() {
   if (!me.ok) return showGate('signin', { error: `Couldn’t check your reviewer access: ${me.error}` });
   if (!me.data?.length) return showGate('not-reviewer', { email: S.user.email });
 
-  await Promise.all([loadTopics(), loadVotes(), loadCollector(), detectFeatures(), loadWeird()]);
+  await Promise.all([loadTopics(), loadVotes(), loadCollector(), detectFeatures(), loadWeird(), loadStacks(), loadSiteBooks()]);
   // The favourites preview comes from the public site and the community function; the console does not wait for it.
   loadFavRow().then(() => { const el = $('#favs-panel'); if (el) el.outerHTML = favPanelHTML(); });
   $('#gate').hidden = true;

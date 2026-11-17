@@ -873,6 +873,92 @@ function updatePager(first, visible) {
   $('lib-next').disabled = first + visible >= n;
 }
 
+/* ---------- Put a book forward (the form at the end of the page; js/community.js submitBook) ---------- */
+
+const SUB_IDS = { title: 'sub-book-title', authors: 'sub-authors', isbn: 'sub-isbn', year: 'sub-year', publisher: 'sub-publisher', shelf: 'sub-shelf', pitch: 'sub-pitch', email: 'sub-email', confirm: 'sub-confirm' };
+const subErr = (field) => $(`${(SUB_IDS[field] || 'sub-' + field)}-err`);
+const subInputs = (field) => (field === 'relation' ? [...document.querySelectorAll('#sub-form input[name="relation"]')] : [$(SUB_IDS[field])].filter(Boolean));
+let communityMod = null;
+const loadCommunity = () => (communityMod ||= import('./community.js').catch(() => null));
+
+function setupSubmit(shelves) {
+  const toggle = $('sub-toggle'), form = $('sub-form');
+  if (!toggle || !form) return;
+  // The true-story shelves (the fiction shelves hold classics, not books put forward).
+  const offered = shelves.filter((sh) => !sh.fiction);
+  const sel = $('sub-shelf');
+  for (const sh of offered) { const o = el('option', null, sh.name); o.value = sh.id; sel.append(o); }
+  toggle.addEventListener('click', () => {
+    const open = toggle.getAttribute('aria-expanded') !== 'true';
+    toggle.setAttribute('aria-expanded', String(open));
+    form.hidden = !open;
+    if (open) { loadCommunity(); $('sub-book-title').focus(); }
+  });
+  const pitch = $('sub-pitch'), count = $('sub-pitch-count');
+  const paintCount = () => {
+    const left = 600 - [...pitch.value.trim()].length;
+    count.textContent = left >= 0 ? `${left} ${left === 1 ? 'character' : 'characters'} left` : `${-left} too many`;
+    count.classList.toggle('is-over', left < 0);
+  };
+  pitch.addEventListener('input', paintCount);
+  const fields = () => ({
+    title: $('sub-book-title').value, authors: $('sub-authors').value, isbn: $('sub-isbn').value, year: $('sub-year').value,
+    publisher: $('sub-publisher').value, shelf: sel.value, pitch: pitch.value,
+    relation: form.querySelector('input[name="relation"]:checked')?.value || null,
+    email: $('sub-email').value, confirm: $('sub-confirm').checked, website: $('sub-website').value,
+  });
+  const clear = () => {
+    for (const f of [...Object.keys(SUB_IDS), 'relation']) { const e = subErr(f); if (e) { e.hidden = true; e.textContent = ''; } for (const i of subInputs(f)) i.removeAttribute('aria-invalid'); }
+  };
+  const mark = (problems) => {
+    for (const { field, message } of problems) {
+      const e = subErr(field);
+      if (e && e.hidden) { e.textContent = message; e.hidden = false; }
+      for (const i of subInputs(field)) i.setAttribute('aria-invalid', 'true');
+    }
+    subInputs(problems[0].field)[0]?.focus();
+  };
+  // A field's message goes once it is fixed.
+  form.addEventListener('change', (e) => {
+    const name = e.target?.name;
+    if (!name || !communityMod) return;
+    communityMod.then((m) => {
+      if (!m || m.bookProblems(fields(), { shelves: offered.map((x) => x.id) }).some((p) => p.field === name)) return;
+      const er = subErr(name); if (er) { er.hidden = true; er.textContent = ''; }
+      for (const i of subInputs(name)) i.removeAttribute('aria-invalid');
+    });
+  });
+  const note = $('sub-note'), btn = $('sub-send');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const m = await loadCommunity();
+    clear();
+    note.classList.remove('is-error', 'is-done');
+    if (!m) { note.textContent = 'That didn’t send. Books can’t be sent right now. Try again in a minute.'; note.classList.add('is-error'); return; }
+    const f = fields();
+    const opts = { shelves: offered.map((x) => x.id) };
+    const problems = m.bookProblems(f, opts);
+    if (problems.length) {
+      note.textContent = problems.length === 1 ? 'One thing to fix: it’s marked above.' : `${problems.length} things to fix: they’re marked above.`;
+      note.classList.add('is-error');
+      mark(problems);
+      return;
+    }
+    btn.disabled = true; btn.textContent = 'Sending…';
+    const res = await m.submitBook(f, opts);
+    btn.disabled = false; btn.textContent = 'Send to the editor';
+    if (res.ok) {
+      form.reset(); paintCount();
+      note.textContent = 'Thanks. Our editor reads every book put forward. If you left an email address, we’ll write back either way.';
+      note.classList.add('is-done');
+    } else {
+      note.textContent = `That didn’t send. ${res.error || ''}`.trim();
+      note.classList.add('is-error');
+      if (res.field) mark([{ field: res.field, message: res.error }]);
+    }
+  });
+}
+
 /* ---------- Start ---------- */
 
 async function loadCovers() {
@@ -941,12 +1027,14 @@ async function start() {
   try {
     const d = await loadData();
     if (!d) throw new Error('no data');
+    setupSubmit(d.shelves);
     state.data = stockedShelves(d);
     state.featured = featuredView(state.data);
   } catch {
     const msg = el('p', 'lib-msg', 'The shelves could not be loaded. Please try again in a moment.');
     $('lib-bays').replaceChildren(msg);
     $('lib-status').textContent = 'The shelves could not be loaded.';
+    setupSubmit([]);
     toDom();
     return;
   }

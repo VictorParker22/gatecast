@@ -15,20 +15,22 @@
 //   rotY    turn about the vertical (radians). glTF models face +Z, toward the visitor; with mirror (the default) a
 //           positive rotY turns the figurine toward the middle of its case whichever end it stands on (about 0.3
 //           reads best); with mirror: false it is applied as is (positive = counter-clockwise seen from above)
+//   front   the turn (radians) that makes this model face +Z (the visitor) before anything else: the delivered files
+//           face +Z after -0.5. Applied first, so the fit and the bounding box use the model as it will stand
 export const FIGURINE_DIR = 'assets/figurines/';
 
 export const FIGURINES = {
-  crime: { file: null, height: 0.15, maxW: 0.2, scale: 1, y: 0, x: 0, rotY: 0.35, mirror: true }, // brass magnifying glass on case folders
-  serial: { file: null, height: 0.13, maxW: 0.2, scale: 1, y: 0, x: 0, rotY: 0.3, mirror: true }, // 1950s typewriter
-  unsolved: { file: null, height: 0.16, maxW: 0.16, scale: 1, y: 0, x: 0, rotY: 0.4, mirror: true }, // ship in a bottle
-  history: { file: null, height: 0.17, maxW: 0.12, scale: 1, y: 0, x: 0, rotY: 0, mirror: false }, // hourglass
-  science: { file: null, height: 0.19, maxW: 0.14, scale: 1, y: 0, x: 0, rotY: 0.5, mirror: true }, // brass microscope
-  cults: { file: null, height: 0.15, maxW: 0.18, scale: 1, y: 0, x: 0, rotY: 0.3, mirror: true }, // magician's top hat and cards
-  fantasy: { file: null, height: 0.2, maxW: 0.2, scale: 1, y: 0, x: 0, rotY: 0.45, mirror: true }, // bronze dragon on old books
-  scifi: { file: null, height: 0.21, maxW: 0.12, scale: 1, y: 0, x: 0, rotY: 0.2, mirror: true }, // retro tin rocket
+  crime: { file: 'crime.glb', height: 0.13, maxW: 0.22, scale: 1, y: 0, x: 0, rotY: 0.3, front: -0.5, mirror: true }, // magnifying glass on case folders
+  serial: { file: 'serial.glb', height: 0.13, maxW: 0.2, scale: 1, y: 0, x: 0, rotY: 0.3, front: -0.5, mirror: true }, // 1950s typewriter
+  unsolved: { file: 'unsolved.glb', height: 0.13, maxW: 0.18, scale: 1, y: 0, x: 0, rotY: 0.3, front: -0.5, mirror: true }, // ship's compass in an open mahogany box
+  history: { file: 'history.glb', height: 0.19, maxW: 0.13, scale: 1, y: 0, x: 0, rotY: 0, front: -0.5, mirror: false }, // hourglass
+  science: { file: 'science.glb', height: 0.21, maxW: 0.13, scale: 1, y: 0, x: 0, rotY: 0.4, front: -0.5, mirror: true }, // brass microscope
+  cults: { file: 'cults.glb', height: 0.15, maxW: 0.19, scale: 1, y: 0, x: 0, rotY: 0.3, front: -0.5, mirror: true }, // magician's top hat with cards
+  fantasy: { file: 'fantasy.glb', height: 0.2, maxW: 0.21, scale: 1, y: 0, x: 0, rotY: 0.4, front: -0.5, mirror: true }, // bronze dragon on old books
+  scifi: { file: 'scifi.glb', height: 0.22, maxW: 0.14, scale: 1, y: 0, x: 0, rotY: 0.2, front: -0.5, mirror: true }, // retro tin rocket
 };
 // Any shelf without an entry (a shelf added later) gets these, with the default file name.
-export const FIGURINE_DEFAULT = { file: null, height: 0.16, maxW: 0.18, scale: 1, y: 0, x: 0, rotY: 0.3, mirror: true };
+export const FIGURINE_DEFAULT = { file: null, height: 0.16, maxW: 0.18, scale: 1, y: 0, x: 0, rotY: 0.3, front: 0, mirror: true };
 // How far from the middle of the cornice a figurine stands (m); the cornice's top is ±0.365 wide.
 export const FIGURINE_INSET = 0.235;
 // A file bigger than this is not used (bytes): the perf budget is ~400 KB per figurine.
@@ -38,6 +40,9 @@ const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const FILE = /^[a-z0-9]+(?:[-_][a-z0-9]+)*\.glb$/;
 
 // The figurine to load for a shelf, or null. `tryAll`: request <shelfId>.glb even where the table has no file yet.
+// Files (8 delivered 17 Nov 2026): glTF 2.0 binary, Y-up, any units (fitted by bounding box), EXT_meshopt_compression
+// and/or KHR_mesh_quantization, EXT_texture_webp or PNG/JPEG textures, opaque PBR metallic-roughness; Draco works
+// too. No KTX2/Basis textures, no transmission, no lights or cameras (stripped), no animation (ignored).
 export function figurineFor(shelfId, { tryAll = false, table = FIGURINES } = {}) {
   if (!SLUG.test(String(shelfId || ''))) return null;
   const t = { ...FIGURINE_DEFAULT, ...(Object.hasOwn(table, shelfId) ? table[shelfId] : {}) };
@@ -52,6 +57,7 @@ export function figurineFor(shelfId, { tryAll = false, table = FIGURINES } = {})
     y: num(t.y, 0, -0.1, 0.2),
     x: num(t.x, 0, -0.2, 0.2),
     rotY: num(t.rotY, 0, -Math.PI * 2, Math.PI * 2),
+    front: num(t.front, 0, -Math.PI * 2, Math.PI * 2),
     mirror: t.mirror !== false,
   };
 }

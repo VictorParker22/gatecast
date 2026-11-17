@@ -206,4 +206,11 @@
   .rv-favs__list { @apply grid list-decimal gap-2 pl-5 text-sm; & li { @apply pl-1; } & li > span { @apply block; } }
   .rv-favs__h { @apply font-semibold; }
   .rv-favs__hook { @apply italic text-np-muted; }
+
+  /* ---------- The Stacks: books put forward and the Book of the Week ---------- */
+  .rv-field__label { @apply text-sm font-semibold; }
+  .rv-pitch { @apply wrap-anywhere; }
+  .rv input[readonly] { @apply bg-np-sunken; }
+  .rv-cover { @apply m-0 flex items-end gap-3; & img { @apply h-auto w-30 rounded-sm border border-line bg-np-sunken; } }
+  .rv-cover__img { @apply inline-block h-auto w-10 rounded-sm border border-line align-middle; }
 }

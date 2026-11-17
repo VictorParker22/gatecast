@@ -209,7 +209,7 @@ test('routes and limit replies', () => {
   assert.equal(route('/community/favourites'), 'favourites');
   assert.equal(route('/community/hasOwnProperty'), null);
   assert.equal(route('/functions/v1/community/click'), 'click');
-  assert.deepEqual(ROUTE_METHOD, { vote: 'POST', ratings: 'GET', favourites: 'GET', tip: 'POST', click: 'POST' });
+  assert.deepEqual(ROUTE_METHOD, { vote: 'POST', ratings: 'GET', favourites: 'GET', tip: 'POST', click: 'POST', book: 'POST' });
   const l = limitReply({ ok: false, error: 'rate_limited', retry_after: 1234 }, 'vote');
   assert.equal(l.status, 429);
   assert.equal(l.body.retryAfter, 1234);

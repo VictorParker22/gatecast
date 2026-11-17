@@ -14,8 +14,9 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import {
   BAY, bayX, spanOf, frameWorld, bookLook, layoutBay, frameCamera, windowFor, windowX, PULL, pullFraction, pointerSpeed, releaseAction,
-  springStep, springAtRest, renderScale, frameInterval,
+  springStep, springAtRest, renderScale, frameInterval, FRAME_CY, fitBays, visibleBays, featuredSpot, figurineSide, lampOffsets,
 } from './model.js';
+import { figurineFor, fitFigurine, figurinePose, FIGURINE_MAX_BYTES } from './figurines.js';
 import * as P from './textures.js';
 import * as sound from './sound.js';
 import { buildRoom } from './room.js';
@@ -27,6 +28,22 @@ const TILT = 0.17; // ~10°: a hovered or focused spine tips forward
 const READ_TILT = { y: -Math.PI / 2 + 0.58, x: 0.42, z: 0.12 };
 // The borrowed book, open: turned ~20° and tipped back ~22° toward the light, like a book held up to be stamped.
 const OPEN_PITCH = -0.38, OPEN_TURN = 0.34;
+// The Book of the Week's copy on its stand has its own key (the same book also stands on its shelf).
+const FEAT = '\u2605featured';
+const FEAT_Z = -0.11; // the stand and the figurines, on the cornice: a little behind its middle (the top runs -0.305..0.045)
+const FEAT_SIZE = 1.18; // the showpiece is a touch bigger than a shelf copy
+const FEAT_LEAN = 0.16; // ~9°, leaning back on its easel
+
+// A soft beam from the spotlight down onto the stand: brighter near the lamp, fading toward the book and at the edges.
+const BEAM = {
+  uniforms: { time: { value: 0 }, strength: { value: 1 } },
+  vertexShader: `varying vec2 vUv; varying float vFacing; void main(){ vUv = uv; vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    vec3 n = normalize(normalMatrix * normal); vFacing = abs(dot(n, normalize(-mv.xyz))); gl_Position = projectionMatrix * mv; }`,
+  fragmentShader: `varying vec2 vUv; varying float vFacing; uniform float time, strength;
+    void main(){ float along = smoothstep(0.0, 0.35, vUv.y) * (0.35 + 0.65 * vUv.y);
+      float edge = pow(vFacing, 2.2); float shimmer = 0.9 + 0.1 * sin(time * 0.7 + vUv.x * 12.0);
+      gl_FragColor = vec4(vec3(1.0, 0.82, 0.55), along * edge * 0.16 * strength * shimmer); }`,
+};
 
 export function loadImage(url, cors = false, timeout = 8000) {
   return new Promise((resolve) => {
@@ -89,6 +106,7 @@ const DUST = {
 export async function mount(opts) {
   const { canvas, stage, region, data, tier, assets = {}, coverUrl = () => null, shelfName = () => '', on = {} } = opts;
   const high = tier === 'high';
+  const still = !!opts.reducedMotion; // no idle sway or shimmer
   const mobile = !!opts.mobile;
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: !high, alpha: false, stencil: false, powerPreference: 'high-performance' });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -97,7 +115,7 @@ export async function mount(opts) {
   renderer.setClearColor(0x0b0a0c, 1);
   if (high) { renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap; }
   const maxAniso = Math.min(8, renderer.capabilities.getMaxAnisotropy());
-  let lost = false;
+  let lost = false, destroyed = false;
   canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); lost = true; stop(); on.lost?.(); }, { once: true });
 
   const scene = new THREE.Scene();
@@ -201,7 +219,7 @@ export async function mount(opts) {
     key.shadow.bias = -0.0004; key.shadow.normalBias = 0.012; key.shadow.radius = 4;
     key.shadow.camera.near = 1; key.shadow.camera.far = 6;
   }
-  const bayLights = [0, 1, 2].map(() => {
+  const bayLights = [0, 1, 2, 3].map(() => {
     const s = new THREE.SpotLight(0xffc98c, 9, 0, 0.42, 0.6, 2); // a picture light over each case: a warm pool on the plate and the upper row
     scene.add(s); scene.add(s.target);
     return s;
@@ -352,6 +370,8 @@ export async function mount(opts) {
     glass: [['ledgers', 'rolledmap'], ['map']],
     flask: [['ledgers', 'magnifier'], ['folders']],
     hat: [['map'], ['ledgers', 'rolledmap']],
+    dragon: [['map'], ['ledgers', 'rolledmap']],
+    rocket: [['folders', 'magnifier'], ['map']],
   };
   const PROP_W = { folders: 0.17, map: 0.17, ledgers: 0.17, candle: 0.09 };
   const slipMat = keep(new THREE.MeshStandardMaterial({ color: 0xcfc2a2, roughness: 0.95, side: THREE.DoubleSide }));
@@ -420,7 +440,7 @@ export async function mount(opts) {
     const contact = new THREE.Mesh(keep(new THREE.PlaneGeometry(W + 0.34, D + 0.4)), keep(new THREE.MeshBasicMaterial({ color: 0x000000, alphaMap: tex(fs, { srgb: false }), transparent: true, opacity: 0.85, depthWrite: false })));
     contact.rotation.x = -Math.PI / 2; contact.position.set(0, 0.0015, -D / 2 + 0.03);
     g.add(contact);
-    const bayRec = { index: i, shelf, group: g, books: [], dim: 0 };
+    const bayRec = { index: i, shelf, group: g, books: [], dim: 0, figurine: null, figurineT: null };
     bays.push(bayRec);
 
     // Books.
@@ -491,7 +511,175 @@ export async function mount(opts) {
     return {
       id: book.id, book, look, mesh, slot, holder, slide, tilt, spineMat, bay: bayRec,
       tiltS: { x: 0, v: 0 }, tiltTarget: 0, dim: 0, dimTarget: 0, push: 0, state: 'shelf',
+      rest: new THREE.Vector3(0, h / 2, -d / 2), out: { x: 0, y: 0.008, z: PULL.maxOut },
     };
+  }
+
+  /* ---------- The Book of the Week: face out on a brass stand on top of the cases ---------- */
+  // Built once; layout() puts it over the middle of the first page (model.js featuredSpot). It is a book record
+  // like the shelf copies (pullOut, turn, borrow and putBack work on it), keyed FEAT, that lifts off its stand
+  // instead of sliding out of a shelf, and never tips on hover.
+  let feat = null;
+  const featBook = opts.featured && data.books.find((bk) => bk.id === opts.featured.id);
+  if (featBook) feat = buildFeatured(featBook);
+
+  function buildFeatured(book) {
+    const base = bookLook(book);
+    const look = { ...base, thick: round3(base.thick * FEAT_SIZE), height: round3(base.height * FEAT_SIZE), depth: round3(base.depth * FEAT_SIZE) };
+    const { thick: t, height: h, depth: d } = look;
+    const group = new THREE.Group(); // on the cornice; layout() sets x
+    group.position.set(0, BAY.cornice, FEAT_Z);
+    world.add(group);
+    // The stand: a dark plinth with a brass top and a brass lip that holds the book.
+    const plinthW = Math.max(0.24, d + 0.07), plinthD = 0.15;
+    part(group, woodGeo(plinthW, 0.034, plinthD, 991), darkWoodMat, 0, 0.017, 0);
+    part(group, keep(new THREE.BoxGeometry(plinthW - 0.012, 0.006, plinthD - 0.012)), brassMat, 0, 0.037, 0);
+    part(group, keep(new THREE.BoxGeometry(d * 0.92, 0.014, 0.008)), brassMat, 0, 0.047, 0.03);
+    // The easel behind it: two thin brass legs leaning back.
+    for (const sx of [-1, 1]) {
+      const leg = part(group, keep(new THREE.CylinderGeometry(0.0035, 0.0035, h * 0.78, 10)), brassMat, sx * d * 0.28, 0.04 + h * 0.36, -0.035);
+      leg.rotation.x = -FEAT_LEAN - 0.06;
+    }
+    // The plaque, engraved like the shelf plates, leaning on the front of the plinth.
+    const text = 'Book of the Week';
+    const ps = P.plateSize(text, 0.032);
+    const pw = Math.min(plinthW - 0.02, ps.worldW), ph = ps.worldH * (pw / ps.worldW);
+    const pl = P.paintPlate(text, pw, ph, { h: high ? 96 : 64, brass: brassImg });
+    const plaqueMat = keep(new THREE.MeshStandardMaterial({ map: tex(pl.map), roughnessMap: tex(pl.pbr, { srgb: false }), metalnessMap: tex(pl.pbr, { srgb: false }), roughness: 1, metalness: 1, envMapIntensity: 1.6, color: 0xd8c8a8 }));
+    const plaque = part(group, keep(new THREE.BoxGeometry(pw, ph, 0.004)), [brassMat, brassMat, brassMat, brassMat, plaqueMat, brassMat], 0, 0.02, plinthD / 2 + 0.006, { cast: false });
+    plaque.rotation.x = -0.28;
+    // The book, its front cover to the room: slot turned a quarter so the +x board (the cover) faces +z.
+    const sway = new THREE.Group();
+    sway.position.set(0, 0.044, 0.012);
+    group.add(sway);
+    const slot = new THREE.Group(), holder = new THREE.Group(), slide = new THREE.Group(), tilt = new THREE.Group();
+    slot.rotation.y = -Math.PI / 2;
+    holder.rotation.z = FEAT_LEAN; // local z is the room's -x here: tips the top back, away from the visitor
+    const sp = P.paintSpine(book, look, grains, { w: high ? 128 : 64 });
+    const spineMat = keep(new THREE.MeshStandardMaterial({
+      map: tex(sp.map), roughnessMap: tex(sp.pbr, { srgb: false }), metalnessMap: tex(sp.pbr, { srgb: false }), roughness: 1, metalness: 1,
+      normalMap: curveTex, envMapIntensity: 1.5, emissive: 0x1a120a,
+    }));
+    const cloth = clothMat(look.binding);
+    // Until its cover is painted (prefetchCover, after the room is up), the stand-in cover in its binding.
+    const standin = keep(new THREE.MeshStandardMaterial({ map: tex(P.paintCover(book, look, shelfName(book.shelf), grains, { w: high ? 384 : 256 })), roughness: 0.78 }));
+    const mesh = new THREE.Mesh(keep(new THREE.BoxGeometry(t, h, d)), [standin, cloth, pagesMat, pagesMat, spineMat, pagesMat]);
+    mesh.castShadow = high; mesh.receiveShadow = high;
+    mesh.position.set(0, h / 2, 0);
+    mesh.userData.id = FEAT;
+    slot.add(holder); holder.add(slide); slide.add(tilt); tilt.add(mesh);
+    sway.add(slot);
+    pickables.push(mesh);
+    // Light and glory: a warm spotlight from above, a soft beam, and a glow behind the book.
+    const spot = new THREE.SpotLight(0xffcf8a, high ? 7 : 6, 0, 0.3, 0.75, 2);
+    scene.add(spot); scene.add(spot.target);
+    const beamMat = keep(new THREE.ShaderMaterial({ ...BEAM, uniforms: THREE.UniformsUtils.clone(BEAM.uniforms), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
+    const beamH = 0.62;
+    const beamGeo = new THREE.CylinderGeometry(0.035, d * 0.95, beamH, 28, 1, true);
+    beamGeo.translate(0, beamH / 2, 0);
+    const beam = new THREE.Mesh(keep(beamGeo), beamMat);
+    beam.position.set(0, 0.05, 0.02); beam.renderOrder = 3; beam.frustumCulled = false;
+    group.add(beam);
+    const glow = new THREE.Sprite(keep(new THREE.SpriteMaterial({ map: tex(P.glowCanvas(128, 'rgba(255,214,150,1)')), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: high ? 0.42 : 0.6 })));
+    glow.scale.set(h * 2.1, h * 2.1, 1); glow.position.set(0, 0.05 + h * 0.5, -0.06);
+    group.add(glow);
+    const rec = {
+      id: FEAT, featured: true, book, look, mesh, slot, holder, slide, tilt, spineMat, bay: { index: 0 },
+      tiltS: { x: 0, v: 0 }, tiltTarget: 0, dim: 0, dimTarget: 0, push: 0, state: 'shelf',
+      rest: new THREE.Vector3(0, h / 2, 0), out: { x: 0, y: 0.06, z: 0 },
+      group, sway, spot, beam, beamMat, glow, glowBase: glow.material.opacity, swayAmt: 1,
+    };
+    books.set(FEAT, rec);
+    return rec;
+  }
+
+  // Figurines on the cornices (js/stacks3d/figurines.js): fetched one at a time, nearest the view first, after the
+  // room is interactive. A missing, oversized or broken file is skipped without a word: the case stays as it was.
+  const figs = { started: false, loader: null, draco: null, queue: [], busy: false, done: new Set() };
+  async function figurineLoader() {
+    if (figs.loader) return figs.loader;
+    const [{ GLTFLoader }, { MeshoptDecoder }, { DRACOLoader }] = await Promise.all([
+      import('three/addons/loaders/GLTFLoader.js'), import('three/addons/libs/meshopt_decoder.module.js'), import('three/addons/loaders/DRACOLoader.js'),
+    ]);
+    const loader = new GLTFLoader();
+    loader.setMeshoptDecoder(MeshoptDecoder);
+    figs.draco = new DRACOLoader();
+    figs.draco.setDecoderPath({
+      js: new URL('../../vendor/three/addons/libs/draco/gltf/draco_wasm_wrapper.js', import.meta.url).href,
+      wasm: new URL('../../vendor/three/addons/libs/draco/gltf/draco_decoder.wasm', import.meta.url).href,
+    });
+    loader.setDRACOLoader(figs.draco);
+    figs.loader = loader;
+    return loader;
+  }
+  // Which bays want their figurine now: every bay on the high tier; on the low tier (phones) the window and one
+  // bay either side, more as the visitor pans.
+  function queueFigurines() {
+    if (!figs.started || lost) return;
+    const lo = high ? 0 : view.first - 1, hi = high ? bays.length - 1 : view.first + view.visible;
+    const want = bays.filter((b) => b.index >= lo && b.index <= hi && !figs.done.has(b.index))
+      .sort((a, b) => Math.abs(a.index - (view.first + view.visible / 2)) - Math.abs(b.index - (view.first + view.visible / 2)));
+    for (const b of want) { figs.done.add(b.index); figs.queue.push(b); }
+    pumpFigurines();
+  }
+  async function pumpFigurines() {
+    if (figs.busy) return;
+    figs.busy = true;
+    while (figs.queue.length && !lost && !destroyed) {
+      const bay = figs.queue.shift();
+      const t = figurineFor(bay.shelf.id, { tryAll: !!opts.figurines?.tryAll });
+      if (!t) continue;
+      try {
+        const loader = await figurineLoader();
+        const res = await fetch(t.url);
+        if (!res.ok) continue;
+        const buf = await res.arrayBuffer();
+        if (buf.byteLength > FIGURINE_MAX_BYTES || lost || destroyed) continue;
+        const gltf = await loader.parseAsync(buf, '');
+        placeFigurine(bay, gltf.scene, t);
+      } catch (e) { /* silent: the case keeps its look */ }
+      await yieldFrame();
+    }
+    figs.busy = false;
+  }
+  function placeFigurine(bay, model, t) {
+    const drop = [];
+    model.traverse((o) => {
+      if (o.isLight || o.isCamera) { drop.push(o); return; }
+      if (!o.isMesh) return;
+      o.castShadow = high; o.receiveShadow = high;
+      keep(o.geometry);
+      for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+        if (!m) continue;
+        if (m.transmission) { m.transmission = 0; } // no extra transmission pass
+        if ('envMapIntensity' in m) m.envMapIntensity = 1.35;
+        for (const k of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap']) if (m[k]) { m[k].anisotropy = maxAniso; keep(m[k]); }
+        keep(m);
+      }
+    });
+    for (const o of drop) o.removeFromParent();
+    const inner = new THREE.Group(); inner.rotation.y = t.front; inner.add(model);
+    const fit = new THREE.Group(); fit.add(inner);
+    fit.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(inner);
+    const f = fitFigurine(box, t);
+    if (!f) return;
+    fit.scale.setScalar(f.scale);
+    fit.position.set(f.offset.x, f.offset.y, f.offset.z);
+    const holder = new THREE.Group();
+    holder.position.set(0, BAY.cornice, FEAT_Z);
+    holder.add(fit);
+    bay.group.add(holder);
+    bay.figurine = holder; bay.figurineT = t;
+    placeFigurineSide(bay);
+    invalidate(300);
+  }
+  function placeFigurineSide(bay) {
+    if (!bay.figurine) return;
+    const fx = feat ? feat.group.position.x : Infinity; // no Book of the Week: every figurine on the left end
+    const pose = figurinePose(bay.figurineT, figurineSide(bay.index, bays.length, fx));
+    bay.figurine.position.x = pose.x;
+    bay.figurine.rotation.y = pose.rotY;
   }
 
   function addProps(g, plan, free, i) {
@@ -579,9 +767,9 @@ export async function mount(opts) {
     canvasRect = canvas.getBoundingClientRect();
     const w = Math.max(1, Math.round(sr.width)), h = Math.max(1, Math.round(sr.height));
     const rect = { x: rr.left - sr.left, y: rr.top - sr.top, w: rr.width, h: rr.height };
-    // How many bays: from the shape of the frame the stylesheet reserves (3, 2 or 1 bay wide).
-    const ar = rect.h / Math.max(1, rect.w);
-    const visible = ar > 0.95 ? 1 : ar > 0.5 ? 2 : 3;
+    // How many bays: as many as fit the frame the stylesheet reserves (4, 3, 2 or 1 wide), shared out so the pages
+    // come out even (model.js visibleBays: 8 shelves are two pages of 4, 6 are two pages of 3).
+    const visible = visibleBays(fitBays(rect.w, rect.h), bays.length);
     const changed = visible !== view.visible;
     view.visible = visible;
     view.w = w; view.h = h;
@@ -594,6 +782,7 @@ export async function mount(opts) {
       grainPass.uniforms.res.value.set(w * view.dpr, h * view.dpr);
     }
     camera.fov = visible === 1 ? 32 : 28;
+    placeFeatured(visible);
     camera.aspect = w / h;
     const f = frameCamera({ canvasW: w, canvasH: h, rect, worldW: frameWorld(visible).w, worldH: frameWorld(visible).h, fov: camera.fov });
     view.perPx = f.perPx;
@@ -622,6 +811,7 @@ export async function mount(opts) {
       dust.home = shaft;
     }
     on.window?.(view.first, view.visible);
+    queueFigurines();
     invalidate(400);
   }
 
@@ -632,16 +822,28 @@ export async function mount(opts) {
     camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
   }
 
+  // The Book of the Week over the middle of the first page, the figurines on the far ends from it.
+  function placeFeatured(visible) {
+    if (feat) {
+      const spot = featuredSpot(visible, bays.length);
+      feat.group.position.x = spot.x;
+      feat.bay.index = spot.bay;
+      feat.spot.position.set(spot.x, 1.95, 0.75);
+      feat.spot.target.position.set(spot.x, BAY.cornice + feat.look.height * 0.55, FEAT_Z);
+    }
+    for (const bay of bays) placeFigurineSide(bay);
+  }
+
   const camBase = new THREE.Vector3();
   function placeCamera() {
     const cx = view.x + view.drag;
-    camBase.set(cx, BAY.height / 2, view.dist);
-    camera.position.set(cx + parallax.x * 0.012, BAY.height / 2 - parallax.y * 0.008, view.dist);
+    camBase.set(cx, FRAME_CY, view.dist);
+    camera.position.set(cx + parallax.x * 0.012, FRAME_CY - parallax.y * 0.008, view.dist);
     camera.rotation.set(-parallax.y * 0.004, -parallax.x * 0.006, 0);
     camera.updateMatrixWorld();
     // Lights travel with the window of bays.
     key.position.set(cx - 1.1, 2.3, 2.1); key.target.position.set(cx, 0.45, -0.15);
-    const off = view.visible === 1 ? [-1, 0, 1] : view.visible === 2 ? [-0.5, 0.5, 1.5] : [-1, 0, 1];
+    const off = lampOffsets(view.visible, bayLights.length);
     bayLights.forEach((s, k) => {
       const x = cx + off[k] * BAY.pitch;
       s.position.set(x, 1.3, 0.62); s.target.position.set(x, 0.66, -0.1);
@@ -673,7 +875,7 @@ export async function mount(opts) {
     const s = performance.now();
     if (composer) composer.render(dt); else renderer.render(scene, camera);
     cost = cost * 0.8 + (performance.now() - s) * 0.2;
-    if (firstFrame) { firstFrame = false; requestAnimationFrame(() => on.ready?.()); }
+    if (firstFrame) { firstFrame = false; requestAnimationFrame(() => { on.ready?.(); afterReady(); }); }
     if (moving) governor(performance.now() - s, dt);
   }
   // If frames keep taking too long, render fewer pixels (down to 0.75x), then drop bloom.
@@ -710,10 +912,25 @@ export async function mount(opts) {
     candleLight.intensity = 0.42 * flick;
     for (const f of flames) { f.mat.uniforms.time.value = t; f.glow.material.opacity = (high ? 0.5 : 0.85) * (0.85 + 0.15 * flick); }
     dust.mat.uniforms.time.value = t;
+    if (feat) {
+      // A slow idle sway on the stand (none when motion is reduced, and none while the book is off it).
+      feat.swayAmt += ((feat.state === 'shelf' ? 1 : 0) - feat.swayAmt) * Math.min(1, dt * 3);
+      feat.sway.rotation.y = still ? 0 : Math.sin(t * 0.45) * 0.07 * feat.swayAmt;
+      feat.sway.position.y = 0.044 + (still ? 0 : Math.sin(t * 0.9) * 0.0025 * feat.swayAmt);
+      feat.beamMat.uniforms.time.value = still ? 0 : t;
+      feat.glow.material.opacity = feat.glowBase * (still ? 1 : 0.9 + 0.1 * Math.sin(t * 0.8)) * (hovered === feat || ring.id === FEAT ? 1.35 : 1);
+    }
     room?.update(t);
     if (grainPass) grainPass.uniforms.time.value = t;
     if (ring.id) placeRing();
     on.frame?.();
+  }
+
+  // Once the room is interactive: the Book of the Week's cover, then the figurines, when the browser is idle.
+  function afterReady() {
+    const idle = (fn) => (window.requestIdleCallback ? requestIdleCallback(fn, { timeout: 2500 }) : setTimeout(fn, 600));
+    if (feat) prefetchCover(feat).then((c) => { if (feat.state === 'shelf' && !destroyed) { feat.mesh.material[0] = c.front; feat.mesh.material[1] = c.back; invalidate(200); } });
+    idle(() => { figs.started = true; queueFigurines(); });
   }
 
   /* ---------- Visibility: pause when hidden or scrolled away ---------- */
@@ -745,9 +962,9 @@ export async function mount(opts) {
     if (hovered === b) return;
     if (hovered && hovered.state === 'shelf' && hovered.id !== ring.id) hovered.tiltTarget = 0;
     hovered = b;
-    if (b) b.tiltTarget = TILT;
-    canvas.style.cursor = b ? 'grab' : '';
-    on.hover?.(b ? b.id : null);
+    if (b && !b.featured) b.tiltTarget = TILT;
+    canvas.style.cursor = b ? (b.featured ? 'pointer' : 'grab') : '';
+    on.hover?.(b ? b.book.id : null);
     invalidate(300);
   }
 
@@ -826,10 +1043,12 @@ export async function mount(opts) {
     const b = pick(ev);
     if (ev.pointerType !== 'mouse') {
       press = { b, x: ev.clientX, y: ev.clientY, t: performance.now(), id: ev.pointerId, mode: 'maybe', timer: 0 };
-      if (b) press.timer = setTimeout(() => { if (press && press.mode === 'maybe') { press.mode = 'grab'; navigator.vibrate?.(8); beginDrag(b, { clientX: press.x, clientY: press.y }); } }, 300);
+      if (b && !b.featured) press.timer = setTimeout(() => { if (press && press.mode === 'maybe') { press.mode = 'grab'; navigator.vibrate?.(8); beginDrag(b, { clientX: press.x, clientY: press.y }); } }, 300);
       return;
     }
-    if (b) { canvas.setPointerCapture(ev.pointerId); drag.pointerId = ev.pointerId; beginDrag(b, ev); }
+    // The Book of the Week is not dragged off its stand: a click opens it.
+    if (b && b.featured) press = { b, x: ev.clientX, y: ev.clientY, t: performance.now(), id: ev.pointerId, mode: 'maybe' };
+    else if (b) { canvas.setPointerCapture(ev.pointerId); drag.pointerId = ev.pointerId; beginDrag(b, ev); }
     else press = { b: null, x: ev.clientX, y: ev.clientY, t: performance.now(), id: ev.pointerId, mode: 'maybe' };
   };
   const onMove = (ev) => {
@@ -865,7 +1084,7 @@ export async function mount(opts) {
         return;
       }
       if (p.mode === 'grab') { if (drag.active) endDrag(ev); return; }
-      if (p.mode === 'maybe' && p.b && performance.now() - p.t < 500 && !busy) { on.pull?.(p.b.id, { flick: false }); return; }
+      if (p.mode === 'maybe' && p.b && performance.now() - p.t < 500 && !busy) { on.pull?.(p.b.book.id, { flick: false, featured: !!p.b.featured }); return; }
       if (p.mode === 'maybe' && !p.b) {
         const dx = ev.clientX - p.x;
         if (Math.abs(dx) > 60) panTo(view.first + (dx < 0 ? 1 : -1) * view.visible);
@@ -898,6 +1117,7 @@ export async function mount(opts) {
     gsap.to(view, { x, duration: instant ? 0 : 0.95, ease: 'power3.inOut', onUpdate: () => invalidate(60) });
     invalidate(1000);
     on.window?.(view.first, view.visible);
+    queueFigurines();
   }
 
   /* ---------- Focus ring for keyboard users ---------- */
@@ -905,7 +1125,7 @@ export async function mount(opts) {
   function placeRing() {
     const b = books.get(ring.id);
     if (!b || !ring.el || b.state !== 'shelf' || !ring.show) { if (ring.el) ring.el.hidden = true; return; }
-    const r = projectBox(b.mesh, 'spine');
+    const r = projectBox(b.mesh, b.featured ? 'front' : 'spine');
     ring.el.hidden = false;
     Object.assign(ring.el.style, { left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px' });
   }
@@ -1012,8 +1232,8 @@ export async function mount(opts) {
     });
   }
 
-  async function pullOut(id, { flick = false } = {}) {
-    const b = books.get(id);
+  async function pullOut(id, { flick = false, featured = false } = {}) {
+    const b = featured && feat && feat.book.id === id ? feat : books.get(id);
     if (!b || busy || reading) return false;
     busy = true;
     setHover(null);
@@ -1026,8 +1246,8 @@ export async function mount(opts) {
     // Slide the rest of the way out (from wherever the hand left it).
     sound.slide(1);
     gsap.killTweensOf(b.slide.position);
-    await new Promise((r) => gsap.to(b.slide.position, { z: PULL.maxOut, y: 0.008, duration: flick ? 0.12 : 0.28, ease: 'power2.out', onUpdate: () => invalidate(50), onComplete: r }));
-    gsap.to(b.tilt.rotation, { x: 0.08, duration: 0.15 });
+    await new Promise((r) => gsap.to(b.slide.position, { ...b.out, duration: flick ? 0.12 : 0.28, ease: 'power2.out', onUpdate: () => invalidate(50), onComplete: r }));
+    if (!b.featured) gsap.to(b.tilt.rotation, { x: 0.08, duration: 0.15 });
     b.tiltS = { x: 0, v: 0 };
     // Leave the shelf: the mesh flies in world space.
     scene.attach(b.mesh);
@@ -1186,12 +1406,13 @@ export async function mount(opts) {
     setFocusBlur(false);
     gsap.to(readLight, { intensity: 0, duration: 0.6 });
     // Fly back to just in front of its slot, then slide in and settle with a little bounce.
-    b.slide.position.set(0, 0.008, PULL.maxOut);
-    b.tilt.rotation.set(0.08, 0, 0);
+    b.slide.position.set(b.out.x, b.out.y, b.out.z);
+    b.tilt.rotation.set(b.featured ? 0 : 0.08, 0, 0);
     b.slide.rotation.set(0, 0, 0);
+    if (b.featured) { b.swayAmt = 0; b.sway.rotation.y = 0; b.sway.position.y = 0.044; }
     b.tilt.updateWorldMatrix(true, false);
     const target = new THREE.Object3D();
-    target.position.set(0, b.look.height / 2, -b.look.depth / 2);
+    target.position.copy(b.rest);
     b.tilt.add(target);
     target.updateWorldMatrix(true, false);
     const pos = new THREE.Vector3(), q = new THREE.Quaternion();
@@ -1200,7 +1421,7 @@ export async function mount(opts) {
     sound.rustle();
     await tweenPose(b.mesh, { pos, q }, { duration: 0.85, ease: 'power2.inOut', arc: 0.05 });
     b.tilt.attach(b.mesh);
-    b.mesh.position.set(0, b.look.height / 2, -b.look.depth / 2);
+    b.mesh.position.copy(b.rest);
     b.mesh.quaternion.identity();
     b.mesh.castShadow = high;
     sound.slide(0.7);
@@ -1242,7 +1463,7 @@ export async function mount(opts) {
     if (!b) return;
     const first = windowFor(b.bay.index, view.visible, bays.length);
     if (first !== view.first) panTo(first);
-    if (b.state === 'shelf') b.tiltTarget = TILT;
+    if (b.state === 'shelf' && !b.featured) b.tiltTarget = TILT;
     invalidate(1100);
   }
 
@@ -1269,6 +1490,14 @@ export async function mount(opts) {
       const r = projectBox(b.mesh, 'spine'); canvasRect = canvas.getBoundingClientRect();
       return { left: r.left + canvasRect.left, top: r.top + canvasRect.top, width: r.width, height: r.height };
     },
+    // The Book of the Week on its stand: the focus ring for its button in the page, and its cover's viewport rect.
+    focusFeatured(show = true) { if (feat) focusBook(FEAT, show); },
+    featuredRect() {
+      if (!feat || feat.state !== 'shelf') return null;
+      const r = projectBox(feat.mesh, 'front'); canvasRect = canvas.getBoundingClientRect();
+      return { left: r.left + canvasRect.left, top: r.top + canvasRect.top, width: r.width, height: r.height };
+    },
+    figurines: () => bays.filter((b) => b.figurine).map((b) => b.shelf.id),
     isBusy: () => busy,
     reading: () => (reading ? { id: reading.b.id, face: reading.face } : null),
     relayout: layout,
@@ -1276,7 +1505,9 @@ export async function mount(opts) {
     invalidate,
     stats: () => ({ frameMs: Math.round(cost * 10) / 10, dpr: view.dpr, calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, textures: renderer.info.memory.textures, geometries: renderer.info.memory.geometries, bloom: !!(bloom && bloom.enabled) }),
     destroy() {
+      destroyed = true;
       stop(); ro.disconnect(); io?.disconnect();
+      figs.draco?.dispose();
       document.removeEventListener('visibilitychange', onVis);
       canvas.removeEventListener('pointerdown', onDown); canvas.removeEventListener('pointermove', onMove);
       canvas.removeEventListener('pointerup', onUp); canvas.removeEventListener('pointercancel', onCancel); canvas.removeEventListener('pointerleave', onLeave);
@@ -1289,6 +1520,7 @@ export async function mount(opts) {
 }
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const round3 = (n) => Math.round(n * 1000) / 1000;
 const yieldFrame = () => new Promise((r) => setTimeout(r, 0));
 
 function rotate90(src) {

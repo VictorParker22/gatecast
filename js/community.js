@@ -6,6 +6,10 @@
 //   loadRatings(urls)       -> Promise<{ [url]: { count, average | null, yours | null } }>   {} on failure
 //   rateStory(url, rating)  -> Promise<{ ok: true, count, average | null, yours } | { ok: false, error, retryAfter? }>
 //   sendTip({ url, note, website }) -> Promise<{ ok: true } | { ok: false, error }>
+//   bookProblems(fields)    -> [{ field, message }]   the book form's checks, the same as the function's (validateBook)
+//   submitBook({ title, authors, isbn, year, publisher, shelf, pitch, relation, email, confirm, website })
+//                           -> Promise<{ ok: true } | { ok: false, error, field?, duplicate? }>   a book put forward by
+//                              its author or publisher, for the editor (POST /book)
 //   yourVote(url)           -> Promise<number | null>   this browser's own vote, remembered locally
 //   loadFavourites()        -> Promise<[{ storyId, count, average | null }]>   reader favourites, best first: up to 12
 //                              stories with at least 10 votes in the last 7 days, ranked by the database (average,
@@ -178,6 +182,81 @@ export async function sendTip({ url, note = '', website = '' } = {}) {
   const r = await call('tip', { method: 'POST', body: { url: String(url).trim(), note: String(note ?? '').trim(), website: String(website ?? '') } });
   if (r.ok && r.data?.ok === true) return { ok: true };
   return { ok: false, error: errorMessage(r.status, r.data) };
+}
+
+/* ---------- Books put forward for The Stacks ---------- */
+
+// The same limits, ISBN check and messages as the function (supabase/functions/community/logic.mjs validateBook;
+// tests/community.test.mjs checks they agree), so the form can say what is wrong next to the field at once.
+export const BOOK_LIMITS = { title: 200, authors: 200, publisher: 120, pitch: 600, email: 254, shelf: 40 };
+const SHELF_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const BOOK_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const chars = (s) => [...s].length;
+const line = (v) => String(v ?? '').replace(/[\u0000-\u001f\u007f\u200b-\u200f\u2028-\u2029\ufeff]/g, ' ').replace(/\s+/g, ' ').trim();
+
+function isbn13Digit(first12) {
+  let sum = 0;
+  for (let i = 0; i < 12; i++) sum += Number(first12[i]) * (i % 2 ? 3 : 1);
+  return String((10 - (sum % 10)) % 10);
+}
+// ISBN-10 or ISBN-13 as typed (hyphens and spaces allowed) -> the 13 digits, or null when the check digit is wrong.
+export function isbn13(raw) {
+  if (typeof raw !== 'string' && typeof raw !== 'number') return null;
+  const d = String(raw).toUpperCase().replace(/^ISBN(?:-1[03])?:?/, '').replace(/[\s-]+/g, '');
+  if (/^97[89][0-9]{10}$/.test(d)) return isbn13Digit(d) === d[12] ? d : null;
+  if (/^[0-9]{9}[0-9X]$/.test(d)) {
+    let sum = 0;
+    for (let i = 0; i < 10; i++) sum += (d[i] === 'X' ? 10 : Number(d[i])) * (10 - i);
+    if (sum % 11 !== 0) return null;
+    const twelve = `978${d.slice(0, 9)}`;
+    return twelve + isbn13Digit(twelve);
+  }
+  return null;
+}
+
+// Every problem with the form, in the form's order: [{ field, message }], [] when it can be sent. `shelves`: the
+// shelf ids the form offers (null: any id of the right shape). `now`: for the latest year allowed (next year).
+export function bookProblems(f = {}, { shelves = null, now = new Date() } = {}) {
+  const out = [];
+  const add = (field, message) => out.push({ field, message });
+  const title = line(f.title), authors = line(f.authors), publisher = line(f.publisher), pitch = line(f.pitch), email = line(f.email);
+  if (!title) add('title', 'Give the book’s title.');
+  else if (chars(title) > BOOK_LIMITS.title) add('title', `Keep the title to ${BOOK_LIMITS.title} characters.`);
+  if (!authors) add('authors', 'Name the author, or the authors separated by commas.');
+  else if (chars(authors) > BOOK_LIMITS.authors) add('authors', `Keep the authors to ${BOOK_LIMITS.authors} characters.`);
+  if (f.isbn == null || String(f.isbn).trim() === '') add('isbn', 'Give the book’s ISBN (10 or 13 digits).');
+  else if (!isbn13(f.isbn)) add('isbn', 'That ISBN doesn’t check out. Copy it from the back cover or the copyright page.');
+  const maxYear = new Date(now).getUTCFullYear() + 1;
+  const year = typeof f.year === 'string' && /^\s*\d{4}\s*$/.test(f.year) ? Number(f.year) : f.year;
+  if (!Number.isInteger(year) || year < 1800 || year > maxYear) add('year', `Give the year it was published (1800 to ${maxYear}).`);
+  if (chars(publisher) > BOOK_LIMITS.publisher) add('publisher', `Keep the publisher to ${BOOK_LIMITS.publisher} characters.`);
+  const shelf = typeof f.shelf === 'string' ? f.shelf.trim() : '';
+  if (!shelf || !SHELF_ID.test(shelf) || shelf.length > BOOK_LIMITS.shelf) add('shelf', 'Choose the shelf it fits.');
+  else if (shelves && !shelves.includes(shelf)) add('shelf', 'Choose one of the shelves in The Stacks.');
+  if (!pitch) add('pitch', 'Tell our editor about the book in a few sentences.');
+  else if (chars(pitch) > BOOK_LIMITS.pitch) add('pitch', `Keep it to ${BOOK_LIMITS.pitch} characters.`);
+  if (f.relation !== 'author' && f.relation !== 'publisher') add('relation', 'Say whether you are the author or the publisher.');
+  if (email && (chars(email) > BOOK_LIMITS.email || !BOOK_EMAIL.test(email))) add('email', 'That email address doesn’t look right. Leave it empty if you prefer.');
+  if (f.confirm !== true) add('confirm', 'Tick the box to confirm the book is published and the details are right.');
+  return out;
+}
+
+// Sends a book to the editor. Checks it first (bookProblems); the function checks again and answers
+// { ok: true }, 400 { message }, 409 duplicate or 429.
+export async function submitBook(f = {}, opts = {}) {
+  const problems = bookProblems(f, opts);
+  if (problems.length) return { ok: false, error: problems[0].message, field: problems[0].field };
+  const year = typeof f.year === 'string' ? Number(f.year.trim()) : f.year;
+  const body = {
+    title: line(f.title), authors: line(f.authors), isbn: String(f.isbn).trim(), year, publisher: line(f.publisher) || undefined,
+    shelf: String(f.shelf).trim(), pitch: line(f.pitch), relation: f.relation, email: line(f.email) || undefined, confirm: true,
+    website: String(f.website ?? ''),
+  };
+  const r = await call('book', { method: 'POST', body });
+  if (r.ok && r.data?.ok === true) return { ok: true };
+  const out = { ok: false, error: errorMessage(r.status, r.data) };
+  if (r.status === 409 || r.data?.error === 'duplicate') out.duplicate = true;
+  return out;
 }
 
 /* ---------- Clicks: anonymous totals per story ---------- */
