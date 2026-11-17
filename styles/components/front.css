@@ -188,7 +188,8 @@
   .masthead__lede { grid-area: lede; @apply mt-1.5 max-w-155; font-size: var(--text-lg); @apply leading-normal text-np-text text-pretty; }
   .masthead__burst { grid-area: burst; @apply relative w-32 h-32; rotate: 10deg; margin-right: 2cqi; }
   @media (width >= theme(--breakpoint-wxbox)) {
-    .masthead__burst { @apply -mb-18.5; }
+    .masthead__burst { @apply -mb-9; } /* folded box: the burst overhangs the masthead's rule, not the tabs below */
+    .masthead__in:has(.wxbox--open) .masthead__burst { @apply -mb-18.5; }
     .wxbox .wxbox__screen { @apply min-h-69; }
   }
   .masthead__burst-ink { @apply absolute inset-0; background: var(--color-np-lime); clip-path: var(--burst); animation: gc-spin 22s linear infinite; }
@@ -199,7 +200,13 @@
   .wxbox__bar { @apply flex items-center justify-between gap-2.5 pt-1 pr-1.5 pb-1 pl-3; background: var(--color-np-cobalt); @apply text-np-on-cobalt; border-bottom: 2px solid var(--color-np-ink); @apply min-h-13.5; }
   .wxbox__title { @apply m-0 not-italic font-normal; font-size: var(--text-pixel-md); @apply leading-none font-pixel normal-nums tracking-code wrap-anywhere; }
   .wxbox__change { @apply py-0 px-3 min-h-tap; font-size: var(--text-sm); @apply flex-none; }
-  .wxbox__fold, .wxbox__mini { @apply hidden; } /* phones only, below */
+  /* The weather box folds to its title bar on every screen (owner request, 17 Nov 2026: the news leads the first
+     screen); js/weather.js opens it with the button, and keeps it open once a place is chosen. */
+  .wxbox__fold { @apply inline-flex items-center py-0 px-3 min-h-tap flex-none; font-size: var(--text-sm); }
+  .wxbox__mini { @apply hidden; }
+  .wxbox__mini:not(:empty) { @apply block ml-auto whitespace-nowrap not-italic font-normal font-pixel normal-nums leading-none; font-size: var(--text-lg); }
+  .wxbox--open .wxbox__mini { @apply hidden; }
+  .wxbox:not(.wxbox--open) > :is(.wxbox__find, .wxbox__screen, .wxbox__since), .wxbox:not(.wxbox--open) .wxbox__change { @apply hidden; }
   .wxbox__bar :focus-visible { outline-color: var(--color-np-sun); }
   .wxbox__find { @apply grid gap-2.5 p-3; border-bottom: 2px solid var(--color-np-ink); background: var(--color-np-card); }
   .finder { @apply grid gap-2 min-w-0; }
@@ -690,10 +697,6 @@
     .wxnow__pop { @apply hidden; }
     .wxbox__weird { @apply hidden; }
     /* The weather box folds to its title bar on a phone, so the first screen is the news; js/weather.js opens it. */
-    .wxbox__fold { @apply inline-flex items-center py-0 px-3 min-h-tap flex-none; font-size: var(--text-sm); }
-    .wxbox__mini:not(:empty) { @apply block ml-auto whitespace-nowrap not-italic font-normal font-pixel normal-nums leading-none; font-size: var(--text-lg); }
-    .wxbox--open .wxbox__mini { @apply hidden; }
-    .wxbox:not(.wxbox--open) > :is(.wxbox__find, .wxbox__screen, .wxbox__since), .wxbox:not(.wxbox--open) .wxbox__change { @apply hidden; }
     .wxbox:not(.wxbox--open) { box-shadow: 3px 3px 0 var(--color-np-shadow-ink); }
     /* The reading streak shrinks to one line on a phone, so it does not push the stories down. */
     .streak { @apply flex-row items-center gap-3 p-3; }
