@@ -299,7 +299,7 @@ test('before Play no markup asks any provider for anything: no iframe, no script
         for (const m of html.matchAll(/\ssrc="([^"]*)"/g)) {
           const src = m[1].replace(/&amp;/g, '&');
           assert.ok(src.startsWith('api/') || src === 'https://cdnph.upi.com/m.jpg', `${v.provider} ${cls}: src ${src}`);
-          const host = new URL(src, 'https://gatecast.vercel.app/').hostname;
+          const host = new URL(src, 'https://thegatecast.com/').hostname;
           assert.ok(!PROVIDER_HOSTS.test(host), `${v.provider} ${cls}: ${src}`);
         }
         assert.ok(!/srcset|poster="/.test(html));

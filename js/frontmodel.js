@@ -278,9 +278,10 @@ export function meterNote({ yours = 0, count = 0, average = null } = {}) {
   return parts.join(' ');
 }
 
-// A tip must be a plain https link to somewhere (not this site's own pages). Returns the cleaned URL or null.
+// A tip must be a plain https link to somewhere (not this site's own pages, at its address or the one it had until
+// 18 Nov 2026). Returns the cleaned URL or null.
 export function tipUrl(raw) {
   const u = httpsUrl(String(raw || '').trim());
   if (!u) return null;
-  return /^https:\/\/(www\.)?gatecast\.vercel\.app\//i.test(u) ? null : u;
+  return /^https:\/\/(www\.)?(thegatecast\.com|gatecast\.vercel\.app)\//i.test(u) ? null : u;
 }

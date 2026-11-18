@@ -717,12 +717,14 @@ export function shapeHookResult(raw, { title = '', pageText = '' } = {}) {
 
 // ───────────────────────────── CORS and limits ─────────────────────────────
 
-// The Gatecast site's own origins: the Vercel project (production and previews, all named gatecast...),
-// local servers, and any extra origins the owner lists in the ASSIST_ALLOWED_ORIGINS secret.
+// The Gatecast site's own origins: thegatecast.com (with and without www), the Vercel project (the address the
+// site had until 18 Nov 2026 and the previews, all named gatecast...), local servers, and any extra origins the
+// owner lists in the ASSIST_ALLOWED_ORIGINS secret.
 export function originAllowed(origin, extra = []) {
   if (typeof origin !== 'string' || !origin) return false;
   if (extra.includes(origin)) return true;
-  return /^https:\/\/gatecast(-[a-z0-9-]+)?\.vercel\.app$/.test(origin)
+  return /^https:\/\/(www\.)?thegatecast\.com$/.test(origin)
+    || /^https:\/\/gatecast(-[a-z0-9-]+)?\.vercel\.app$/.test(origin)
     || /^http:\/\/(localhost|127\.0\.0\.1)(:\d{1,5})?$/.test(origin);
 }
 

@@ -367,17 +367,18 @@ export function limitReply(result, kind = 'vote') {
 
 // ───────────────────────────── CORS ─────────────────────────────
 
-// Gatecast's own pages: production, the gatecast project's Vercel previews (gatecast-<hash>- and
+// Gatecast's own pages: production (thegatecast.com, with and without www, and the address the site had
+// until 18 Nov 2026, which still answers), the gatecast project's Vercel previews (gatecast-<hash>- and
 // gatecast-git-<branch>- under the owner's scope), local servers, and any extra origins listed in the
-// optional COMMUNITY_ALLOWED_ORIGINS secret (a custom domain).
-const PROD = 'https://gatecast.vercel.app';
+// optional COMMUNITY_ALLOWED_ORIGINS secret.
+const PROD = ['https://thegatecast.com', 'https://www.thegatecast.com', 'https://gatecast.vercel.app'];
 const PREVIEW = /^https:\/\/gatecast-[a-z0-9](?:[a-z0-9-]{0,80}[a-z0-9])?-victorparkerr-4350s-projects\.vercel\.app$/;
 const LOCAL = /^http:\/\/(?:localhost|127\.0\.0\.1)(?::\d{1,5})?$/;
 
 export function originAllowed(origin, extra = []) {
   if (typeof origin !== 'string' || !origin || origin.length > 200) return false;
   if (extra.includes(origin)) return true;
-  return origin === PROD || PREVIEW.test(origin) || LOCAL.test(origin);
+  return PROD.includes(origin) || PREVIEW.test(origin) || LOCAL.test(origin);
 }
 
 export function corsHeaders(origin, extra = []) {

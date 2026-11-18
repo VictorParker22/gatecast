@@ -20,7 +20,7 @@ const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 
 // The site's address, in one place: canonicals, Open Graph, JSON-LD and sitemap.xml (build-data.cjs) all read it.
-const SITE_ORIGIN = 'https://gatecast.vercel.app';
+const { SITE_ORIGIN } = require('../lib/site.js'); // the site's address, written once
 const OG_IMAGE = SITE_ORIGIN + '/vendor/og/gatecast-og.png';
 const OG_ALT = 'Gatecast: weird news from real outlets, the weather on top, and a library of strange true stories.';
 const DESC_MAX = 155;

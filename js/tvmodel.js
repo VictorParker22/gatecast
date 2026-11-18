@@ -9,7 +9,7 @@
 import { catLabel, longDate, shortDate, storyMedia, videoLabel } from './frontmodel.js';
 
 export const STORY_PARAM = 'story';
-export const SITE = 'https://gatecast.vercel.app/';
+export const SITE = 'https://thegatecast.com/'; // the same address as lib/site.js SITE_ORIGIN (tested)
 export const SUMMARY_LABEL = 'In our words';
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
 export const isStoryId = (id) => typeof id === 'string' && ID.test(id);
