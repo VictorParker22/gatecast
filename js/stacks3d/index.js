@@ -235,8 +235,8 @@ export async function mount(opts) {
   /* ---------- Lights ---------- */
   const hemi = new THREE.HemisphereLight(0x99a1b3, 0x3a2e24, 0.8);
   scene.add(hemi);
-  const moon = new THREE.DirectionalLight(0x8fb0ff, 2.1); // the window: cool rim light on the right-hand edges
-  moon.position.set(3.4, 2.4, -0.6); scene.add(moon); scene.add(moon.target);
+  const moon = new THREE.DirectionalLight(0x8fb0ff, 2.1); // the window, high in the middle of the back wall (the room picture of 18 Nov 2026): cool light from above and a little to the right
+  moon.position.set(2.0, 3.0, -0.8); scene.add(moon); scene.add(moon.target);
   const key = new THREE.SpotLight(0xffe6d0, 6.5, 0, 0.62, 0.8, 2); // the lamps' warmth, from the left
   key.position.set(-1.1, 2.6, 2.1);
   scene.add(key); scene.add(key.target);
