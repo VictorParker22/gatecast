@@ -118,6 +118,8 @@ function llmsTxt(all = stacks.readData()) {
     '',
     'Gatecast is independent: no ads, no affiliate links, no tracking cookies, no accounts. It lives at ' + stacks.SITE_ORIGIN + ' and is not connected to other projects called Gatecast.',
     '',
+    'Gatecast is made by ORYNTLabs LLC, an independent product studio in New Jersey, USA (oryntlabs.co), which also makes the apps TallyMap and FitLink. Contact: contact@oryntlabs.co.',
+    '',
     'How Gatecast handles sources: it never copies an outlet’s article. A story shows the outlet’s headline, its name, the date and a link. For the editor’s picks it adds a short hook and a summary in its own words. Stories whose oddness is someone’s misfortune (deaths, injuries, children, crime) are held back.',
     '',
     '## The Stacks (books)',
