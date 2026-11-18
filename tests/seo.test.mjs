@@ -376,3 +376,25 @@ test('one address: https://www.thegatecast.com (the www form Vercel serves, no t
   for (const f of served) assert.doesNotMatch(read(f), stale, f);
   for (const out of [B.sitemapXml({ day: '2099-01-01', dateOf: () => null }), B.llmsTxt()]) assert.doesNotMatch(out, stale);
 });
+
+test('vercel.json: the old address redirects for good to the same page at the new one, in one block that only it matches', () => {
+  const { SITE_ORIGIN, PREVIOUS_ORIGIN } = require('../lib/site.js');
+  const v = JSON.parse(read('vercel.json'));
+  const hosted = v.redirects.filter((r) => r.has);
+  assert.equal(hosted.length, 1, 'one redirect with a host condition');
+  const [r] = hosted;
+  assert.equal(v.redirects[0], r, 'it comes first, apart from the path redirects');
+  assert.deepEqual(r.has, [{ type: 'host', value: new URL(PREVIOUS_ORIGIN).host }], 'only requests for the old address');
+  assert.equal(r.destination, SITE_ORIGIN + '/:path*');
+  assert.equal(r.permanent, true, 'a 308');
+  assert.deepEqual(Object.keys(r).sort(), ['destination', 'has', 'permanent', 'source']);
+  // The source as a regular expression (Vercel's path-to-regexp): every path, except a search engine's ownership
+  // file at the root, which Google will not follow to another domain.
+  assert.equal(r.source, '/:path((?!google[0-9a-f]+\\.html$|BingSiteAuth\\.xml$).*)');
+  const re = /^\/((?!google[0-9a-f]+\.html$|BingSiteAuth\.xml$).*)$/;
+  for (const p of ['/', '/how.html', '/library.html', '/stacks/', '/stacks/skyjack/', '/weekly/2026-W47/', '/feed.xml', '/api/weird', '/sitemap.xml', '/' + B.indexNowKeyFile(), '/stacks/google12ab.html']) assert.ok(re.test(p), p);
+  for (const p of ['/google1234abcd5678ef90.html', '/BingSiteAuth.xml']) assert.ok(!re.test(p), p);
+  // Nothing here redirects between www and the bare domain: that is set on the domain in Vercel, and a second rule
+  // in the code pointing the other way would loop.
+  assert.doesNotMatch(JSON.stringify(v), /"value":\s*"(www\.)?thegatecast/);
+});

@@ -9,7 +9,7 @@
 | Is `thegatecast.com` on the project? | Yes, verified. It redirects to `www.thegatecast.com` (308) |
 | Is `www.thegatecast.com` on the project? | Yes, verified. It is the main address and serves the site |
 | DNS and certificates | Correct. The domain was bought through Vercel and uses its nameservers |
-| Does `gatecast.vercel.app` redirect to the new address? | Not yet. It still shows the site (step 1 below) |
+| Does `gatecast.vercel.app` redirect to the new address? | Yes, since 18 Nov 2026 (`vercel.json`) |
 
 The code names the www form everywhere (`lib/site.js`), because that is the address that answers. If you would rather the bare `thegatecast.com` were the main one, change it in Vercel (Settings → Domains: make `thegatecast.com` the production domain and redirect www to it), then say so and the one constant and the hand-written pages are changed together.
 
@@ -20,32 +20,18 @@ The code names the www form everywhere (`lib/site.js`), because that is the addr
 
 ## Left for the owner, in order
 
-### 1. Supabase sign-in address (5 minutes), then the redirect
+### 1. Supabase sign-in address and the redirect: done (18 Nov 2026)
 
-The review page signs you in with a link by email, and Supabase only sends that link to addresses on its list.
+The owner set the Site URL to `https://www.thegatecast.com` and added `https://www.thegatecast.com/review.html` to the Redirect URLs in Supabase. The permanent redirect is now the first block of `redirects` in `vercel.json`: every address at `gatecast.vercel.app` forwards (308) to the same page at `https://www.thegatecast.com`, except a search engine's ownership file at the root, which Google will not follow to another domain. Preview deployments are not affected.
 
-1. Supabase → Authentication → URL Configuration.
-2. Set **Site URL** to `https://www.thegatecast.com`.
-3. Under **Redirect URLs**, add `https://www.thegatecast.com/review.html`. Leave the old one in place.
-4. Check: open `https://www.thegatecast.com/review.html`, ask for a sign-in link, and confirm the link brings you back signed in.
-
-When that works, say so. The permanent redirect from `gatecast.vercel.app` to the new address then goes into `vercel.json` (it is held back until now, because it would send the review page to an address Supabase does not yet accept):
-
-```json
-{
-  "source": "/:path((?!google[0-9a-f]+\\.html$|BingSiteAuth\\.xml$).*)",
-  "has": [{ "type": "host", "value": "gatecast.vercel.app" }],
-  "destination": "https://www.thegatecast.com/:path*",
-  "permanent": true
-}
-```
+**Check:** open `https://gatecast.vercel.app/how.html`. The address bar should end at `https://www.thegatecast.com/how.html`. Then open the review page at the new address and sign in once.
 
 ### 2. Google Search Console (15 minutes)
 
 1. Add a property for the new address. A **Domain** property for `thegatecast.com` covers www and non-www: Google gives a TXT record; add it in Vercel → Domains → `thegatecast.com` → DNS Records.
 2. Sitemaps → submit `https://www.thegatecast.com/sitemap.xml`.
 3. URL inspection → request indexing for the front page, `/stacks/worth-knowing/` and `/stacks/content-notes/`.
-4. Only if a property for the old address exists: after the redirect of step 1 is live, open the old property → Settings → Change of address.
+4. Only if a property for the old address exists: open the old property → Settings → Change of address (the redirect it asks for is live).
 
 ### 3. Bing Webmaster Tools (10 minutes)
 
@@ -65,6 +51,6 @@ Update the address in the launch drafts, in Buttondown once the newsletter exist
 |---|---|---|---|
 | New addresses being indexed | Search Console → Pages; a `site:thegatecast.com` search once a week | The count rises over one to two weeks | No pages after two weeks |
 | 404s | Search Console → Pages → Not found; Vercel → Logs, status 404 | A few requests for files that never existed | A 404 for a path that worked before. No path changed in the move |
-| The redirect (once added) | Open two or three old links by hand each week | Each lands on the same page at the new address | A link that lands on the front page |
+| The redirect | Open two or three old links by hand each week | Each lands on the same page at the new address | A link that lands on the front page |
 
-Keep the redirect from `gatecast.vercel.app` for good once it is in. Removing it breaks every old link.
+Keep the redirect from `gatecast.vercel.app` for good. Removing it breaks every old link.
