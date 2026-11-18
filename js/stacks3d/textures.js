@@ -426,7 +426,7 @@ export function paintPlate(text, worldW, worldH, { h = 96, brass = null } = {}) 
   const w = Math.round(h * worldW / worldH);
   const c = makeCanvas(w, h), ctx = c.getContext('2d');
   const g = ctx.createLinearGradient(0, 0, 0, h);
-  g.addColorStop(0, '#E9CF86'); g.addColorStop(0.45, '#C49A45'); g.addColorStop(1, '#8E6A2A');
+  g.addColorStop(0, '#DCC690'); g.addColorStop(0.45, '#B4985C'); g.addColorStop(1, '#806634');
   ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
   if (brass) { // the photographed brass, laid over the bevel gradient
     ctx.save(); ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = 0.55;
@@ -449,7 +449,7 @@ export function paintPlate(text, worldW, worldH, { h = 96, brass = null } = {}) 
   ctx.fillStyle = 'rgba(255,236,180,0.55)'; ctx.fillText(label, w / 2, h / 2 + 2.2);
   ctx.fillStyle = '#2B1E09'; ctx.fillText(label, w / 2, h / 2 + 0.5);
   const pbr = makeCanvas(w, h), p = pbr.getContext('2d');
-  p.fillStyle = 'rgb(0,90,255)'; p.fillRect(0, 0, w, h);
+  p.fillStyle = 'rgb(0,120,115)'; p.fillRect(0, 0, w, h); // half metal: the painted brass and its dark letters read under the picture light
   p.textAlign = 'center'; p.textBaseline = 'middle'; p.font = font('cond', px);
   p.fillStyle = 'rgb(0,200,40)'; p.fillText(label, w / 2, h / 2 + 0.5);
   return { map: c, pbr };

@@ -32,17 +32,17 @@ function full() {
 
 /* ---------- The room for N shelves ---------- */
 
-test('the frame the stylesheet reserves matches frameWorld(n), and fitBays reads it back as 4, 3, 2 and 1 bays', () => {
+test('the frame the stylesheet reserves matches frameWorld(n), and fitBays reads it back as 3, 2 and 1 bays', () => {
   const css = read('styles/components/library.css');
   const ratios = [...css.matchAll(/\.s3d \.lib-cases \{[^}]*aspect-ratio: ([\d.]+) \/ ([\d.]+);/g)].map((m) => [Number(m[1]), Number(m[2])]);
-  assert.equal(ratios.length, 4, 'one base rule and three breakpoints');
+  assert.equal(ratios.length, 3, 'one base rule (three bookcases, as in the owner\'s design) and two breakpoints');
   ratios.forEach(([w, h], k) => {
-    const n = MAX_BAYS - k;
+    const n = 3 - k;
     assert.deepEqual({ w, h }, frameWorld(n), `${n} bays`);
     assert.equal(fitBays(1000 * w, 1000 * h), n);
     assert.equal(fitBays(Math.round(1000 * w), Math.round(1000 * h) + 3), n, 'rounding in px does not drop a bay');
   });
-  for (const [bp, n] of [['1099px', 3], ['939px', 2], ['599px', 1]]) assert.ok(css.includes(`@media (max-width: ${bp}) {\n    .s3d .lib-cases { aspect-ratio: ${frameWorld(n).w} / ${frameWorld(n).h}; }`), bp);
+  for (const [bp, n] of [['939px', 2], ['599px', 1]]) assert.ok(css.includes(`@media (max-width: ${bp}) {\n    .s3d .lib-cases { aspect-ratio: ${frameWorld(n).w} / ${frameWorld(n).h}; }`), bp);
   assert.equal(frameWorld(4).h, Math.round((BAY.height + HEADROOM + 0.03) * 1000) / 1000);
   assert.ok(Math.abs(FRAME_CY - (BAY.height + HEADROOM) / 2) < 1e-9);
   assert.ok(HEADROOM >= 0.33, 'room for the Book of the Week on its stand');

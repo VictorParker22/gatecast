@@ -332,6 +332,14 @@
   --text-lib-label: clamp(15px, 0.7982rem + 0.5714vw, 21px); /* the torn THE STACKS label: 15px at 390 -> 21px at 1440 */
   --text-lib-lede: clamp(16px, 0.9536rem + 0.1905vw, 18px); /* the italic lede: 16px at 390 -> 18px at 1440 */
   --text-lib-title: clamp(34px, 1.4286rem + 2.8571vw, 64px); /* the metal slab title: 34px at 390 -> 64px at 1440 (the bookcases lead the first screen) */
+  /* The Stacks on a desktop (from 1100px): the owner's design, measured as a share of its 2000px width. */
+  --spacing-lib-u: min(1vw, 1.55svh);                        /* the design's unit: 1% of the window's width, less on a short window (2000 by 1310 design) */
+  --container-lib-room: 110rem;                              /* the room's content: 88% of the window, at most 1760px */
+  --text-lib-hero-title: clamp(81px, calc(7.35 * var(--spacing-lib-u)), 147px);         /* the slab title: 81px at 1100 -> 147px at 2000 */
+  --text-lib-hero-label: clamp(15px, calc(1.25 * var(--spacing-lib-u)), 25px);          /* the torn label: 15px at 1100 -> 25px at 2000 */
+  --text-lib-hero-lede: clamp(17px, calc(1.33 * var(--spacing-lib-u)), 26.5px);         /* the italic lede: 17px at 1100 -> 26.5px at 2000 */
+  --text-lib-hero-chip: clamp(13px, calc(1.04 * var(--spacing-lib-u)), 21px);           /* the shelf chips, so seven fit beside the search: 13px at 1250 -> 21px at 2000 */
+  --text-lib-hero-ui: clamp(15px, calc(1.12 * var(--spacing-lib-u)), 22.5px);           /* chips, search, Surprise me, card rows: 15px at 1100 -> 22.5px at 2000 */
   --text-lib-status: 21px;   /* VT323 status line under the shelves (Stacks renders) */
   --breakpoint-lib-tagline: 82rem;  /* the header tagline shows from here */
   /* Physical colours of the room (both editions). The red is the rubber-stamp ink the owner asked for: never a risk
