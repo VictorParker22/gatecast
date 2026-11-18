@@ -81,6 +81,13 @@ Gatecast has no tagged releases yet. `package.json` has said `1.0.0` since the f
 - README reorganised with a table of contents, quick start, CI badge, screenshot, and contributing, security and licence sections.
 - Redesign foundation ("a departure board for weather"): monochrome ink, concrete and paper tokens in both themes, with colour reserved for risk; Barlow Condensed replaces Space Grotesk for signage type (codes, times, big numbers, the verdict); new brand mark, favicon and wordmark; navigation renamed and reordered to Today, Trips, Flights; links and primary buttons are ink instead of cobalt.
 
+### Fixed
+
+- **The Stacks: the first four bookcases were blank on real graphics cards** (owner report, 17 Nov 2026, Chrome on three computers; `?stacks=low` was fine). The Book of the Week's light beam (`BEAM` in `js/stacks3d/index.js`) took `pow()` of a value that anti-aliasing can push just below zero at the beam's edge. That gave a pixel that is not a number; in the high tier's half-float buffer the bloom blur spread it into a transparent rectangle about 1,400px wide, centred on the Book of the Week, so the room's CSS photo showed through where the bookcases should be. Software rendering (the test browser) returns a finite value there, which is why it only showed on real hardware.
+  - The beam clamps before `pow()`; the dust, light-ray and vignette shaders keep their `smoothstep` edges in order.
+  - Two guards so one bad pixel can never blank the room again: the bloom's bright pass (`SAFE_BRIGHT`) reads only finite colour, and the last pass writes a finite, opaque pixel.
+  - `tests/stacks3d.test.mjs` reads the shader source for an unclamped `pow()`, a reversed `smoothstep` and the two guards.
+
 ## 2026-11-16: headline voice, animated sky and review queue
 
 ### Added

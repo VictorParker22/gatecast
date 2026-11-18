@@ -35,14 +35,19 @@ const FEAT_SIZE = 1.25; // the showpiece is bigger than a shelf copy
 const FEAT_LEAN = 0.16; // ~9°, leaning back on its easel
 
 // A soft beam from the spotlight down onto the stand: brighter near the lamp, fading toward the book and at the edges.
+// Shader maths has to stay finite. With anti-aliasing a varying can land just outside its range at a triangle's edge,
+// and pow() of a negative number (or a smoothstep with its edges the wrong way round) is "not a number" on real
+// graphics cards. One such pixel in the half-float buffer is smeared by the bloom blur into a blank rectangle some
+// 1,400px wide: that hid the first four bookcases behind the Book of the Week's beam (owner report, 17 Nov 2026).
+// So: clamp before pow(), keep smoothstep edges in order, and SAFE_BRIGHT and the last pass drop anything not finite.
 const BEAM = {
   uniforms: { time: { value: 0 }, strength: { value: 1 } },
   vertexShader: `varying vec2 vUv; varying float vFacing; void main(){ vUv = uv; vec4 mv = modelViewMatrix * vec4(position, 1.0);
     vec3 n = normalize(normalMatrix * normal); vFacing = abs(dot(n, normalize(-mv.xyz))); gl_Position = projectionMatrix * mv; }`,
   fragmentShader: `varying vec2 vUv; varying float vFacing; uniform float time, strength;
-    void main(){ float along = smoothstep(0.0, 0.35, vUv.y) * (0.35 + 0.65 * vUv.y);
-      float edge = pow(vFacing, 2.2); float shimmer = 0.9 + 0.1 * sin(time * 0.7 + vUv.x * 12.0);
-      gl_FragColor = vec4(vec3(1.0, 0.82, 0.55), along * edge * 0.1 * strength * shimmer); }`,
+    void main(){ float y = clamp(vUv.y, 0.0, 1.0); float along = smoothstep(0.0, 0.35, y) * (0.35 + 0.65 * y);
+      float edge = pow(clamp(vFacing, 0.0, 1.0), 2.2); float shimmer = 0.9 + 0.1 * sin(time * 0.7 + vUv.x * 12.0);
+      gl_FragColor = vec4(vec3(1.0, 0.82, 0.55), clamp(along * edge * 0.1 * strength * shimmer, 0.0, 1.0)); }`,
 };
 
 export function loadImage(url, cors = false, timeout = 8000) {
@@ -67,14 +72,29 @@ const VIGNETTE_GRAIN = {
     float hash(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
     void main(){
       vec4 c = texture2D(tDiffuse, vUv);
+      if (any(isnan(c.rgb)) || any(isinf(c.rgb))) c.rgb = vec3(0.0);
+      c.rgb = clamp(c.rgb, 0.0, 1.0);
       vec2 d = vUv - 0.5; d.x *= res.x / res.y;
-      float v = smoothstep(0.9 + 0.2 * (res.x / res.y), 0.2, length(d));
+      float v = 1.0 - smoothstep(0.2, 0.9 + 0.2 * (res.x / res.y), length(d));
       c.rgb *= mix(1.0 - vignette - focus * 0.25, 1.0, v);
       float n = hash(vUv * res + fract(time) * 100.0) - 0.5;
       c.rgb += n * grain * (0.6 + 0.4 * (1.0 - dot(c.rgb, vec3(0.333))));
-      gl_FragColor = c;
+      gl_FragColor = vec4(c.rgb, 1.0);
     }`,
 };
+
+// The bloom's bright pass (three's LuminosityHighPassShader, same uniforms), reading only finite colour: whatever a
+// material does, the blur never has a not-a-number pixel to spread.
+const SAFE_BRIGHT = `
+  uniform sampler2D tDiffuse; uniform vec3 defaultColor; uniform float defaultOpacity, luminosityThreshold, smoothWidth; varying vec2 vUv;
+  void main(){
+    vec4 texel = texture2D(tDiffuse, vUv);
+    if (any(isnan(texel)) || any(isinf(texel))) texel = vec4(0.0);
+    texel = clamp(texel, 0.0, 64.0);
+    float v = dot(texel.rgb, vec3(0.2126, 0.7152, 0.0722));
+    float alpha = smoothstep(luminosityThreshold, luminosityThreshold + smoothWidth, v);
+    gl_FragColor = mix(vec4(defaultColor, defaultOpacity), texel, alpha);
+  }`;
 
 const FLAME = {
   uniforms: { time: { value: 0 } },
@@ -98,8 +118,8 @@ const DUST = {
       gl_PointSize = size * (0.4 + seed) / -mv.z;
       vec2 rel = p.xy - shaft.xy; vec2 dir = normalize(shaft.zw);
       float across = abs(rel.x * dir.y - rel.y * dir.x);
-      vA = step(0.0, dot(rel, dir)) * smoothstep(0.3, 0.03, across) * (0.35 + 0.65 * sin(time * (0.5 + seed) + seed * 40.0) * 0.5 + 0.325); }`,
-  fragmentShader: `varying float vA; uniform float opacity; void main(){ float d = length(gl_PointCoord - 0.5); float a = smoothstep(0.5, 0.0, d) * vA * opacity;
+      vA = step(0.0, dot(rel, dir)) * (1.0 - smoothstep(0.03, 0.3, across)) * (0.35 + 0.65 * sin(time * (0.5 + seed) + seed * 40.0) * 0.5 + 0.325); }`,
+  fragmentShader: `varying float vA; uniform float opacity; void main(){ float d = length(gl_PointCoord - 0.5); float a = (1.0 - smoothstep(0.0, 0.5, d)) * clamp(vA, 0.0, 1.0) * opacity;
     gl_FragColor = vec4(vec3(0.85, 0.9, 1.0) * 1.6, a); }`,
 };
 
@@ -749,6 +769,7 @@ export async function mount(opts) {
     composer = new EffectComposer(renderer, rt);
     composer.addPass(new RenderPass(scene, camera));
     bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.4, 0.45, 0.92);
+    if (bloom.materialHighPassFilter) { bloom.materialHighPassFilter.fragmentShader = SAFE_BRIGHT; bloom.materialHighPassFilter.needsUpdate = true; }
     composer.addPass(bloom);
     bokeh = new BokehPass(scene, camera, { focus: 1, aperture: 0.0, maxblur: 0.012 });
     bokeh.enabled = false;

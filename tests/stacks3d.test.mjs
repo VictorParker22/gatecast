@@ -225,3 +225,39 @@ test('every image the library asks for is in assets/stacks', async () => {
     assert.ok(existsSync(new URL('../assets/stacks/' + f, import.meta.url)), f);
   }
 });
+
+// Owner report, 17 Nov 2026: on real graphics cards the first four bookcases were blank. The Book of the Week's beam
+// took pow() of a varying that anti-aliasing can push below zero; that not-a-number pixel went into the half-float
+// buffer and the bloom blur spread it into a rectangle about 1,400px wide. These checks read the shader source.
+test('3D shaders: no maths that can leave a pixel that is not a number', () => {
+  for (const file of ['index.js', 'room.js']) {
+    const src = readFileSync(new URL('../js/stacks3d/' + file, import.meta.url), 'utf8').replace(/^\s*\/\/.*$/gm, ''); // code, not comments
+    // pow() only of a clamped, max()ed or constant base.
+    for (const m of src.matchAll(/pow\(\s*([^,]+),/g)) {
+      const base = m[1].trim();
+      assert.ok(/^(clamp|max)\(/.test(base) || /^[\d.]+$/.test(base) || /^1\.0 - uv\.y$/.test(base), `${file}: pow(${base}, …) can take a negative base`);
+    }
+    // smoothstep(edge0, edge1, x) is undefined when edge0 >= edge1.
+    for (const m of src.matchAll(/smoothstep\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,/g)) {
+      assert.ok(Number(m[1]) < Number(m[2]), `${file}: smoothstep(${m[1]}, ${m[2]}, …) has its edges the wrong way round`);
+    }
+    assert.ok(!/smoothstep\(\s*[\d.]+ \+[^,]+,\s*[\d.]+\s*,/.test(src), `${file}: a smoothstep whose first edge is the larger one`);
+  }
+  const index = readFileSync(new URL('../js/stacks3d/index.js', import.meta.url), 'utf8');
+  assert.match(index, /float edge = pow\(clamp\(vFacing, 0\.0, 1\.0\), 2\.2\);/, 'the beam clamps before pow()');
+  // The guards: the bloom reads only finite colour, and the last pass writes an opaque, finite pixel.
+  assert.match(index, /materialHighPassFilter\.fragmentShader = SAFE_BRIGHT/);
+  const bright = index.slice(index.indexOf('const SAFE_BRIGHT'), index.indexOf('const FLAME'));
+  assert.match(bright, /isnan\(texel\)/);
+  assert.match(bright, /isinf\(texel\)/);
+  const last = index.slice(index.indexOf('const VIGNETTE_GRAIN'), index.indexOf('const SAFE_BRIGHT'));
+  assert.match(last, /isnan\(c\.rgb\)/);
+  assert.match(last, /gl_FragColor = vec4\(c\.rgb, 1\.0\);/);
+  // three's own bright pass still has the uniforms SAFE_BRIGHT declares (a three upgrade that renames them fails here).
+  const theirs = readFileSync(new URL('../vendor/three/addons/shaders/LuminosityHighPassShader.js', import.meta.url), 'utf8');
+  for (const u of ['tDiffuse', 'luminosityThreshold', 'smoothWidth', 'defaultColor', 'defaultOpacity']) {
+    assert.ok(theirs.includes(`'${u}'`) && bright.includes(u), u);
+  }
+  const pass = readFileSync(new URL('../vendor/three/addons/postprocessing/UnrealBloomPass.js', import.meta.url), 'utf8');
+  assert.ok(pass.includes('this.materialHighPassFilter = new ShaderMaterial'), 'UnrealBloomPass keeps its bright-pass material where we replace it');
+});
