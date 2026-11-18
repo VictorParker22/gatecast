@@ -327,8 +327,8 @@ function applyFilter() {
 // Rough.js (vendored, MIT) draws the outline of each stamp on the library card and the pencil line under "Worth
 // knowing." as SVG, in the ink the CSS already gives the text. It loads after the page is up; without it the stamp keeps
 // its plain CSS border and the label has no line. A mark is drawn once it has a size (the card is closed on a phone,
-// the dialog starts hidden) and again if that size changes.
-const SVG_NS = 'http://www.w3.org/2000/svg';
+// the dialog starts hidden) and again if that size changes; the label is an inline-block in the CSS so that its size
+// is one a ResizeObserver reports.
 let roughLib = null;
 const loadRough = () => (roughLib ||= import('roughjs').then((m) => m.default).catch(() => null));
 function drawInk(rough, node) {
@@ -337,8 +337,8 @@ function drawInk(rough, node) {
   if (!w || !h || node.dataset.inkDrawn === key) return;
   node.dataset.inkDrawn = key;
   for (const old of node.querySelectorAll(':scope > .lib-ink')) old.remove();
-  const svg = document.createElementNS(SVG_NS, 'svg');
-  svg.setAttribute('class', 'lib-ink'); svg.setAttribute('aria-hidden', 'true'); svg.setAttribute('focusable', 'false');
+  const svg = document.createElementNS(svgNS, 'svg');
+  svg.setAttribute('class', 'lib-ink'); svg.setAttribute('aria-hidden', 'true');
   svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
   const pen = rough.svg(svg);
   if (node.dataset.ink === 'stamp') svg.append(pen.rectangle(1.5, 1.5, w - 3, h - 3, { seed, roughness: 0.9, bowing: 0.7, strokeWidth: 1.5, stroke: 'currentColor' }));

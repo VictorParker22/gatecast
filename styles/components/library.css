@@ -94,7 +94,7 @@
      only once its drawing is in place. */
   .lib-ink { @apply absolute pointer-events-none overflow-visible; inset: -2px; width: calc(100% + 4px); height: calc(100% + 4px); fill: none; }
   .lib-card__list li .lib-stamp.is-inked { border-color: transparent; }
-  .lib-note strong.is-inked { @apply relative inline-block; }
+  .lib-note--caveat strong { @apply relative inline-block; } /* a box of its own, so its size can be watched */
   .lib-note strong.is-inked .lib-ink { inset: 0; width: 100%; height: 100%; margin: 0; }
   .is-bump { animation: lib-bump 0.45s ease; }
   @keyframes lib-bump { 40% { transform: scale(1.18); } }
