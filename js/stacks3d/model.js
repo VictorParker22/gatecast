@@ -32,6 +32,7 @@ export const BANDS = ['rules', 'panel', 'blocks', 'plain', 'rules'];
 const pickFrom = (h0, salt, n) => (Math.imul(h0 ^ salt, 0x9e3779b1) >>> 0) % n;
 
 // Everything about one book's binding, in metres for the scene and px for the DOM spine.
+export const BOOK_TALL = 1.4;
 export function bookLook(book) {
   const h0 = hashId(book.id);
   const st = spineStyle(book);
@@ -40,11 +41,13 @@ export function bookLook(book) {
   let second = BINDINGS[pickFrom(h0, 0x12, BINDINGS.length)];
   if (second === binding) second = BINDINGS[(BINDINGS.indexOf(binding) + 5) % BINDINGS.length];
   const thick = round3(0.058 + ((st.width - 30) / 22) * 0.034);
-  const height = round3(0.22 + ((st.height - 206) / 51) * 0.075);
+  // Tall books, as in the owner's design (18 Nov 2026): 0.31 to 0.41 m in a 0.5 m shelf opening, a spine about five
+  // times as tall as it is wide. The cover keeps a book's usual shape (about 2 : 3), so the book is deeper too.
+  const height = round3((0.22 + ((st.height - 206) / 51) * 0.075) * BOOK_TALL);
   return {
     id: book.id, binding, second, band: BANDS[pickFrom(h0, 0x13, BANDS.length)], font: st.kind,
     wear: 0.25 + pickFrom(h0, 0x14, 60) / 100, // 0.25..0.84
-    thick, height, depth: round3(Math.min(0.21, height / 1.42)),
+    thick, height, depth: round3(Math.min(0.27, height / 1.42)),
     px: { width: st.width, height: st.height },
   };
 }
@@ -54,9 +57,9 @@ const round3 = (n) => Math.round(n * 1000) / 1000;
 
 // One bay (bookcase), in metres. y = 0 is the floor, z = 0 the front edge of the shelves.
 export const BAY = {
-  width: 0.68, side: 0.03, depth: 0.3, gap: 0.06, board: 0.025, clear: 0.34,
-  floors: [0.455, 0.09], // the top of the board each row of books stands on: upper row, lower row
-  header: [0.795, 0.9], cornice: 0.94, height: 0.94,
+  width: 0.68, side: 0.03, depth: 0.3, gap: 0.06, board: 0.025, clear: 0.5,
+  floors: [0.615, 0.09], // the top of the board each row of books stands on: upper row, lower row
+  header: [1.115, 1.22], cornice: 1.26, height: 1.26,
 };
 BAY.inner = BAY.width - 2 * BAY.side;
 BAY.pitch = BAY.width + BAY.gap;
@@ -67,7 +70,7 @@ export const HEADROOM = 0.36;
 export const frameWorld = (n) => ({ w: round3(spanOf(n) + 0.08), h: round3(BAY.height + HEADROOM + 0.03) });
 export const FRAME_CY = round3((BAY.height + HEADROOM) / 2);
 // The frame shapes the stylesheet reserves (.lib-cases aspect-ratio, styles/components/library.css), widest first:
-// 4 bays from 1100px, 3 from 940px, 2 from 600px, 1 below. Tested against the CSS.
+// 3 bays from 940px, 2 from 600px, 1 below (the design shows three; a 4-bay frame still fits if the CSS reserves one). Tested against the CSS.
 export const MAX_BAYS = 4;
 
 export const bayX = (i, count = 6) => round3((i - (count - 1) / 2) * BAY.pitch);
@@ -98,7 +101,7 @@ export function layoutBay(looks, bayIndex = 0, propWidths = [0.18, 0.18]) {
       const h = hashId(`filler-${bayIndex}-${r}-${k}`);
       const thick = round3(0.03 + (h % 29) / 1000);
       if (used + thick > limit - 0.004) break;
-      fillers.push({ id: `filler-${bayIndex}-${r}-${k}`, row: r, x: put(thick), thick, height: round3(0.2 + ((h >>> 5) % 80) / 1000), depth: round3(0.15 + ((h >>> 11) % 40) / 1000), tone: (h >>> 17) % 6, lean: 0 });
+      fillers.push({ id: `filler-${bayIndex}-${r}-${k}`, row: r, x: put(thick), thick, height: round3((0.2 + ((h >>> 5) % 80) / 1000) * BOOK_TALL), depth: round3(0.17 + ((h >>> 11) % 60) / 1000), tone: (h >>> 17) % 6, lean: 0 });
       k++;
     }
     const left = limit - used;
