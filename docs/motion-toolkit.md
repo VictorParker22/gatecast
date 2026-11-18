@@ -19,8 +19,8 @@ the npm versions listed, on 18 Nov 2026. Licences are read from each package's o
 | [Hydra](https://github.com/hydra-synth/hydra-synth) 1.4.0 | Live-coded video synthesiser | AGPL | 187 kB / 60 kB | No: the licence would put its terms on the whole site |
 | [WebGL Fluid](https://github.com/PavelDoGreat/WebGL-Fluid-Simulation) (npm `webgl-fluid` 0.4.0) | Interactive smoke and ink simulation | MIT | 28 kB / 7 kB | No: a second WebGL scene beside the room, with nothing to say |
 | [LYGIA](https://github.com/patriciogonzalezvivo/lygia) 1.4.1 | Library of shader functions | Prosperity (non-commercial) and Patron | shader source | No: free use is non-commercial only |
-| [Motion Canvas](https://github.com/motion-canvas/motion-canvas) 3.17.2 | Makes videos from code, with an editor | MIT | not a page library | For a launch video, not the page |
-| [Remotion](https://github.com/remotion-dev/remotion) 4.0.544 | Makes videos with React | Own licence, free for small teams | not a page library | For a launch video, not the page |
+| [Motion Canvas](https://github.com/motion-canvas/motion-canvas) 3.17.2 | Makes videos from code, with an editor | MIT | not a page library | **In use** for the launch video |
+| [Remotion](https://github.com/remotion-dev/remotion) 4.0.544 | Makes videos with React | Own licence, free for small teams | not a page library | Not used: the video is made with Motion Canvas |
 
 ## In use
 
@@ -41,6 +41,13 @@ the npm versions listed, on 18 Nov 2026. Licences are read from each package's o
 - Vendored in `vendor/zdog/` (the package ships CommonJS only; the README there says how the one-file ES module was
   made), loaded when the browser is idle. Without it the card is as it was.
 
+### Motion Canvas: the launch video
+
+- `docs/video/the-stacks-launch.mp4`: 31 seconds, 1920x1080, silent, made from real screenshots of the library with the
+  site's typefaces and wording.
+- Its source is in `video/launch/` with its own `package.json`, outside the site build. `node render.cjs` there renders
+  it again without a screen; the README there has the storyboard and how the screenshots are taken.
+
 ## Not in use, and what would change that
 
 - **Flubber.** Worth it when a shape must turn into another: for example a shelf's emblem changing as the shelf
@@ -56,9 +63,8 @@ the npm versions listed, on 18 Nov 2026. Licences are read from each package's o
   the ones on weak devices, with data saving on, or who asked for less motion: the wrong audience for a fluid simulation.
 - **LYGIA.** Its free licence covers non-commercial use and a 30-day commercial trial. Gatecast is made by a company, so
   using it needs the Patron licence (sponsoring the author). The room's shaders are short and written by hand.
-- **Motion Canvas and Remotion.** These make video files, not page effects. Either can produce a short launch video of
-  the library from code. Remotion is free for individuals and for companies with up to three employees; larger companies
-  need its company licence. Motion Canvas is MIT with no such limit.
+- **Remotion.** Makes video files with React. The launch video uses Motion Canvas instead, which is MIT with no limit
+  on company size; Remotion is free only for individuals and for companies with up to three employees.
 
 ## Rules for adding one
 

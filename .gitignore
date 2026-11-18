@@ -6,3 +6,6 @@ styles/site.css
 styles/console.css
 styles/site-front.css
 styles/site-library.css
+
+# The launch video project renders here (video/launch); the finished file is kept in docs/video/.
+video/launch/output/

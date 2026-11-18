@@ -1,0 +1,4 @@
+/* The site's own typefaces, from /vendor/fonts (licences are beside them). */
+@font-face { font-family: 'Alfa Slab One'; font-weight: 400; src: url('../../../vendor/fonts/alfa-slab-one-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Barlow Condensed'; font-weight: 800; src: url('../../../vendor/fonts/barlow-condensed-latin-800-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Inter'; font-weight: 100 900; src: url('../../../vendor/fonts/inter-latin-wght-normal.woff2') format('woff2'); }
