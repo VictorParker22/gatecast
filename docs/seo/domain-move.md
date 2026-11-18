@@ -26,20 +26,22 @@ The owner set the Site URL to `https://www.thegatecast.com` and added `https://w
 
 **Check:** open `https://gatecast.vercel.app/how.html`. The address bar should end at `https://www.thegatecast.com/how.html`. Then open the review page at the new address and sign in once.
 
-### 2. Google Search Console (15 minutes)
+### 2. Google Search Console: verified (18 Nov 2026)
 
-1. Add a property for the new address. A **Domain** property for `thegatecast.com` covers www and non-www: Google gives a TXT record; add it in Vercel → Domains → `thegatecast.com` → DNS Records.
+The owner verified the URL-prefix property `https://www.thegatecast.com/` with Google's file, which is kept in `verify/google5e5ee57358dbcc4b.html`. Still worth doing: steps 2 to 4.
+
+1. Add a property for the new address (done, as above). A **Domain** property for `thegatecast.com` covers www and non-www: Google gives a TXT record; add it in Vercel → Domains → `thegatecast.com` → DNS Records.
 2. Sitemaps → submit `https://www.thegatecast.com/sitemap.xml`.
 3. URL inspection → request indexing for the front page, `/stacks/worth-knowing/` and `/stacks/content-notes/`.
 4. Only if a property for the old address exists: open the old property → Settings → Change of address (the redirect it asks for is live).
 
-### 3. Bing Webmaster Tools (10 minutes)
+### 3. Bing Webmaster Tools: done (18 Nov 2026)
 
-Add `https://www.thegatecast.com`, verify (it can import from Search Console), and submit the same sitemap. ChatGPT search and Copilot read Bing's index.
+The owner imported `https://www.thegatecast.com/` from Search Console, which carries the verification and the sitemap across. ChatGPT search and Copilot read Bing's index.
 
-### 4. IndexNow (1 minute)
+### 4. IndexNow: done (18 Nov 2026)
 
-Run `node scripts/indexnow.cjs`. It tells Bing and others about every page in the sitemap. It should print `200 OK` or `202 Accepted`.
+`node scripts/indexnow.cjs` sent all 18 pages of the sitemap for the new address and got `202 Accepted`. Run it again after a deploy that adds or changes pages; it tells Bing and others straight away.
 
 ### 5. Links elsewhere
 
