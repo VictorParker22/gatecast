@@ -45,7 +45,7 @@ apikey: <the publishable key>
 Content-Type: application/json
 ```
 
-Allowed browser origins (CORS): `https://thegatecast.com` (and `https://www.thegatecast.com`), `https://gatecast.vercel.app` (the address until 18 Nov 2026, kept while it still answers) and Gatecast's preview deployments (`https://gatecast-*.vercel.app`), `http://localhost:<port>` and `http://127.0.0.1:<port>`, plus any origins listed, comma-separated, in the optional `ASSIST_ALLOWED_ORIGINS` secret.
+Allowed browser origins (CORS): `https://www.thegatecast.com` (and `https://www.thegatecast.com`), `https://gatecast.vercel.app` (the address until 18 Nov 2026, kept while it still answers) and Gatecast's preview deployments (`https://gatecast-*.vercel.app`), `http://localhost:<port>` and `http://127.0.0.1:<port>`, plus any origins listed, comma-separated, in the optional `ASSIST_ALLOWED_ORIGINS` secret.
 
 ### `status`
 
@@ -171,7 +171,7 @@ The rate limit caps one reviewer at roughly $7.50 an hour in the worst case. A r
 ## Setup (owner and lead)
 
 1. **The key.** In the Supabase dashboard: Project → Edge Functions → Secrets, add `ANTHROPIC_API_KEY` with the key from the Anthropic Console. (Or: `supabase secrets set ANTHROPIC_API_KEY=... --project-ref hfdwmzuedjcsaxgzhzmu`.) Never commit it, and never put it in front-end code or Vercel. If the secret already exists under the name `Anthropic` or `ANTHROPIC`, that works too.
-2. **Optional:** `ASSIST_ALLOWED_ORIGINS` secret, comma-separated, for any other address the console is served from. `thegatecast.com` is allowed in the code; until that code is deployed, set the secret to `https://thegatecast.com,https://www.thegatecast.com`.
+2. **Optional:** `ASSIST_ALLOWED_ORIGINS` secret, comma-separated, for any other address the console is served from. `thegatecast.com` is allowed in the code; until that code is deployed, set the secret to `https://www.thegatecast.com,https://www.thegatecast.com`.
 3. **Deploy** all three files (`index.ts`, `logic.mjs`, `summaryrules.mjs`) with JWT verification on (the default; do not pass `--no-verify-jwt`):
    `supabase functions deploy assist --project-ref hfdwmzuedjcsaxgzhzmu`
    (or the Supabase MCP `deploy_edge_function` with `verify_jwt: true` and the files `index.ts`, `logic.mjs` and `summaryrules.mjs`).

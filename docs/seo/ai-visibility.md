@@ -2,7 +2,7 @@
 
 17 Nov 2026.
 
-**Update, 18 Nov 2026: the site moved to `https://thegatecast.com`.** It was at `gatecast.vercel.app` when this report was written; the findings and scores below are unchanged and still describe that day. Action 3 is done. The search for "Gatecast" is still shared with the Stargate podcast: "the Gatecast" in the address helps a little (a domain of the site's own, and a name that is not the podcast's), but it does not solve it. Links and mentions do, so keep writing "Gatecast, the weird-news site" in every post and pitch. The steps for the move are in [`domain-move.md`](domain-move.md).
+**Update, 18 Nov 2026: the site moved to `https://www.thegatecast.com`.** It was at `gatecast.vercel.app` when this report was written; the findings and scores below are unchanged and still describe that day. Action 3 is done. The search for "Gatecast" is still shared with the Stargate podcast: "the Gatecast" in the address helps a little (a domain of the site's own, and a name that is not the podcast's), but it does not solve it. Links and mentions do, so keep writing "Gatecast, the weird-news site" in every post and pitch. The steps for the move are in [`domain-move.md`](domain-move.md).
 
 **What this is based on.** ChatGPT, Gemini and Perplexity could not be queried from the build environment, so no assistant's answer was observed. The findings come from three web searches run today (the brand name and two target questions) and from reading the site. Treat the score as an estimate until someone runs the prompts below by hand.
 

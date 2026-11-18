@@ -89,7 +89,7 @@ To hide one vote rather than all of them: `update public.state_votes set hidden 
 
 3. They open `/review.html`, enter their email and follow the link. The console shows this same SQL to anyone who signs in but is not a reviewer yet.
 
-For the link to come back to the console, its address must be allowed under Authentication → URL Configuration → Redirect URLs, for example `https://thegatecast.com/review.html` (and `https://gatecast.vercel.app/review.html`, the address until 18 Nov 2026, while it still answers) and, for local work, `http://localhost:4173/review.html`. Otherwise Supabase sends people to the project's Site URL instead.
+For the link to come back to the console, its address must be allowed under Authentication → URL Configuration → Redirect URLs, for example `https://www.thegatecast.com/review.html` (and `https://gatecast.vercel.app/review.html`, the address until 18 Nov 2026, while it still answers) and, for local work, `http://localhost:4173/review.html`. Otherwise Supabase sends people to the project's Site URL instead.
 
 ## The reviewer-console migration (not applied)
 
@@ -109,8 +109,8 @@ Secrets live in Supabase (Project → Edge Functions → Secrets), never in this
 - `Open-States`: the Open States API key, read by `collect`.
 - `ANTHROPIC_API_KEY`: the Anthropic key, read by `assist`.
 - `COMMUNITY_SALT`: a long random secret, read by `community`, which hashes visitors' addresses with it. **The function refuses to run without it** (at least 16 characters; use 32+ random characters, e.g. `openssl rand -hex 32`). Set it once and leave it: changing it makes every visitor a new voter, so they could vote again on stories they already rated, and the per-day tip hashes stop matching for the rest of that day.
-- `COMMUNITY_ALLOWED_ORIGINS` (optional): extra browser origins for `community`, comma-separated. `https://thegatecast.com`, `https://www.thegatecast.com` and the old `https://gatecast.vercel.app` are allowed in the code (`logic.mjs`); until that code is deployed, set this secret to `https://thegatecast.com,https://www.thegatecast.com`.
-- `COMMUNITY_SITE_ORIGIN` (optional): where `community` reads `data/books.json` to check a book's shelf and the ISBNs already on the shelves. Default `https://thegatecast.com`.
+- `COMMUNITY_ALLOWED_ORIGINS` (optional): extra browser origins for `community`, comma-separated. `https://www.thegatecast.com`, `https://www.thegatecast.com` and the old `https://gatecast.vercel.app` are allowed in the code (`logic.mjs`); until that code is deployed, set this secret to `https://www.thegatecast.com,https://www.thegatecast.com`.
+- `COMMUNITY_SITE_ORIGIN` (optional): where `community` reads `data/books.json` to check a book's shelf and the ISBNs already on the shelves. Default `https://www.thegatecast.com`.
 - `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_URL`: provided by Supabase to every function.
 
 The cron job authenticates with the project's anon key, which is public; the repository copy still leaves it out.
@@ -144,7 +144,7 @@ Before step 1, the console shows no click badges, the favourites preview shows t
 1. Apply `migrations/20261117120000_stacks_submissions.sql` (after the two weird-news migrations). It is safe to run twice. It replaces `private.weird_retention()` with the same clean-up plus the submissions' (the existing cron job keeps calling it).
 2. Redeploy `community` with JWT checks off: `supabase functions deploy community --no-verify-jwt --project-ref hfdwmzuedjcsaxgzhzmu`. Until then `/book` does not exist (404), and before step 1 it answers 502.
 3. Deploy the site (Vercel) for `GET /api/books`. Nothing to configure: it reads with the publishable key; `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` override the defaults if set.
-4. Check: `curl -s https://thegatecast.com/api/books | head -c 300` answers the books with `"featured":null` until a pick is set. In the console, The Stacks → Books shows the queue and Book of the week.
+4. Check: `curl -s https://www.thegatecast.com/api/books | head -c 300` answers the books with `"featured":null` until a pick is set. In the console, The Stacks → Books shows the queue and Book of the week.
 
 Before step 1, the console's Books view says it arrives with the migration, and `/api/books` serves the static books with `featured: null`.
 
@@ -152,7 +152,7 @@ Before step 1, the console's Books view says it arrives with the migration, and 
 
 1. Apply `migrations/20261117150000_pick_media.sql` (after `20261116160000_weird_community.sql`). It is safe to run twice. It adds two nullable columns, so no existing pick changes.
 2. Deploy the site (Vercel): `/api/yt-thumb` (the video still, served by Gatecast) and the new `/api/weird` fields. Nothing to configure: no YouTube key is needed (oEmbed and the still are public).
-3. Check: `select id, video_id, image_url from public.weird_picks where status = 'published';` in the SQL editor; `curl -s "https://thegatecast.com/api/weird?limit=3"` shows `"youtube": {...}` for a pick with a working video; `curl -sI "https://thegatecast.com/api/yt-thumb?id=<id>"` answers `200 image/jpeg` with `Cache-Control: public, max-age=86400, s-maxage=86400, …`.
+3. Check: `select id, video_id, image_url from public.weird_picks where status = 'published';` in the SQL editor; `curl -s "https://www.thegatecast.com/api/weird?limit=3"` shows `"youtube": {...}` for a pick with a working video; `curl -sI "https://www.thegatecast.com/api/yt-thumb?id=<id>"` answers `200 image/jpeg` with `Cache-Control: public, max-age=86400, s-maxage=86400, …`.
 
 Before step 1, the site reads picks without the two columns (one extra request when the first is refused), and the console saves picks without media and says the migration is needed when media is given.
 
@@ -163,7 +163,7 @@ Steps 1 and 2 are done (17 Nov 2026: migration applied, `assist` version 2 deplo
 1. Apply `migrations/20261117170000_pick_summary.sql` (after `20261117150000_pick_media.sql`). It is safe to run twice. It adds three nullable columns, copies existing `video_id` values to `video_provider = 'youtube'` / `video_ref` (with the guard trigger off for that one statement, so nothing is logged and no `updated_at` moves), and replaces `private.weird_picks_guard()`.
 2. Deploy `assist` with JWT checks on, all three files (`index.ts`, `logic.mjs`, `summaryrules.mjs`): `supabase functions deploy assist --project-ref hfdwmzuedjcsaxgzhzmu`. Until then "Draft with Claude" for summaries answers `400 bad_request` (unknown action), and the console says so.
 3. Deploy the site (Vercel) for story mode, `/api/media-thumb` and the new `/api/weird` fields (`summary`, `media.video`). Nothing to configure: Vimeo, X and TikTok oEmbed are public; Facebook and Instagram are not checked (they need an app token).
-4. Check: `select id, summary, video_provider, video_ref, video_id from public.weird_picks where status = 'published';`; `curl -s "https://thegatecast.com/api/weird?limit=3"` shows `"summary"` and `"media":{"video":…}` on picks; `curl -sI "https://thegatecast.com/api/media-thumb?p=vimeo&id=<id>"` answers `200 image/jpeg` for a public Vimeo video.
+4. Check: `select id, summary, video_provider, video_ref, video_id from public.weird_picks where status = 'published';`; `curl -s "https://www.thegatecast.com/api/weird?limit=3"` shows `"summary"` and `"media":{"video":…}` on picks; `curl -sI "https://www.thegatecast.com/api/media-thumb?p=vimeo&id=<id>"` answers `200 image/jpeg` for a public Vimeo video.
 
 Before step 1, the site reads picks without the three columns (one or two extra requests when they are refused), and the console saves picks without a summary (and with a YouTube video or none) and says the migration is needed otherwise.
 

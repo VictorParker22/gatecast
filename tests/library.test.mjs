@@ -283,7 +283,7 @@ test('coversFor: one request a second, sequential, identified without an email, 
   assert.equal(maxInFlight, 1);
   for (let i = 1; i < calls.length; i++) assert.ok(calls[i].at - calls[i - 1].at >= 1000, 'at most one request per second');
   for (const c of calls) {
-    assert.equal(c.ua, 'Gatecast/1.0 (+https://thegatecast.com)');
+    assert.equal(c.ua, 'Gatecast/1.0 (+https://www.thegatecast.com)');
     assert.ok(!c.ua.includes('@'));
     assert.equal(c.url.origin + c.url.pathname, 'https://openlibrary.org/search.json');
     assert.equal(c.url.searchParams.get('limit'), '3');

@@ -146,13 +146,13 @@ test('RSS: valid RSS 2.0, newest first, at most 30 picks, story-mode links, stab
   const fm = await import('../js/frontmodel.js');
   const xml = W.feedXml(picks, { catLabel: fm.catLabel, now: NOW });
   wellFormed(xml);
-  assert.match(xml, /^<\?xml[^>]*>\n<rss version="2\.0" xmlns:atom="http:\/\/www\.w3\.org\/2005\/Atom">\n  <channel>\n    <title>[^<]+<\/title>\n    <link>https:\/\/thegatecast\.com\/weekly\/<\/link>\n    <atom:link href="https:\/\/thegatecast\.com\/feed\.xml" rel="self" type="application\/rss\+xml"\/>\n    <description>/);
+  assert.match(xml, /^<\?xml[^>]*>\n<rss version="2\.0" xmlns:atom="http:\/\/www\.w3\.org\/2005\/Atom">\n  <channel>\n    <title>[^<]+<\/title>\n    <link>https:\/\/www\.thegatecast\.com\/weekly\/<\/link>\n    <atom:link href="https:\/\/www\.thegatecast\.com\/feed\.xml" rel="self" type="application\/rss\+xml"\/>\n    <description>/);
   const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)].map((m) => m[1]);
   assert.equal(items.length, W.FEED_SIZE);
   const first = items[0];
   assert.match(first, /<title>Cats &amp; dogs &lt; cats &gt; &quot;quoted&quot; bell tags go<\/title>/, 'escaped; markup and control characters removed');
   assert.equal(W.xmlText('a\u0007b\uFFFEc<&>\'"'), 'abc&lt;&amp;&gt;&#39;&quot;', 'characters XML forbids are dropped');
-  assert.match(first, new RegExp(`<link>https://thegatecast\\.com/\\?story=${picks[0].id}</link>`));
+  assert.match(first, new RegExp(`<link>https://www\\.thegatecast\\.com/\\?story=${picks[0].id}</link>`));
   assert.match(first, new RegExp(`<guid isPermaLink="false">gatecast-pick-${picks[0].id}</guid>`));
   assert.match(first, /<pubDate>Wed, 18 Nov 2026 10:00:00 \+0000<\/pubDate>/);
   assert.match(first, /<category>Strange animals<\/category>/);
@@ -186,7 +186,7 @@ test('/weekly/: every week with picks, newest first, plain HTML styled like the 
   assert.equal(out.cacheControl, 'public, max-age=0, s-maxage=300, stale-while-revalidate=300');
   const h = out.body;
   assert.deepEqual([...h.matchAll(/href="\/weekly\/(\d{4}-W\d{2})\/"/g)].map((m) => m[1]), ['2026-W47', '2026-W46', '2026-W43']);
-  assert.match(h, /<link rel="canonical" href="https:\/\/thegatecast\.com\/weekly\/">/);
+  assert.match(h, /<link rel="canonical" href="https:\/\/www\.thegatecast\.com\/weekly\/">/);
   assert.match(h, /<link rel="stylesheet" href="\/styles\/site\.css">/);
   assert.match(h, /class="site-header"/);
   assert.match(h, /this week so far/);
@@ -207,7 +207,7 @@ test('a week page: its picks with outlet, date, the editor\'s words, the origina
   assert.equal(out.status, 200);
   const h = out.body;
   assert.match(h, /<title>Weird news of the week, 16 to 22 November 2026 — Gatecast<\/title>/);
-  assert.match(h, /<link rel="canonical" href="https:\/\/thegatecast\.com\/weekly\/2026-W47\/">/);
+  assert.match(h, /<link rel="canonical" href="https:\/\/www\.thegatecast\.com\/weekly\/2026-W47\/">/);
   const items = [...h.matchAll(/<article[\s\S]*?<\/article>/g)].map((m) => m[0]);
   assert.equal(items.length, 2);
   const [a, b] = items;
@@ -380,7 +380,7 @@ test('sitemap: /weekly/ is listed; the site origin is the same everywhere', asyn
   assert.equal(W.SITE, S.SITE_ORIGIN);
   assert.ok(B.SITEMAP_PAGES.includes('weekly/'));
   const xml = B.sitemapXml({ day: '2099-01-01', dateOf: (f) => (f === 'lib/weekly.js' ? '2026-11-18' : null) });
-  assert.match(xml, /<url><loc>https:\/\/thegatecast\.com\/weekly\/<\/loc><lastmod>2026-11-18<\/lastmod><\/url>/);
+  assert.match(xml, /<url><loc>https:\/\/www\.thegatecast\.com\/weekly\/<\/loc><lastmod>2026-11-18<\/lastmod><\/url>/);
   assert.ok(!/\/weekly\/\d{4}-W/.test(xml), 'week pages are linked from the index, not listed');
 });
 

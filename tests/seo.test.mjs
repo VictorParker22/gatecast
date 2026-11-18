@@ -212,14 +212,14 @@ test('IndexNow key: one 32-hex file at the repo root holding its own name, copie
 });
 
 test('indexnow.cjs: the payload, the key-file check and the answers, against a mocked fetch (nothing is sent)', async () => {
-  const site = 'https://thegatecast.com/', key = 'f'.repeat(32);
+  const site = 'https://www.thegatecast.com/', key = 'f'.repeat(32);
   assert.deepEqual(N.urlsFromSitemap('<urlset><url><loc>https://a.example/x</loc></url><url><loc> https://a.example/y </loc></url></urlset>'), ['https://a.example/x', 'https://a.example/y']);
   const urls = N.sitemapUrls();
   assert.ok(urls.includes(site) && urls.includes(site + 'how.html') && urls.some((u) => u.includes('/stacks/')));
   const [p] = N.payloads([site, site + 'how.html', site], { site, key });
-  assert.deepEqual(p, { host: 'thegatecast.com', key, keyLocation: `https://thegatecast.com/${key}.txt`, urlList: [site, site + 'how.html'] });
-  assert.throws(() => N.payloads(['https://evil.example/'], { site, key }), /not on https:\/\/thegatecast\.com/);
-  for (const other of ['http://thegatecast.com/', 'https://www.thegatecast.com/', 'https://gatecast.vercel.app/']) assert.throws(() => N.payloads([other], { site, key }), /not on/, other);
+  assert.deepEqual(p, { host: 'www.thegatecast.com', key, keyLocation: `https://www.thegatecast.com/${key}.txt`, urlList: [site, site + 'how.html'] });
+  assert.throws(() => N.payloads(['https://evil.example/'], { site, key }), /not on https:\/\/www\.thegatecast\.com/);
+  for (const other of ['http://www.thegatecast.com/', 'https://thegatecast.com/', 'https://gatecast.vercel.app/']) assert.throws(() => N.payloads([other], { site, key }), /not on/, other);
   assert.throws(() => N.payloads([], { site, key }), /no URLs/);
   const many = Array.from({ length: N.MAX_URLS + 5 }, (_, i) => `${site}p${i}`);
   assert.deepEqual(N.payloads(many, { site, key }).map((b) => b.urlList.length), [N.MAX_URLS, 5]);
@@ -232,7 +232,7 @@ test('indexnow.cjs: the payload, the key-file check and the answers, against a m
   };
   const log = [];
   let out = await N.submit([site, site + 'how.html'], { site, key, fetchImpl: fetchImpl(202), log: (x) => log.push(x) });
-  assert.equal(calls[0].url, `https://thegatecast.com/${key}.txt`, 'checks the live key file first');
+  assert.equal(calls[0].url, `https://www.thegatecast.com/${key}.txt`, 'checks the live key file first');
   assert.equal(calls[1].url, N.ENDPOINT);
   assert.equal(N.ENDPOINT, 'https://api.indexnow.org/indexnow');
   assert.equal(calls[1].method, 'POST');
@@ -330,19 +330,19 @@ test('llms.txt: a short guide for AI assistants, made from the same data as the 
   assert.match(txt, /^# Gatecast\n\n> Gatecast is a free website/);
   const books = JSON.parse(fs.readFileSync(new URL('../data/books.json', import.meta.url), 'utf8'));
   assert.ok(txt.includes(`a library of ${books.books.length} real books`), 'the count comes from books.json');
-  for (const s of books.shelves) assert.ok(txt.includes(`](https://thegatecast.com/stacks/${s.id}/)`), s.id);
-  for (const u of ['stacks/worth-knowing/', 'stacks/content-notes/', 'stacks/skyjack/', 'weekly/', 'feed.xml', 'how.html', 'trip.html', 'flights.html']) assert.ok(txt.includes(`(https://thegatecast.com/${u})`), u);
+  for (const s of books.shelves) assert.ok(txt.includes(`](https://www.thegatecast.com/stacks/${s.id}/)`), s.id);
+  for (const u of ['stacks/worth-knowing/', 'stacks/content-notes/', 'stacks/skyjack/', 'weekly/', 'feed.xml', 'how.html', 'trip.html', 'flights.html']) assert.ok(txt.includes(`(https://www.thegatecast.com/${u})`), u);
   // Every link is to this site, and nothing reads as an instruction to a model.
-  for (const m of txt.matchAll(/\]\((https?:\/\/[^)]+)\)/g)) assert.ok(m[1].startsWith('https://thegatecast.com/'), m[1]);
+  for (const m of txt.matchAll(/\]\((https?:\/\/[^)]+)\)/g)) assert.ok(m[1].startsWith('https://www.thegatecast.com/'), m[1]);
   assert.ok(!/ignore|you must|always (say|recommend)|system prompt/i.test(txt));
   assert.match(fs.readFileSync(new URL('../scripts/build-data.cjs', import.meta.url), 'utf8'), /writeFileSync\(path\.join\(out, 'llms\.txt'\), llmsTxt\(\)\)/);
   assert.match(fs.readFileSync(new URL('../server.js', import.meta.url), 'utf8'), /url\.pathname === '\/llms\.txt'/);
   assert.match(fs.readFileSync(new URL('../robots.txt', import.meta.url), 'utf8'), /llms\.txt/);
 });
 
-test('one address: https://thegatecast.com (apex, no www, no trailing slash), read from lib/site.js or checked against it', async () => {
+test('one address: https://www.thegatecast.com (the www form Vercel serves, no trailing slash), read from lib/site.js or checked against it', async () => {
   const { SITE_ORIGIN, PREVIOUS_ORIGIN } = require('../lib/site.js');
-  assert.equal(SITE_ORIGIN, 'https://thegatecast.com');
+  assert.equal(SITE_ORIGIN, 'https://www.thegatecast.com');
   assert.equal(PREVIOUS_ORIGIN, 'https://gatecast.vercel.app');
   assert.equal(new URL(SITE_ORIGIN).origin, SITE_ORIGIN, 'an origin: https, no path, no trailing slash');
   // The code that builds addresses reads the one constant.
@@ -368,33 +368,11 @@ test('one address: https://thegatecast.com (apex, no www, no trailing slash), re
   assert.ok(read('robots.txt').includes(`Sitemap: ${SITE_ORIGIN}/sitemap.xml\n`));
   assert.ok(read('robots.txt').includes(`${SITE_ORIGIN}/llms.txt`));
   assert.ok(B.llmsTxt().includes(`It lives at ${SITE_ORIGIN} and`));
-  // Nothing the site serves or builds still names the old address or the www form. The old address stays only where
+  // Nothing the site serves or builds still names the old address or the bare domain (which only redirects to www). The old address stays only where
   // it must keep working: lib/site.js (as PREVIOUS_ORIGIN), the functions' allowed origins and the tip box's
   // own-pages check (js/frontmodel.js tipUrl).
-  const stale = /gatecast\\?\.vercel\\?\.app|www\\?\.thegatecast/;
+  const stale = /gatecast\\?\.vercel\\?\.app|\/\/thegatecast\\?\.com/;
   const served = [...B.STATIC_FILES.filter((f) => /\.(html|txt)$/.test(f)), 'scripts/build-data.cjs', 'scripts/build-stacks-pages.cjs', 'scripts/indexnow.cjs', 'lib/weekly.js', 'lib/books.js', 'js/tvmodel.js', 'server.js', 'supabase/functions/community/index.ts'];
   for (const f of served) assert.doesNotMatch(read(f), stale, f);
   for (const out of [B.sitemapXml({ day: '2099-01-01', dateOf: () => null }), B.llmsTxt()]) assert.doesNotMatch(out, stale);
-});
-
-test('vercel.json: the old address redirects for good to the same page at the new one, in one block that only it matches', () => {
-  const { SITE_ORIGIN, PREVIOUS_ORIGIN } = require('../lib/site.js');
-  const v = JSON.parse(read('vercel.json'));
-  const hosted = v.redirects.filter((r) => r.has);
-  assert.equal(hosted.length, 1, 'one redirect with a host condition');
-  const [r] = hosted;
-  assert.equal(v.redirects[0], r, 'it comes first, apart from the path redirects');
-  assert.deepEqual(r.has, [{ type: 'host', value: new URL(PREVIOUS_ORIGIN).host }], 'only requests for the old address');
-  assert.equal(r.destination, SITE_ORIGIN + '/:path*');
-  assert.equal(r.permanent, true, 'a 308');
-  assert.deepEqual(Object.keys(r).sort(), ['destination', 'has', 'permanent', 'source']);
-  // The source as a regular expression (Vercel's path-to-regexp): every path, except a search engine's ownership
-  // file at the root, which Google will not follow to another domain.
-  assert.equal(r.source, '/:path((?!google[0-9a-f]+\\.html$|BingSiteAuth\\.xml$).*)');
-  const re = /^\/((?!google[0-9a-f]+\.html$|BingSiteAuth\.xml$).*)$/;
-  for (const p of ['/', '/how.html', '/library.html', '/stacks/', '/stacks/skyjack/', '/weekly/2026-W47/', '/feed.xml', '/api/weird', '/sitemap.xml', '/' + B.indexNowKeyFile(), '/stacks/google12ab.html']) assert.ok(re.test(p), p);
-  for (const p of ['/google1234abcd5678ef90.html', '/BingSiteAuth.xml']) assert.ok(!re.test(p), p);
-  // Nothing here redirects between www and the apex: that is set on the domain in Vercel, and a second rule in the
-  // code pointing the other way would loop.
-  assert.doesNotMatch(JSON.stringify(v), /www\.thegatecast|"value":\s*"thegatecast/);
 });

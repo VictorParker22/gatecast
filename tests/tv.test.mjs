@@ -22,14 +22,14 @@ const item = (id, over = {}) => cleanItem({
 test('each story has its own address, /?story=<id>, read back from any form of the address', () => {
   assert.equal(STORY_PARAM, 'story');
   assert.equal(storyHref('a1b2c3d4e5f6'), '?story=a1b2c3d4e5f6');
-  assert.equal(shareUrl('a1b2c3d4e5f6'), 'https://thegatecast.com/?story=a1b2c3d4e5f6');
+  assert.equal(shareUrl('a1b2c3d4e5f6'), 'https://www.thegatecast.com/?story=a1b2c3d4e5f6');
   assert.equal(shareUrl('a1b2c3d4e5f6', 'http://localhost:4173/?r=1#x'), 'http://localhost:4173/?story=a1b2c3d4e5f6');
-  for (const href of ['https://thegatecast.com/?story=a1b2c3d4e5f6', '/?story=a1b2c3d4e5f6', '?story=a1b2c3d4e5f6', '?x=1&story=a1b2c3d4e5f6#top']) {
+  for (const href of ['https://www.thegatecast.com/?story=a1b2c3d4e5f6', '/?story=a1b2c3d4e5f6', '?story=a1b2c3d4e5f6', '?x=1&story=a1b2c3d4e5f6#top']) {
     assert.equal(storyFromUrl(href), 'a1b2c3d4e5f6', href);
   }
-  for (const bad of ['https://thegatecast.com/', '?story=', '?story=../etc', '?story=<script>', `?story=${'a'.repeat(65)}`, null]) assert.equal(storyFromUrl(bad), null, String(bad));
-  assert.equal(urlWithStory('https://thegatecast.com/?r=1#news', 'abc123'), 'https://thegatecast.com/?r=1&story=abc123#news');
-  assert.equal(urlWithStory('https://thegatecast.com/?story=abc123&r=1', null), 'https://thegatecast.com/?r=1');
+  for (const bad of ['https://www.thegatecast.com/', '?story=', '?story=../etc', '?story=<script>', `?story=${'a'.repeat(65)}`, null]) assert.equal(storyFromUrl(bad), null, String(bad));
+  assert.equal(urlWithStory('https://www.thegatecast.com/?r=1#news', 'abc123'), 'https://www.thegatecast.com/?r=1&story=abc123#news');
+  assert.equal(urlWithStory('https://www.thegatecast.com/?story=abc123&r=1', null), 'https://www.thegatecast.com/?r=1');
   assert.equal(storyHref('no spaces'), null);
   assert.equal(isStoryId('a1b2c3d4e5f6'), true);
 });

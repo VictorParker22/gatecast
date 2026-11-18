@@ -152,7 +152,7 @@ test('Skyjack: its page is indexed, shows Gatecast’s take with its date, and i
   // After the description and notes, before the topics.
   assert.ok(h.indexOf('class="stk-desc"') < h.indexOf('class="stk-take"') && h.indexOf('class="stk-take"') < h.indexOf('class="stk-tags"'));
   const xml = B.sitemapXml({ dateOf: () => null, day: '2099-01-01' });
-  assert.ok(xml.includes(`<url><loc>https://thegatecast.com/stacks/skyjack/</loc><lastmod>${S.bookLastmod(sky, raw)}</lastmod></url>`));
+  assert.ok(xml.includes(`<url><loc>https://www.thegatecast.com/stacks/skyjack/</loc><lastmod>${S.bookLastmod(sky, raw)}</lastmod></url>`));
   assert.equal(S.bookLastmod(sky, raw), [raw.checked, sky.cover.checked, sky.takeDate].sort().pop());
 });
 

@@ -36,7 +36,7 @@ const SALT = Deno.env.get('COMMUNITY_SALT') ?? '';
 const EXTRA_ORIGINS = (Deno.env.get('COMMUNITY_ALLOWED_ORIGINS') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
 // Where the site's data/books.json lives (the shelves a book may be put forward for). Optional; the default is the
 // site's own address (lib/site.js SITE_ORIGIN).
-const SITE = (Deno.env.get('COMMUNITY_SITE_ORIGIN') ?? 'https://thegatecast.com').replace(/\/+$/, '');
+const SITE = (Deno.env.get('COMMUNITY_SITE_ORIGIN') ?? 'https://www.thegatecast.com').replace(/\/+$/, '');
 
 type Json = Record<string, unknown>;
 type Rpc = { ok: true; data: unknown } | { ok: false; status: number };
