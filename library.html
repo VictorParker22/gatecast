@@ -70,7 +70,8 @@
       "three/addons/": "./vendor/three/addons/",
       "cannon-es": "./vendor/cannon-es/cannon-es.js",
       "gsap": "./vendor/gsap/index.js",
-      "roughjs": "./vendor/roughjs/rough.esm.js"
+      "roughjs": "./vendor/roughjs/rough.esm.js",
+      "zdog": "./vendor/zdog/zdog.esm.js"
     } }
   </script>
   <script type="module" src="js/library.js"></script>
@@ -124,7 +125,7 @@
                 <h2 id="card-h">Your library card</h2>
                 <span class="lib-card__count" id="card-count"></span>
               </div>
-              <p class="lib-card__empty" id="card-empty" tabindex="-1">Books you borrow get stamped here, so you can find them again. Kept on this device only.</p>
+              <p class="lib-card__empty" id="card-empty" tabindex="-1"><svg class="lib-card__art" id="card-art" aria-hidden="true" width="72" height="72"></svg>Books you borrow get stamped here, so you can find them again. Kept on this device only.</p>
               <ul class="lib-card__list" id="card-list" hidden></ul>
               <p class="lib-card__foot" id="card-foot" hidden>Kept on this device only. <button type="button" class="lib-linkbtn" id="card-clear">Clear the card</button></p>
             </section>

@@ -82,6 +82,9 @@
   .lib-card h2 { @apply m-0 p-0 border-0 not-italic font-extrabold; font-size: var(--text-xl); line-height: 1.1; @apply font-sign normal-nums; letter-spacing: 0.05em; @apply uppercase text-lib-ink; }
   .lib-card__count { @apply py-1 px-2.5 rounded-full whitespace-nowrap not-italic font-extrabold; font-size: var(--text-note); @apply leading-none font-sign normal-nums tracking-caps; color: #F6E3B4; background: #3A2619 var(--tex-leather) center / 140px; background-blend-mode: overlay; border: 2px solid #B8913F; box-shadow: 0 0 12px rgb(255 190 100 / 0.35), inset 0 1px 0 rgb(255 255 255 / 0.2); }
   .lib-card__empty, .lib-card__foot { font-size: var(--text-sm); line-height: 1.45; color: #3B342A; }
+  /* The empty card's rubber stamp, drawn by Zdog (js/library.js). Empty until then, and then it takes no room. */
+  .lib-card__art { @apply float-right w-18 h-18 ml-2 mb-1 pointer-events-none overflow-visible; }
+  .lib-card__art:empty { @apply hidden; }
   .lib-card__list { @apply grid; }
   .lib-card__list li { @apply flex justify-between items-center gap-2.5; border-bottom: 1px solid rgb(90 70 40 / 0.35); }
   .lib-card__list button { @apply flex-1 min-w-0 min-h-tap py-1 px-0 border-0; background: none; @apply text-inherit text-left cursor-pointer not-italic font-semibold; font-size: var(--text-note); line-height: 1.25; @apply font-body normal-nums underline; text-decoration-color: transparent; text-underline-offset: 0.2em; }

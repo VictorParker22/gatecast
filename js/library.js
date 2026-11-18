@@ -9,7 +9,7 @@
 import { initSettings, store } from './shell.js';
 import {
   BOOKSHOP_AFFILIATE, BOOKSHOP_DISCLOSURE, authorLine, surname, filterView, statusText, pickRandom, spineStyle, balancedRows,
-  bookBox, flightStart, parseHash, buildHash, stampCard, stampDate, inkSeed, stampTilt, worldcatUrl, bookshopUrl, openLibraryUrl, coverUrl, coverFor, needsCoverApi,
+  bookBox, flightStart, parseHash, buildHash, stampCard, stampDate, inkSeed, stampTilt, stampTurn, worldcatUrl, bookshopUrl, openLibraryUrl, coverUrl, coverFor, needsCoverApi,
   previewPlace, previewShift, libraryData, stockedShelves, featuredView, originNote, bayColumns,
 } from './librarymodel.js';
 import { createPreview } from './librarypreview.js';
@@ -355,6 +355,53 @@ function ink(node, kind, seed) {
   inkWatch.unobserve(node); inkWatch.observe(node); // observing again reports the size now, so a new seed is drawn
 }
 
+/* ---------- The rubber stamp on an empty card ---------- */
+// Zdog (vendored, MIT) draws a small rubber stamp as SVG beside the empty card's sentence, in the room's own colours
+// (read from the theme's tokens). It loads when the browser is idle; without it the card is as it was. The stamp turns
+// once when it appears, and once again each time the card is opened or the pointer comes onto it, then rests. It never
+// turns when motion is reduced, while the card has stamps (its paragraph is hidden then) or while the card is closed.
+const STAMP_REST = 0.7, STAMP_TURN_MS = 2600;
+let zdogLib = null, stampArt = null;
+const stampOnShow = () => !$('card-empty').hidden && $('card-empty').getClientRects().length > 0; // empty card, and open
+const loadZdog = () => (zdogLib ||= import('zdog').then((m) => m.default).catch(() => null));
+function buildStampArt(Zdog, svg) {
+  const css = getComputedStyle(svg);
+  const tok = (name) => css.getPropertyValue(name).trim();
+  const wood = tok('--color-lib-leather-2'), dark = tok('--color-lib-leather'), brass = tok('--color-lib-brass-2'), brassDark = tok('--color-lib-brass-3'), red = tok('--color-lib-red-ink');
+  if (![wood, dark, brass, brassDark, red].every(Boolean)) return null;
+  const up = { x: Zdog.TAU / 4 }; // a cylinder lies along z: stand it up
+  const illo = new Zdog.Illustration({ element: svg, rotate: { x: -0.45, y: STAMP_REST } });
+  new Zdog.Shape({ addTo: illo, translate: { y: -21 }, stroke: 20, color: wood }); // the knob
+  new Zdog.Cylinder({ addTo: illo, translate: { y: -8 }, rotate: up, diameter: 9, length: 14, stroke: false, color: dark, backface: wood });
+  new Zdog.Cylinder({ addTo: illo, translate: { y: 1 }, rotate: up, diameter: 17, length: 4, stroke: false, color: brass, backface: brassDark }); // the collar
+  new Zdog.Box({ addTo: illo, translate: { y: 9 }, width: 38, height: 10, depth: 24, stroke: false, color: wood, topFace: brassDark, leftFace: dark, rightFace: dark, rearFace: dark, bottomFace: dark });
+  new Zdog.Box({ addTo: illo, translate: { y: 16 }, width: 34, height: 4, depth: 20, stroke: false, color: red }); // the inked rubber
+  illo.updateRenderGraph();
+  return { illo, tau: Zdog.TAU, busy: false };
+}
+function turnStampArt() {
+  const a = stampArt;
+  if (!a || a.busy || reduceMq.matches || !stampOnShow()) return;
+  a.busy = true;
+  const t0 = performance.now();
+  const step = (now) => {
+    const p = Math.min(1, (now - t0) / STAMP_TURN_MS);
+    a.illo.rotate.y = STAMP_REST + (stampTurn(p) - 1) * a.tau;
+    a.illo.updateRenderGraph();
+    if (p < 1 && stampOnShow()) requestAnimationFrame(step);
+    else { a.illo.rotate.y = STAMP_REST; a.illo.updateRenderGraph(); a.busy = false; }
+  };
+  requestAnimationFrame(step);
+}
+function showStampArt() {
+  if (stampArt || $('card-empty').hidden) return;
+  (window.requestIdleCallback || ((f) => setTimeout(f, 1200)))(() => loadZdog().then((Zdog) => {
+    if (!Zdog || stampArt || $('card-empty').hidden) return; // a book may have been borrowed while it loaded
+    try { stampArt = buildStampArt(Zdog, $('card-art')); } catch { stampArt = null; }
+    turnStampArt();
+  }), { timeout: 2500 });
+}
+
 /* ---------- Library card (localStorage only) ---------- */
 
 function loadCard() {
@@ -382,6 +429,7 @@ function renderCard(fresh = null) {
   }
   const empty = !state.card.length;
   list.hidden = empty; $('card-foot').hidden = empty; $('card-empty').hidden = !empty;
+  if (empty) showStampArt();
   const n = state.card.length;
   const count = empty ? 'NO STAMPS' : `${n} ${n === 1 ? 'STAMP' : 'STAMPS'}`;
   $('card-count').textContent = count;
@@ -1049,7 +1097,9 @@ function setupToggles() {
     const open = cardBtn.getAttribute('aria-expanded') !== 'true';
     cardBtn.setAttribute('aria-expanded', String(open));
     $('lib-card').classList.toggle('is-open', open);
+    if (open) turnStampArt();
   });
+  $('lib-card').addEventListener('pointerenter', turnStampArt);
   $('lib-prev').addEventListener('click', () => s3d?.pan(-1));
   $('lib-next').addEventListener('click', () => s3d?.pan(1));
   // Any first gesture may start the audio (browsers need one).

@@ -282,6 +282,13 @@ export function stampTilt(seed) {
   return Math.abs(t) < 1 ? -4 : t;
 }
 
+// The rubber stamp on an empty card turns once: how far through the turn it is (0 to 1) for a time 0 to 1, slow at
+// both ends.
+export function stampTurn(p) {
+  const t = Math.min(1, Math.max(0, Number(p) || 0));
+  return t < 0.5 ? 4 * t * t * t : 1 - ((-2 * t + 2) ** 3) / 2;
+}
+
 /* ---------- Links ---------- */
 
 const q = (book) => `${book.title} ${book.authors?.[0] || ''}`.trim();

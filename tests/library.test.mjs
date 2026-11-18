@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import {
   BOOKSHOP_AFFILIATE, fold, surname, authorLine, matches, filterView, statusText, pickRandom, hashId, spineStyle, SPINE_PALETTE,
-  shelfRows, balancedRows, bookBox, flightStart, BOOK_ASPECT, parseHash, buildHash, stampCard, stampDate, inkSeed, stampTilt, worldcatUrl, bookshopUrl,
+  shelfRows, balancedRows, bookBox, flightStart, BOOK_ASPECT, parseHash, buildHash, stampCard, stampDate, inkSeed, stampTilt, stampTurn, worldcatUrl, bookshopUrl,
   openLibraryUrl, coverUrl, validate, NO_COVER, coverFor,
 } from '../js/librarymodel.js';
 
@@ -212,6 +212,11 @@ test('library card stamps newest first, without duplicates, at most five', () =>
   for (let s = 1; s < 400; s++) { const t = stampTilt(s); assert.ok(t >= -7 && t <= 3.1 && Math.abs(t) >= 1, `${s}: ${t}`); }
   assert.equal(stampTilt(seed), stampTilt(seed));
   assert.equal(stampTilt('junk'), stampTilt(1));
+  // The empty card's rubber stamp turns once, slow at both ends, and never outside 0 to 1.
+  assert.equal(stampTurn(0), 0); assert.equal(stampTurn(1), 1); assert.equal(stampTurn(0.5), 0.5);
+  assert.ok(stampTurn(0.1) < 0.1 && stampTurn(0.9) > 0.9);
+  for (let i = 1; i <= 20; i++) assert.ok(stampTurn(i / 20) >= stampTurn((i - 1) / 20));
+  assert.equal(stampTurn(-3), 0); assert.equal(stampTurn(7), 1); assert.equal(stampTurn('x'), 0);
 });
 
 test('links: WorldCat and Bookshop searches, no affiliate until one is set, Open Library only when confirmed', () => {
