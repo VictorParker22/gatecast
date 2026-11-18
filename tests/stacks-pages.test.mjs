@@ -49,7 +49,7 @@ test('one page per book, per stocked shelf and an index, written to public/stack
 });
 
 test('titles, canonicals and meta descriptions: unique, in the agreed form, from one site constant', () => {
-  assert.equal(S.SITE_ORIGIN, 'https://gatecast.vercel.app');
+  assert.equal(S.SITE_ORIGIN, 'https://thegatecast.com');
   assert.equal(B.SITE, S.SITE_ORIGIN + '/', 'the sitemap uses the same constant');
   const titles = pages.map((p) => title(p.html));
   const canon = pages.map((p) => canonical(p.html));
@@ -58,10 +58,10 @@ test('titles, canonicals and meta descriptions: unique, in the agreed form, from
   for (const b of data.books) {
     const html = byId.get(b.id).html;
     assert.equal(title(html), `${b.title} by ${m.authorLine(b.authors)} — The Stacks · Gatecast`);
-    assert.equal(canonical(html), `https://gatecast.vercel.app/stacks/${b.id}/`);
+    assert.equal(canonical(html), `https://thegatecast.com/stacks/${b.id}/`);
     assert.equal(attr(html, /<meta property="og:url" content="([^"]+)">/), canonical(html), 'og:url = canonical');
     assert.equal(attr(html, /<meta property="og:type" content="([^"]+)">/), 'book');
-    assert.equal(attr(html, /<meta property="og:image" content="([^"]+)">/), 'https://gatecast.vercel.app/vendor/og/gatecast-og.png');
+    assert.equal(attr(html, /<meta property="og:image" content="([^"]+)">/), 'https://thegatecast.com/vendor/og/gatecast-og.png');
     assert.equal(attr(html, /<meta name="twitter:card" content="([^"]+)">/), 'summary_large_image');
     const d = metaDesc(html);
     assert.ok(d.length <= 155, `${b.id}: meta description is ${d.length} characters`);
@@ -75,7 +75,7 @@ test('titles, canonicals and meta descriptions: unique, in the agreed form, from
     const html = byId.get(s.id).html;
     const intro = INTROS.shelves[s.id];
     assert.equal(title(html), intro ? intro.title : `${s.name} books — The Stacks · Gatecast`);
-    assert.equal(canonical(html), `https://gatecast.vercel.app/stacks/${s.id}/`);
+    assert.equal(canonical(html), `https://thegatecast.com/stacks/${s.id}/`);
     assert.equal(metaDesc(html), intro ? intro.description : s.note);
     assert.equal(attr(html, /<meta property="og:title" content="([^"]+)">/), title(html));
     assert.equal(attr(html, /<meta property="og:description" content="([^"]+)">/), metaDesc(html));
@@ -85,7 +85,7 @@ test('titles, canonicals and meta descriptions: unique, in the agreed form, from
   assert.equal(title(bare), `${data.shelves[0].name} books — The Stacks · Gatecast`);
   assert.equal(metaDesc(bare), data.shelves[0].note);
   assert.ok(!bare.includes('<div class="stk-intro'));
-  assert.equal(canonical(byId.get(null).html), 'https://gatecast.vercel.app/stacks/');
+  assert.equal(canonical(byId.get(null).html), 'https://thegatecast.com/stacks/');
   assert.equal(S.metaDescription('word '.repeat(60)).length <= 155, true);
   assert.equal(S.metaDescription('short.'), 'short.');
 });
@@ -96,7 +96,7 @@ test('JSON-LD: Book and BreadcrumbList on book pages, CollectionPage with an Ite
     assert.equal(bc['@context'], 'https://schema.org');
     assert.equal(bc['@type'], 'BreadcrumbList');
     assert.deepEqual(bc.itemListElement.map((i) => i.name), names);
-    bc.itemListElement.forEach((i, n) => { assert.equal(i['@type'], 'ListItem'); assert.equal(i.position, n + 1); assert.match(i.item, /^https:\/\/gatecast\.vercel\.app\//); });
+    bc.itemListElement.forEach((i, n) => { assert.equal(i['@type'], 'ListItem'); assert.equal(i.position, n + 1); assert.match(i.item, /^https:\/\/thegatecast\.com\//); });
   };
   for (const b of data.books) {
     const html = byId.get(b.id).html;
@@ -121,10 +121,10 @@ test('JSON-LD: Book and BreadcrumbList on book pages, CollectionPage with an Ite
     const [cp, bc] = ld(byId.get(s.id).html);
     const books = data.books.filter((b) => b.shelf === s.id);
     assert.equal(cp['@type'], 'CollectionPage');
-    assert.equal(cp.url, `https://gatecast.vercel.app/stacks/${s.id}/`);
+    assert.equal(cp.url, `https://thegatecast.com/stacks/${s.id}/`);
     assert.equal(cp.mainEntity['@type'], 'ItemList');
     assert.equal(cp.mainEntity.numberOfItems, books.length);
-    assert.deepEqual(cp.mainEntity.itemListElement.map((i) => i.url), books.map((b) => `https://gatecast.vercel.app/stacks/${b.id}/`));
+    assert.deepEqual(cp.mainEntity.itemListElement.map((i) => i.url), books.map((b) => `https://thegatecast.com/stacks/${b.id}/`));
     for (const [n, i] of cp.mainEntity.itemListElement.entries()) { assert.equal(i['@type'], 'ListItem'); assert.equal(i.position, n + 1); assert.ok(urls.has(i.url)); }
     crumbsOk(bc, ['Gatecast', 'The Stacks', s.name]);
   }
@@ -271,12 +271,12 @@ test('sitemap: the pages, /stacks/, the stocked shelves and the books with a tak
   const listed = data.books.filter(S.indexable).length;
   assert.equal(urls.length, B.SITEMAP_PAGES.length + 1 + NS + NG + listed, 'pages, /stacks/, shelves and only the books with a take');
   assert.equal(new Set(urls.map((u) => u.loc)).size, urls.length, 'no duplicates');
-  const at = (loc) => urls.find((u) => u.loc === 'https://gatecast.vercel.app/' + loc);
+  const at = (loc) => urls.find((u) => u.loc === 'https://thegatecast.com/' + loc);
   assert.equal(at('how.html').lastmod, '2026-11-10', 'a page: its last commit');
   assert.equal(at('trip.html').lastmod, '2099-01-01', 'no git date: the build day');
   assert.ok(!xml.includes('review.html'));
   for (const u of urls.filter((x) => x.loc.includes('/stacks/'))) {
-    assert.match(u.loc, /^https:\/\/gatecast\.vercel\.app\/stacks\/([a-z0-9-]+\/)?$/);
+    assert.match(u.loc, /^https:\/\/thegatecast\.com\/stacks\/([a-z0-9-]+\/)?$/);
     assert.notEqual(u.lastmod, '2099-01-01', `${u.loc}: dated from the data`);
     assert.match(u.lastmod, /^\d{4}-\d{2}-\d{2}$/);
   }
@@ -312,7 +312,7 @@ test('robots.txt: /stacks/ and the three page-data endpoints allowed, the rest o
     }
     assert.ok(!lines.some((l) => /^Disallow: \/review\.html/.test(l)), `${lines[0]}: review.html is not blocked (its noindex header must be seen)`);
   }
-  assert.match(robots, /^Sitemap: https:\/\/gatecast\.vercel\.app\/sitemap\.xml$/m);
+  assert.match(robots, /^Sitemap: https:\/\/thegatecast\.com\/sitemap\.xml$/m);
   const v = JSON.parse(read('vercel.json'));
   const header = (src) => v.headers.find((h) => h.source === src)?.headers.find((x) => x.key === 'X-Robots-Tag')?.value;
   assert.equal(header('/review.html'), 'noindex, nofollow');
@@ -323,8 +323,9 @@ test('vercel.json: only /stacks/ (and /weekly/) URLs get a trailing-slash redire
   const v = JSON.parse(read('vercel.json'));
   assert.equal(v.trailingSlash, undefined);
   assert.equal(v.cleanUrls, undefined);
-  // The /weekly/ redirects are the weekly archive's own (tests/weekly.test.mjs).
-  const r = v.redirects.filter((x) => !x.source.startsWith('/weekly'));
+  // The /weekly/ redirects are the weekly archive's own (tests/weekly.test.mjs); the one with a host condition sends
+  // the old address to the new one (tests/seo.test.mjs).
+  const r = v.redirects.filter((x) => !x.source.startsWith('/weekly') && !x.has);
   assert.deepEqual(r.map((x) => [x.source, x.destination, x.permanent]), [['/stacks', '/stacks/', true], ['/stacks/:id([a-z0-9-]+)', '/stacks/:id/', true]]);
   // Vercel matches sources strictly (a trailing slash is not optional): the same pattern as a regular expression.
   const re = /^\/stacks\/([a-z0-9-]+)$/;
@@ -497,7 +498,7 @@ test('the guides: every "Worth knowing" note of the true-story shelves and every
     assert.equal((h.match(/<h1[\s>]/g) || []).length, 1);
     assert.ok(h.includes(`<li><span aria-current="page">${esc(g.h1)}</span></li>`), 'the last crumb is the heading, as on every /stacks/ page');
     assert.ok(g.title.startsWith(g.h1), 'one name in the title and the heading');
-    assert.ok(h.includes(`<link rel="canonical" href="https://gatecast.vercel.app/stacks/${g.id}/">`));
+    assert.ok(h.includes(`<link rel="canonical" href="https://thegatecast.com/stacks/${g.id}/">`));
     assert.ok(!/<script(?![^>]*application\/ld\+json)[^>]*src=/.test(h), 'no script file');
     const lds = [...h.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((x) => JSON.parse(x[1]));
     assert.ok(lds.some((x) => x['@type'] === 'CollectionPage' && x.mainEntity.numberOfItems > 0));

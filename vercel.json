@@ -4,6 +4,13 @@
   "buildCommand": "node scripts/build-data.cjs",
   "outputDirectory": "public",
   "redirects": [
+    {
+      "source": "/:path((?!google[0-9a-f]+\\.html$|BingSiteAuth\\.xml$).*)",
+      "has": [{ "type": "host", "value": "gatecast.vercel.app" }],
+      "destination": "https://thegatecast.com/:path*",
+      "permanent": true
+    },
+
     { "source": "/stacks", "destination": "/stacks/", "permanent": true },
     { "source": "/stacks/:id([a-z0-9-]+)", "destination": "/stacks/:id/", "permanent": true },
     { "source": "/weekly", "destination": "/weekly/", "permanent": true },
