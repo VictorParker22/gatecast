@@ -35,7 +35,7 @@
   {"@context": "https://schema.org", "@graph": [
     {"@type": "AboutPage", "@id": "https://www.thegatecast.com/how.html#page", "url": "https://www.thegatecast.com/how.html", "name": "How Gatecast works: sources, picks and weather verdicts", "description": "How Gatecast picks its weird news, works out weather verdicts and handles votes and tips, where every bit of data comes from, and how to report an error.", "inLanguage": "en-GB", "isPartOf": {"@id": "https://www.thegatecast.com/#website"}, "about": {"@id": "https://www.thegatecast.com/#organization"}, "breadcrumb": {"@id": "https://www.thegatecast.com/how.html#breadcrumb"}},
     {"@type": "BreadcrumbList", "@id": "https://www.thegatecast.com/how.html#breadcrumb", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Gatecast", "item": "https://www.thegatecast.com/"}, {"@type": "ListItem", "position": 2, "name": "How Gatecast works", "item": "https://www.thegatecast.com/how.html"}]},
-    {"@type": "Organization", "@id": "https://www.thegatecast.com/#organization", "name": "Gatecast", "url": "https://www.thegatecast.com/", "logo": {"@type": "ImageObject", "url": "https://www.thegatecast.com/icon-512.png", "width": 512, "height": 512}, "sameAs": ["https://github.com/VictorParker22/gatecast"]}
+    {"@type": "Organization", "@id": "https://www.thegatecast.com/#organization", "name": "Gatecast", "url": "https://www.thegatecast.com/", "logo": {"@type": "ImageObject", "url": "https://www.thegatecast.com/icon-512.png", "width": 512, "height": 512}, "sameAs": ["https://github.com/VictorParker22/gatecast"], "email": "contact@oryntlabs.co", "parentOrganization": {"@type": "Organization", "name": "ORYNTLabs LLC", "legalName": "ORYNTLabs LLC", "url": "https://oryntlabs.co/", "address": {"@type": "PostalAddress", "addressRegion": "NJ", "addressCountry": "US"}}}
   ]}
   </script>
   <link rel="preload" href="vendor/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
@@ -90,6 +90,7 @@
         <li><a class="inline-flex min-h-tap items-center" href="#books">How the books are chosen</a></li>
         <li><a class="inline-flex min-h-tap items-center" href="#sources">Where the data comes from</a></li>
         <li><a class="inline-flex min-h-tap items-center" href="#never">What Gatecast never does</a></li>
+        <li><a class="inline-flex min-h-tap items-center" href="#who">Who makes Gatecast</a></li>
         <li><a class="inline-flex min-h-tap items-center" href="#corrections">Corrections and contact</a></li>
       </ol>
     </nav>
@@ -252,16 +253,22 @@
       </ul>
     </section>
 
+    <section class="doc-section" id="who" aria-labelledby="who-title">
+      <h2 id="who-title">Who makes Gatecast</h2>
+      <p>Gatecast is made by <a href="https://oryntlabs.co/" rel="noopener">ORYNTLabs LLC</a>, an independent product studio in New Jersey, USA. The same studio makes the apps TallyMap and FitLink. Gatecast carries no ads and takes no payment for anything it shows.</p>
+      <p>You can reach the studio at <a href="mailto:contact@oryntlabs.co">contact@oryntlabs.co</a>.</p>
+    </section>
+
     <section class="doc-section" id="corrections" aria-labelledby="corrections-title">
       <h2 id="corrections-title">Corrections and contact</h2>
-      <p>If something on Gatecast is wrong, misleading or out of date, please tell us. For now reports go through GitHub, where they are public: <a class="font-semibold" href="https://github.com/VictorParker22/gatecast/issues/new?template=bug_report.yml" rel="noopener">Report an error</a>. Say which page, what you saw and what it should say. We fix errors as soon as we can; a public list of corrections is planned.</p>
-      <p>Security problems should not go in a public report. Use <a href="https://github.com/VictorParker22/gatecast/security/advisories/new" rel="noopener">GitHub’s private vulnerability reporting</a> instead. There is no email address yet.</p>
-      <p>Newsrooms: if you would like your pictures or headlines removed, report it the same way and we will switch your outlet off.</p>
+      <p>If something on Gatecast is wrong, misleading or out of date, please tell us. Write to <a href="mailto:contact@oryntlabs.co">contact@oryntlabs.co</a>, or report it on GitHub, where reports are public: <a class="font-semibold" href="https://github.com/VictorParker22/gatecast/issues/new?template=bug_report.yml" rel="noopener">Report an error</a>. Say which page, what you saw and what it should say. We fix errors as soon as we can; a public list of corrections is planned.</p>
+      <p>Security problems should not go in a public report. Use <a href="https://github.com/VictorParker22/gatecast/security/advisories/new" rel="noopener">GitHub’s private vulnerability reporting</a> or the email address above instead.</p>
+      <p>Newsrooms: if you would like your pictures or headlines removed, write to the same address or report it on GitHub and we will switch your outlet off.</p>
     </section>
   </main>
 
   <footer class="site-footer">
-    <p>Gatecast is a planning aid, not an official source. Check your airline for the status of your flight. <a href="/weekly/">Weird news, week by week</a>. <a href="/stacks/">The Stacks, as a list</a>. <a href="how.html" aria-current="page">How Gatecast works</a>.</p>
+    <p>Gatecast is a planning aid, not an official source. Check your airline for the status of your flight. <a href="/weekly/">Weird news, week by week</a>. <a href="/stacks/">The Stacks, as a list</a>. <a href="how.html" aria-current="page">How Gatecast works</a>. Made by <a href="how.html#who">ORYNTLabs LLC</a>.</p>
     <p>Forecasts: <a href="https://open-meteo.com/" rel="noopener">Open-Meteo</a> (CC BY 4.0). Radar: <a href="https://www.rainviewer.com/" rel="noopener">RainViewer</a>. Map: © <a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a> contributors. Live aircraft: <a href="https://adsb.lol/" rel="noopener">adsb.lol</a> (ODbL). Routes: <a href="https://www.adsbdb.com/" rel="noopener">adsbdb</a>. Observations: NOAA. US status and plans: FAA. Alerts: National Weather Service. Headlines and their pictures belong to the newsrooms named beside them.</p>
   </footer>
   <script type="module" src="js/analytics.js"></script>

@@ -398,3 +398,30 @@ test('vercel.json: the old address redirects for good to the same page at the ne
   // in the code pointing the other way would loop.
   assert.doesNotMatch(JSON.stringify(v), /"value":\s*"(www\.)?thegatecast/);
 });
+
+test('the maker is named the same way everywhere: ORYNTLabs LLC, with one contact address', () => {
+  const MAKER = 'ORYNTLabs LLC', EMAIL = 'contact@oryntlabs.co';
+  // Every hand-written page's footer names the maker and links to the How page's section about it.
+  for (const f of ['index.html', 'how.html', 'trip.html', 'flights.html', 'library.html']) {
+    const h = read(f), foot = h.slice(h.indexOf('<footer'), h.indexOf('</footer>'));
+    assert.ok(foot.includes(`Made by <a href="how.html#who">${MAKER}</a>.`), `${f}: footer`);
+    assert.equal(foot.split(MAKER).length - 1, 1, `${f}: named once in the footer`);
+  }
+  // The How page has that section, in its list of contents, with the address written out as a mailto link.
+  const how = read('how.html');
+  assert.ok(how.includes('<li><a class="inline-flex min-h-tap items-center" href="#who">Who makes Gatecast</a></li>'));
+  const who = how.slice(how.indexOf('id="who"'), how.indexOf('id="corrections"'));
+  assert.ok(who.includes(`<a href="https://oryntlabs.co/" rel="noopener">${MAKER}</a>`) && who.includes(`<a href="mailto:${EMAIL}">${EMAIL}</a>`));
+  assert.ok(!how.includes('There is no email address yet'));
+  // The structured data: Gatecast is the brand, the company its parent.
+  for (const f of ['index.html', 'how.html']) {
+    const org = nodes(read(f)).find((n) => n['@type'] === 'Organization');
+    assert.equal(org.name, 'Gatecast', f);
+    assert.equal(org.email, EMAIL, f);
+    assert.deepEqual([org.parentOrganization.name, org.parentOrganization.legalName, org.parentOrganization.url], [MAKER, MAKER, 'https://oryntlabs.co/'], f);
+  }
+  // And the guide for AI assistants, as plain text (its links stay on the site's own address).
+  assert.ok(B.llmsTxt().includes(`Gatecast is made by ${MAKER}, an independent product studio in New Jersey, USA (oryntlabs.co)`));
+  // No other spelling of the name anywhere a reader or a crawler sees it.
+  for (const f of ['index.html', 'how.html', 'trip.html', 'flights.html', 'library.html']) assert.doesNotMatch(read(f), /Orynt ?Labs|OryntLabs|ORYNT Labs/, f);
+});

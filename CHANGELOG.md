@@ -8,6 +8,11 @@ Gatecast has no tagged releases yet. `package.json` has said `1.0.0` since the f
 
 ### Added
 
+- **Who makes Gatecast** (owner, 18 Nov 2026: "the mother company is oryntlabs.co"). The site now names its maker, ORYNTLabs LLC, an independent product studio in New Jersey, USA, with details taken from the studio's own site.
+  - `how.html` has a "Who makes Gatecast" section (in its list of contents) and, for the first time, an email address for corrections, security reports and newsrooms: `contact@oryntlabs.co`. GitHub stays as the public route.
+  - Every hand-written page's footer says "Made by ORYNTLabs LLC", linked to that section. The structured data on the front page and the How page keeps Gatecast as the brand and names the company as its parent; `llms.txt` says who makes it.
+  - `tests/seo.test.mjs` checks the name is spelt one way everywhere and the address is the same in each place.
+
 - **The Stacks: the bookcases fill the first screen** (owner request, 17 Nov 2026: "the shelves are completely hidden"):
   - The top of the room is one compact bar: the title, search, Surprise me, the sound and simple-shelves toggles and the library card (now a button at every width; the card opens under it, over the room), with the shelf chips in one scrolling row under it. The bookcases start about 250px down on a laptop (was 570px) and 300px on a phone (was 670px); on a wide, short window the frame narrows so four bookcases still fit.
   - The introduction moved under the room ("About the shelves", with links to the list, Worth knowing and Content notes), beside "Put your book forward", so that row is no longer half empty.
