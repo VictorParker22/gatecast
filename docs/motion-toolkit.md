@@ -10,8 +10,8 @@ the npm versions listed, on 18 Nov 2026. Licences are read from each package's o
 
 | Tool | What it is | Licence | Size (min / gzip) | Verdict for The Stacks |
 |---|---|---|---|---|
-| [Rough.js](https://github.com/pshihn/rough) 4.6.6 | Hand-drawn, sketchy shapes as SVG or canvas | MIT | 27 kB / 9 kB | **In use** |
-| [Zdog](https://github.com/metafizzy/zdog) 1.1.3 | Small pseudo-3D engine with round, flat shapes | MIT | 29 kB / 8 kB | **In use** |
+| [Rough.js](https://github.com/pshihn/rough) 4.6.6 | Hand-drawn, sketchy shapes as SVG or canvas | MIT | 28 kB / 9 kB | **In use** |
+| [Zdog](https://github.com/metafizzy/zdog) 1.1.3 | Small pseudo-3D engine with round, flat shapes | MIT | 28 kB / 8 kB | **In use** |
 | [Flubber](https://github.com/veltman/flubber) 0.4.2 | Morphs one SVG shape into another | MIT | 54 kB / 19 kB | Not yet: no shape on the page changes into another |
 | [Theatre.js](https://github.com/theatre-js/theatre) core 0.7.2 | Animation sequencing with a visual editor | Apache-2.0 | 107 kB / 35 kB | No: GSAP, already on the page, does the same job |
 | [tsParticles](https://github.com/tsparticles/tsparticles) 4.6.0 (slim) | Particle effects (dust, snow, confetti) | MIT | 165 kB / 50 kB | No: the room already has its own dust shader |
@@ -35,8 +35,8 @@ the npm versions listed, on 18 Nov 2026. Licences are read from each package's o
 
 ### Zdog: the rubber stamp on an empty card
 
-- An empty library card shows a small rubber stamp beside its sentence. It turns once when it appears and once more
-  when the pointer comes onto the card, then rests. With reduced motion it is drawn still.
+- An empty library card shows a small rubber stamp beside its sentence. It turns once when it appears, and once again
+  each time the card is opened or the pointer comes onto it, then rests. With reduced motion it is drawn still.
 - Its colours are read from the room's theme tokens (leather, brass, red ink), so it follows the theme.
 - Vendored in `vendor/zdog/` (the package ships CommonJS only; the README there says how the one-file ES module was
   made), loaded when the browser is idle. Without it the card is as it was.

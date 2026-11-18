@@ -358,10 +358,11 @@ function ink(node, kind, seed) {
 /* ---------- The rubber stamp on an empty card ---------- */
 // Zdog (vendored, MIT) draws a small rubber stamp as SVG beside the empty card's sentence, in the room's own colours
 // (read from the theme's tokens). It loads when the browser is idle; without it the card is as it was. The stamp turns
-// once when it appears and once more when the pointer comes onto the card, then rests; it never turns when motion is
-// reduced or while the card has stamps (its paragraph is hidden then).
+// once when it appears, and once again each time the card is opened or the pointer comes onto it, then rests. It never
+// turns when motion is reduced, while the card has stamps (its paragraph is hidden then) or while the card is closed.
 const STAMP_REST = 0.7, STAMP_TURN_MS = 2600;
 let zdogLib = null, stampArt = null;
+const stampOnShow = () => !$('card-empty').hidden && $('card-empty').getClientRects().length > 0; // empty card, and open
 const loadZdog = () => (zdogLib ||= import('zdog').then((m) => m.default).catch(() => null));
 function buildStampArt(Zdog, svg) {
   const css = getComputedStyle(svg);
@@ -380,14 +381,14 @@ function buildStampArt(Zdog, svg) {
 }
 function turnStampArt() {
   const a = stampArt;
-  if (!a || a.busy || reduceMq.matches || $('card-empty').hidden) return;
+  if (!a || a.busy || reduceMq.matches || !stampOnShow()) return;
   a.busy = true;
   const t0 = performance.now();
   const step = (now) => {
     const p = Math.min(1, (now - t0) / STAMP_TURN_MS);
     a.illo.rotate.y = STAMP_REST + (stampTurn(p) - 1) * a.tau;
     a.illo.updateRenderGraph();
-    if (p < 1 && !$('card-empty').hidden) requestAnimationFrame(step);
+    if (p < 1 && stampOnShow()) requestAnimationFrame(step);
     else { a.illo.rotate.y = STAMP_REST; a.illo.updateRenderGraph(); a.busy = false; }
   };
   requestAnimationFrame(step);
@@ -395,10 +396,10 @@ function turnStampArt() {
 function showStampArt() {
   if (stampArt || $('card-empty').hidden) return;
   (window.requestIdleCallback || ((f) => setTimeout(f, 1200)))(() => loadZdog().then((Zdog) => {
-    if (!Zdog || stampArt) return;
+    if (!Zdog || stampArt || $('card-empty').hidden) return; // a book may have been borrowed while it loaded
     try { stampArt = buildStampArt(Zdog, $('card-art')); } catch { stampArt = null; }
     turnStampArt();
-  }));
+  }), { timeout: 2500 });
 }
 
 /* ---------- Library card (localStorage only) ---------- */
