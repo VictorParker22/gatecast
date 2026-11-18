@@ -14,7 +14,7 @@ Read from Vercel that day. Nothing was changed.
 | Is `www.thegatecast.com` on the project? | Yes, and verified |
 | Is the DNS right? | Yes. The domain was bought through Vercel and uses Vercel's nameservers. Vercel reports no misconfiguration and has issued a certificate for both names |
 | Which one is the main address? | **`www.thegatecast.com`.** `thegatecast.com` redirects to it (308). This is Vercel's default and the opposite of what the code says, so step 1 changes it |
-| Does `gatecast.vercel.app` redirect to the new address? | No. It still shows the site. Step 4 changes it |
+| Does `gatecast.vercel.app` redirect to the new address? | No. It still showed the site. Step 4 changes it |
 
 ## 1. Vercel: make thegatecast.com the main address
 
@@ -50,7 +50,7 @@ In the Supabase dashboard, project `hfdwmzuedjcsaxgzhzmu`:
 
 ## 3. Deploy the code change
 
-The lead merges the change that moves every address in the code. Vercel deploys it by itself.
+The lead merges the change that moves every address in the code. Vercel deploys it by itself. If the redirect of step 4 is merged with it, steps 1 and 2 must be done first.
 
 **Check**, on the live site:
 
@@ -61,9 +61,9 @@ The lead merges the change that moves every address in the code. Vercel deploys 
 
 ## 4. Redirect the old address (308)
 
-Once steps 1 to 3 are done, `gatecast.vercel.app` should forward every page to the same page on `thegatecast.com`, for good. That is how search engines and old links learn about the move.
+Once steps 1 and 2 are done, `gatecast.vercel.app` should forward every page to the same page on `thegatecast.com`, for good. That is how search engines and old links learn about the move.
 
-The redirect is not in the code yet. To add it, put this block first in the `redirects` list of `vercel.json` and deploy:
+The redirect is in the code: the first block in the `redirects` list of `vercel.json`. It is in a commit of its own, after the one that moved the addresses, so the lead can merge it with step 3 or hold it back. It takes effect when that commit is deployed:
 
 ```json
 {
@@ -74,7 +74,7 @@ The redirect is not in the code yet. To add it, put this block first in the `red
 }
 ```
 
-It applies only to requests for `gatecast.vercel.app`, so preview deployments and the new address are untouched. It leaves Google's and Bing's ownership files alone, because Google will not follow a verification file to another domain (see step 5). To undo it, delete the block and deploy.
+It applies only to requests for `gatecast.vercel.app`, so preview deployments and the new address are untouched. It leaves Google's and Bing's ownership files alone, because Google will not follow a verification file to another domain (see step 5). To undo it, delete the block (or revert its commit) and deploy.
 
 There is another way to do the same thing: in Vercel → Settings → Domains, open `gatecast.vercel.app` → Edit → "Redirect to" `thegatecast.com`, "308 Permanent Redirect". Use one or the other, not both. The dashboard redirect also forwards the ownership files.
 

@@ -323,8 +323,9 @@ test('vercel.json: only /stacks/ (and /weekly/) URLs get a trailing-slash redire
   const v = JSON.parse(read('vercel.json'));
   assert.equal(v.trailingSlash, undefined);
   assert.equal(v.cleanUrls, undefined);
-  // The /weekly/ redirects are the weekly archive's own (tests/weekly.test.mjs).
-  const r = v.redirects.filter((x) => !x.source.startsWith('/weekly'));
+  // The /weekly/ redirects are the weekly archive's own (tests/weekly.test.mjs); the one with a host condition sends
+  // the old address to the new one (tests/seo.test.mjs).
+  const r = v.redirects.filter((x) => !x.source.startsWith('/weekly') && !x.has);
   assert.deepEqual(r.map((x) => [x.source, x.destination, x.permanent]), [['/stacks', '/stacks/', true], ['/stacks/:id([a-z0-9-]+)', '/stacks/:id/', true]]);
   // Vercel matches sources strictly (a trailing slash is not optional): the same pattern as a regular expression.
   const re = /^\/stacks\/([a-z0-9-]+)$/;
