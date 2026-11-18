@@ -144,53 +144,59 @@
      design's composition (it is 2000 by 1310). */
   @media (min-width: 1100px) {
     .lib-page { --lib-room-w: min(88%, calc(88 * var(--spacing-lib-u)), var(--container-lib-room)); }
+    /* The bookcase frame's headroom overlaps these boxes, so the empty parts of them let a click through to the
+       room (the Book of the Week); the controls themselves take theirs. */
+    .lib-room__ui, .lib-chips, .lib-status, .lib-toggles { @apply pointer-events-none; }
+    .lib-room__ui :is(.lib-hero__text, .lib-cardwrap, .lib-search, .lib-chip, .lib-surprise, .lib-toggle) { @apply pointer-events-auto; }
     .lib-room__ui { width: var(--lib-room-w); @apply items-start; row-gap: 0; column-gap: clamp(12px, calc(1 * var(--spacing-lib-u)), 20px);
       grid-template-columns: clamp(20rem, calc(25.6 * var(--spacing-lib-u)), 32rem) minmax(0, 1fr) max-content; grid-template-rows: auto auto auto auto; grid-template-areas: "title title card" "search chips chips" "surprise chips chips" "status status toggles"; padding-top: clamp(8px, calc(0.65 * var(--spacing-lib-u)), 13px); }
     /* The label's words sit in the top of its paper; the title overlaps the paper's lower half, as in the design. */
-    .lib-label { margin: 0 0 calc(-3 * var(--spacing-lib-u)) calc(-1.9 * var(--spacing-lib-u)); transform: rotate(-3.6deg); }
-    .lib-label span { padding: 1.35em 2.3em 3em 2em; font-size: var(--text-lib-hero-label); letter-spacing: 0.06em; background-color: #CDB488; background-size: 420px; }
-    .lib-title { font-size: var(--text-lib-hero-title); -webkit-text-stroke-width: 2.5px; }
+    .lib-label { margin: 0 0 calc(-2.5 * var(--spacing-lib-u)) calc(-1.9 * var(--spacing-lib-u)); transform: rotate(-3.6deg); }
+    .lib-label span { padding: 1.2em 2.2em 2.3em 1.9em; font-size: var(--text-lib-hero-label); letter-spacing: 0.06em; background-color: #CDB488; background-size: 420px; filter: saturate(0.72) brightness(0.96); }
+    .lib-title { font-size: var(--text-lib-hero-title); -webkit-text-stroke-width: 2.5px; background: linear-gradient(180deg, #D2CCC0 0%, #A8A195 26%, #6F6960 50%, #8A8379 60%, #B3AC9F 78%, #7A7369 100%), var(--tex-leather) center / 260px; background-blend-mode: hard-light; -webkit-background-clip: text; background-clip: text; }
     .lib-hero__lede { @apply block; max-width: calc(57 * var(--spacing-lib-u)); margin-top: clamp(5px, calc(0.55 * var(--spacing-lib-u)), 11px); font-size: var(--text-lib-hero-lede); line-height: 1.34; color: #EBDDB0; }
     /* The card: pinned open on its board (below 1100px it is a button that opens it). */
     .lib-cardwrap { width: clamp(21.5rem, calc(25.8 * var(--spacing-lib-u)), 32.5rem); padding: clamp(18px, calc(1.4 * var(--spacing-lib-u)), 28px) 0.375rem 0 0; margin-top: calc(-1 * var(--spacing-lib-top)); }
     .lib-cardwrap::before { @apply absolute; content: ""; inset: 0 -0.5rem -0.75rem 0.875rem; border-radius: 0 0 6px 6px; transform: rotate(2.4deg); background: #3B2516 var(--tex-wood) center / 300px; box-shadow: 0 16px 30px rgb(0 0 0 / 0.6), inset 0 0 0 1px rgb(255 220 160 / 0.12); }
     .lib-cardbtn { @apply hidden; }
-    .lib-card { @apply relative grid w-auto mt-0 z-auto; top: auto; right: auto; padding: clamp(18px, calc(1.5 * var(--spacing-lib-u)), 30px) clamp(18px, calc(1.5 * var(--spacing-lib-u)), 30px) clamp(10px, calc(0.9 * var(--spacing-lib-u)), 18px); transform: rotate(1.6deg); }
+    .lib-card { @apply relative grid w-auto mt-0 z-auto; top: auto; right: auto; padding: clamp(14px, calc(1.1 * var(--spacing-lib-u)), 22px) clamp(18px, calc(1.5 * var(--spacing-lib-u)), 30px) clamp(6px, calc(0.5 * var(--spacing-lib-u)), 10px); transform: rotate(1.6deg); }
     .lib-card h2 { font-size: clamp(20px, calc(1.4 * var(--spacing-lib-u)), 28px); }
     .lib-card__count { font-size: clamp(15px, calc(1.05 * var(--spacing-lib-u)), 21px); color: #FFC57A; background-color: #5A2414; border-color: #E08A3C; box-shadow: 0 0 14px rgb(255 150 60 / 0.55), inset 0 1px 0 rgb(255 255 255 / 0.2); }
     .lib-card__list button, .lib-card__empty, .lib-card__foot { font-size: clamp(15px, calc(1.05 * var(--spacing-lib-u)), 21px); }
-    .lib-card__list button { min-height: clamp(44px, calc(3.3 * var(--spacing-lib-u)), 66px); }
+    .lib-card__list button { min-height: clamp(44px, calc(2.9 * var(--spacing-lib-u)), 58px); }
     .lib-stamp { font-size: clamp(15px, calc(1.05 * var(--spacing-lib-u)), 21px); }
     /* Search and chips on one row; chips that do not fit go to a second row under the first. */
     .lib-search, .lib-chips { margin-top: clamp(26px, calc(3.1 * var(--spacing-lib-u)), 62px); }
     .lib-search { height: clamp(52px, calc(3.3 * var(--spacing-lib-u)), 66px); padding-inline: clamp(14px, calc(1.2 * var(--spacing-lib-u)), 24px); gap: clamp(10px, calc(0.8 * var(--spacing-lib-u)), 16px); }
-    .lib-search input { font-size: var(--text-lib-hero-ui); }
+    .lib-search input { font-size: var(--text-lib-hero-search); }
     .lib-search svg { width: clamp(18px, calc(1.2 * var(--spacing-lib-u)), 24px); height: clamp(18px, calc(1.2 * var(--spacing-lib-u)), 24px); }
     .lib-chips { @apply flex-wrap overflow-visible pt-0; column-gap: clamp(5px, calc(0.42 * var(--spacing-lib-u)), 8.5px); row-gap: clamp(16px, calc(1.2 * var(--spacing-lib-u)), 24px); padding-bottom: 0.875rem; }
     .lib-chip { min-height: clamp(44px, calc(3.05 * var(--spacing-lib-u)), 61px); padding: 0 clamp(7px, calc(0.6 * var(--spacing-lib-u)), 12px); font-size: var(--text-lib-hero-chip); }
     /* Surprise me: an antique brass plate with a screw at each end, under the search. */
-    .lib-surprise { @apply justify-self-start self-start; margin-top: clamp(14px, calc(1.1 * var(--spacing-lib-u)), 22px); min-height: clamp(48px, calc(3.15 * var(--spacing-lib-u)), 63px); padding-inline: clamp(34px, calc(2.6 * var(--spacing-lib-u)), 52px); font-size: var(--text-lib-hero-ui); border-width: 3px; border-color: #4A3817; color: #2B1E0C;
-      background: var(--tex-brass) center / 220px, linear-gradient(180deg, #DCC591 0%, #B59A5E 52%, #84693A 100%); box-shadow: inset 0 0 0 2px rgb(255 240 200 / 0.35), inset 0 0 0 5px rgb(70 50 15 / 0.35), inset 0 -2px 0 rgb(0 0 0 / 0.25), 0 6px 14px rgb(0 0 0 / 0.6); }
+    .lib-surprise { @apply justify-self-start self-start; margin-top: clamp(14px, calc(1.1 * var(--spacing-lib-u)), 22px); min-height: clamp(48px, calc(3.15 * var(--spacing-lib-u)), 63px); padding-inline: clamp(34px, calc(2.6 * var(--spacing-lib-u)), 52px); font-size: var(--text-lib-hero-ui); border-width: 3px; border-color: #3D2E12; border-radius: 0; color: #2B1E0C;
+      background: linear-gradient(180deg, #CDB682 0%, #A98F57 52%, #7A6034 100%); background-blend-mode: normal; box-shadow: inset 0 0 0 2px rgb(255 240 200 / 0.3), inset 0 0 0 5px rgb(60 42 12 / 0.45), inset 0 -2px 0 rgb(0 0 0 / 0.25); filter: drop-shadow(0 6px 8px rgb(0 0 0 / 0.6));
+      clip-path: polygon(9px 0, calc(100% - 9px) 0, calc(100% - 9px) 7px, 100% 7px, 100% calc(100% - 7px), calc(100% - 9px) calc(100% - 7px), calc(100% - 9px) 100%, 9px 100%, 9px calc(100% - 7px), 0 calc(100% - 7px), 0 7px, 9px 7px); }
+    .lib-surprise:hover { filter: drop-shadow(0 6px 8px rgb(0 0 0 / 0.6)) brightness(1.08); }
     .lib-toggles { @apply justify-self-end self-end; }
-    .lib-status { @apply static mt-0; margin-top: clamp(12px, calc(1.3 * var(--spacing-lib-u)), 26px); font-size: clamp(21px, calc(1.45 * var(--spacing-lib-u)), 29px); }
+    .lib-status { @apply static mt-0; margin-top: clamp(12px, calc(1.3 * var(--spacing-lib-u)), 26px); font-size: var(--text-lib-hero-count); }
   }
   .lib-cases { @apply hidden; }
   /* The frame holds n bays and the headroom over them (the Book of the Week, the figurines): model.js frameWorld(n)
-     is (n x 0.68 + (n - 1) x 0.06 + 0.08) by 1.33 m. 3 bays from 940px, 2 from 600px, 1 below
+     is (n x 0.68 + (n - 1) x 0.06 + 0.08) by 1.65 m. 3 bays from 940px, 2 from 600px, 1 below
      (tests/stacks-v2-front.test.mjs checks these against frameWorld). */
-  .s3d .lib-cases { @apply relative block z-1; width: min(100% - 2 * var(--spacing-lib-gutter), var(--container-frame)); margin: --spacing(2) auto 0; aspect-ratio: 2.24 / 1.33; @apply pointer-events-none; }
+  .s3d .lib-cases { @apply relative block z-1; width: min(100% - 2 * var(--spacing-lib-gutter), var(--container-frame)); margin: --spacing(2) auto 0; aspect-ratio: 2.24 / 1.65; @apply pointer-events-none; }
   @media (min-width: 1100px) {
-    /* Three large bookcases across the room, as in the design. The frame's top 27% is headroom (0.36 of its 1.33 m:
-       the Book of the Week and the figurines stand in it), which is 0.1607 of the frame's width; the negative margin
-       lets that headroom overlap the controls, so the cornices start about 5rem under the count. */
-    .s3d .lib-cases { width: var(--lib-room-w); margin-top: calc(5rem - 0.1607 * var(--lib-room-w)); }
+    /* Three large bookcases across the room, as in the design. The frame's top is headroom (0.36 of its 1.65 m: the
+       Book of the Week and the figurines stand in it), which is 0.1607 of the frame's width (0.36 / 2.24); the
+       negative margin lets that headroom overlap the controls, so the cornices start about 5 units under the count. */
+    .s3d .lib-cases { width: var(--lib-room-w); margin-top: calc(5.2 * var(--spacing-lib-u) - 0.1607 * var(--lib-room-w)); }
     .lib-pan { top: 52%; }
   }
   @media (max-width: 939px) {
-    .s3d .lib-cases { aspect-ratio: 1.5 / 1.33; }
+    .s3d .lib-cases { aspect-ratio: 1.5 / 1.65; }
   }
   @media (max-width: 599px) {
-    .s3d .lib-cases { aspect-ratio: 0.76 / 1.33; }
+    .s3d .lib-cases { aspect-ratio: 0.76 / 1.65; }
   }
   .lib-pan { @apply absolute z-2 grid place-items-center w-tap h-tap p-0 cursor-pointer border-2 border-lib-brass-edge; top: 40%; pointer-events: auto; border-radius: 50%; color: #2A1D0A; background: radial-gradient(circle at 35% 30%, var(--color-lib-brass-1), var(--color-lib-brass-2) 60%, var(--color-lib-brass-3)); box-shadow: 0 4px 10px rgb(0 0 0 / 0.6); }
   .lib-pan svg { @apply w-5 h-5 stroke-current; fill: none; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }

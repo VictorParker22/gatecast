@@ -44,8 +44,9 @@ test('bookLook is derived from the id: stable, varied, sizes in range', () => {
   for (const b of data.books) {
     const l = bookLook(b);
     assert.ok(l.thick >= 0.058 && l.thick <= 0.092, `${b.id} thick ${l.thick}`);
-    assert.ok(l.height >= 0.22 && l.height <= 0.295, `${b.id} height ${l.height}`);
-    assert.ok(l.depth > 0.14 && l.depth <= 0.21);
+    assert.ok(l.height >= 0.3 && l.height <= 0.415, `${b.id} height ${l.height}`); // tall books (the owner's design)
+    assert.ok(l.depth > 0.2 && l.depth <= 0.27);
+    assert.ok(l.height / l.depth >= 1.4 && l.height / l.depth <= 1.6, 'a cover of a usual shape');
     assert.ok(l.height <= BAY.clear - 0.04, 'fits under the shelf above with room for the hand');
     assert.notEqual(l.second, l.binding);
     seen.add(l.binding.name + l.band);
@@ -60,7 +61,7 @@ test('bays: in a row, centred, three fit a 2.16 m window; the frame keeps headro
   assert.equal(bayX(0, 8) + bayX(7, 8), 0);
   assert.equal(Math.round((bayX(1) - bayX(0)) * 1000) / 1000, BAY.pitch);
   assert.ok(Math.abs(spanOf(3) - 2.16) < 1e-9);
-  assert.deepEqual(frameWorld(3), { w: 2.24, h: 1.33 });
+  assert.deepEqual(frameWorld(3), { w: 2.24, h: 1.65 });
   assert.ok(Math.abs(BAY.floors[0] - BAY.floors[1] - (BAY.clear + BAY.board)) < 1e-9);
 });
 

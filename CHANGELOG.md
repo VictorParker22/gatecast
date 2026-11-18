@@ -76,6 +76,12 @@ Gatecast has no tagged releases yet. `package.json` has said `1.0.0` since the f
   - Three large bookcases across the room instead of four (`.s3d .lib-cases` is `2.24 / 1.33` from 940px; the four-bay frame is gone). The frame's headroom overlaps the controls, so the cornices start about 5rem under the count.
   - Sizes are the design's, as a share of its 2000px width, in the unit `--spacing-lib-u` (`min(1vw, 1.55svh)`): on a 16:9 laptop the room is a little narrower, so the first screen still shows the whole first row of books.
   - The bookcases look older: grey, weathered boards (the wood photo with most of its red-brown taken out), a lighter back panel, neutral-warm lamps instead of orange, and brass plates whose names read in both 3D tiers.
+  - Second pass, after a separate check against the design (18 Nov 2026):
+    - Books and shelf rows are as tall as the design's: a 0.5 m opening (was 0.34) and books of 0.31 to 0.41 m (`BOOK_TALL` in `js/stacks3d/model.js`), with covers kept at a book's usual shape. The frame is `2.24 / 1.65`. The Book of the Week keeps its everyday size.
+    - Only the page of bookcases in the frame is drawn; the next page's first case no longer shows as a slice at the right (two clipping planes that travel with the view).
+    - The Book of the Week can be clicked anywhere on its cover: the empty parts of the controls' boxes, which overlap the frame's headroom, let the click through.
+    - The search field's example fits; the library card is no taller than the hero text; the title is mottled pewter instead of pinstripes; Surprise me is a duller brass plate with notched corners; the boards are straighter and greyer and the plate lettering darker.
+    - The design's unit is `min(1vw, 1.5svh)`, so a 965px-high laptop window shows the whole first row of books.
 
 - **A healthier weird-news mix** (owner request, 17 Nov 2026: "not only UPI"). On 17 Nov UPI had 11 of the 21 stories, 8 of them stacked at the top of the feed stories.
   - Order (`lib/weird.js` `mixOutlets`, `LIMITS.bandsMs` and `LIMITS.mix`): after the editor's picks, which stay on top and untouched, feed stories are interleaved by outlet within freshness bands (under 2 days, 2–7, 7–14, older), each outlet's strangest story first, without the same outlet twice in a row when another fresh story fits; no outlet may take more than 3 of the first 12 feed stories or 10 of the first 30 while other outlets have stories. The category filter and limits work as before on the mixed order.

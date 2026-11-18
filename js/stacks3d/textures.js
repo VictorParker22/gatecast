@@ -447,7 +447,7 @@ export function paintPlate(text, worldW, worldH, { h = 96, brass = null } = {}) 
   ctx.font = font('cond', px);
   while (ctx.measureText(label).width > w - h * 1.1 && px > 10) { px -= 1; ctx.font = font('cond', px); }
   ctx.fillStyle = 'rgba(255,236,180,0.55)'; ctx.fillText(label, w / 2, h / 2 + 2.2);
-  ctx.fillStyle = '#2B1E09'; ctx.fillText(label, w / 2, h / 2 + 0.5);
+  ctx.fillStyle = '#140D03'; ctx.fillText(label, w / 2, h / 2 + 0.5);
   const pbr = makeCanvas(w, h), p = pbr.getContext('2d');
   p.fillStyle = 'rgb(0,120,115)'; p.fillRect(0, 0, w, h); // half metal: the painted brass and its dark letters read under the picture light
   p.textAlign = 'center'; p.textBaseline = 'middle'; p.font = font('cond', px);

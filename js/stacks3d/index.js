@@ -14,7 +14,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import {
   BAY, bayX, spanOf, frameWorld, bookLook, layoutBay, frameCamera, windowFor, windowX, PULL, pullFraction, pointerSpeed, releaseAction,
-  springStep, springAtRest, renderScale, frameInterval, FRAME_CY, fitBays, visibleBays, featuredSpot, figurineSide, lampOffsets,
+  springStep, springAtRest, renderScale, frameInterval, FRAME_CY, fitBays, visibleBays, featuredSpot, figurineSide, lampOffsets, BOOK_TALL,
 } from './model.js';
 import { figurineFor, fitFigurine, figurinePose, FIGURINE_MAX_BYTES } from './figurines.js';
 import * as P from './textures.js';
@@ -196,15 +196,15 @@ export async function mount(opts) {
   const woodSrc = woodImg ? toCanvas(woodImg, texSize) : P.woodCanvas(high ? 1024 : 512);
   { // Old, grey boards (the owner's design): most of the photo's red-brown taken out, the grain kept.
     const wctx = woodSrc.getContext('2d');
-    wctx.save(); wctx.globalCompositeOperation = 'saturation'; wctx.globalAlpha = 0.62; wctx.fillStyle = '#808080';
+    wctx.save(); wctx.globalCompositeOperation = 'saturation'; wctx.globalAlpha = 0.78; wctx.fillStyle = '#808080';
     wctx.fillRect(0, 0, woodSrc.width, woodSrc.height);
-    wctx.globalCompositeOperation = 'screen'; wctx.globalAlpha = 0.22; wctx.fillStyle = '#B4A898'; // and a little lighter, so the grain shows in the lamplight
+    wctx.globalCompositeOperation = 'screen'; wctx.globalAlpha = 0.14; wctx.fillStyle = '#A8A096'; // and a little lighter, so the grain shows in the lamplight
     wctx.fillRect(0, 0, woodSrc.width, woodSrc.height); wctx.restore();
   }
   const woodPBR = P.derivePBR(woodSrc, { size: high ? 512 : 256, strength: 2.6, rough: 0.58, roughGain: 0.35 });
   const woodMat = keep(new THREE.MeshStandardMaterial({
     map: tex(woodSrc, { repeat: true }), normalMap: tex(woodPBR.normal, { srgb: false, repeat: true }), roughnessMap: tex(woodPBR.rough, { srgb: false, repeat: true }),
-    roughness: 1, metalness: 0, color: woodImg ? 0xc4bcb2 : 0xa89e94, normalScale: new THREE.Vector2(0.8, 0.8), // grey, weathered boards (the owner's design)
+    roughness: 1, metalness: 0, color: woodImg ? 0xb4aca4 : 0xa89e94, normalScale: new THREE.Vector2(0.4, 0.4), // grey, weathered boards (the owner's design)
   }));
   const backCanvas = (() => {
     const w = 512, h = 680, c = P.makeCanvas(w, h), ctx = c.getContext('2d');
@@ -238,7 +238,7 @@ export async function mount(opts) {
   const moon = new THREE.DirectionalLight(0x8fb0ff, 2.1); // the window: cool rim light on the right-hand edges
   moon.position.set(3.4, 2.4, -0.6); scene.add(moon); scene.add(moon.target);
   const key = new THREE.SpotLight(0xffe6d0, 6.5, 0, 0.62, 0.8, 2); // the lamps' warmth, from the left
-  key.position.set(-1.1, 2.3, 2.1);
+  key.position.set(-1.1, 2.6, 2.1);
   scene.add(key); scene.add(key.target);
   if (high) {
     key.castShadow = true;
@@ -295,7 +295,7 @@ export async function mount(opts) {
     folders(g, cx, y, span, s) {
       const n = 3;
       for (let k = 0; k < n; k++) {
-        const w = Math.min(0.22, span * 0.9), h = 0.27 - k * 0.012;
+        const w = Math.min(0.24, span * 0.9), h = 0.38 - k * 0.014;
         const mat = keep(new THREE.MeshStandardMaterial({ map: tex(P.paintFolder(s * 5 + k, grains.paper, { tab: k === n - 1 })), roughness: 0.9, color: PAPER_TONE }));
         const m = new THREE.Mesh(keep(new THREE.BoxGeometry(w, h, 0.004)), [mat, mat, mat, mat, mat, mat]);
         m.position.set(cx + (k - 1) * 0.012, y + h / 2 * Math.cos(0.16) + 0.002, -BAY.depth + 0.07 + k * 0.022);
@@ -304,7 +304,7 @@ export async function mount(opts) {
       }
     },
     map(g, cx, y, span, s) {
-      const w = Math.min(0.24, span * 0.95), h = 0.2;
+      const w = Math.min(0.26, span * 0.95), h = 0.3;
       const geo = new THREE.PlaneGeometry(w, h, 12, 1);
       const p = geo.attributes.position;
       for (let i = 0; i < p.count; i++) p.setZ(i, Math.sin((p.getX(i) / w + 0.5) * Math.PI * 2) * 0.006);
@@ -554,7 +554,10 @@ export async function mount(opts) {
 
   function buildFeatured(book) {
     const base = bookLook(book);
-    const look = { ...base, thick: round3(base.thick * FEAT_SIZE), height: round3(base.height * FEAT_SIZE), depth: round3(base.depth * FEAT_SIZE) };
+    // The book on the stand keeps a book's everyday size (the shelf copies are drawn taller, model.js BOOK_TALL), so
+    // it stays inside the headroom over the cases.
+    const h0 = base.height / BOOK_TALL;
+    const look = { ...base, thick: round3(base.thick * FEAT_SIZE), height: round3(h0 * FEAT_SIZE), depth: round3(Math.min(0.21, h0 / 1.42) * FEAT_SIZE) };
     const { thick: t, height: h, depth: d } = look;
     const group = new THREE.Group(); // on the cornice; layout() sets x
     group.position.set(0, BAY.cornice, FEAT_Z);
@@ -861,25 +864,32 @@ export async function mount(opts) {
       const spot = featuredSpot(visible, bays.length);
       feat.group.position.x = spot.x;
       feat.bay.index = spot.bay;
-      feat.spot.position.set(spot.x, 1.95, 0.75);
+      feat.spot.position.set(spot.x, BAY.cornice + 1.0, 0.75);
       feat.spot.target.position.set(spot.x, BAY.cornice + feat.look.height * 0.55, FEAT_Z);
     }
     for (const bay of bays) placeFigurineSide(bay);
   }
 
+  // Only the page of bookcases in the frame is drawn: the cases of the next page are cut off at the frame's edges
+  // (the owner's design shows the room's wall there, not a slice of a fourth case). The two planes travel with the
+  // view, so on a page turn the cases slide in at the frame's edge. The backdrop, the dust and the beam are not cut.
+  const clipL = new THREE.Plane(new THREE.Vector3(1, 0, 0), 0), clipR = new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0);
+  renderer.clippingPlanes = [clipL, clipR];
   const camBase = new THREE.Vector3();
   function placeCamera() {
     const cx = view.x + view.drag;
+    const half = spanOf(view.visible) / 2 + BAY.gap / 2;
+    clipL.constant = half - cx; clipR.constant = half + cx;
     camBase.set(cx, FRAME_CY, view.dist);
     camera.position.set(cx + parallax.x * 0.012, FRAME_CY - parallax.y * 0.008, view.dist);
     camera.rotation.set(-parallax.y * 0.004, -parallax.x * 0.006, 0);
     camera.updateMatrixWorld();
     // Lights travel with the window of bays.
-    key.position.set(cx - 1.1, 2.3, 2.1); key.target.position.set(cx, 0.45, -0.15);
+    key.position.set(cx - 1.1, 2.6, 2.1); key.target.position.set(cx, BAY.height * 0.48, -0.15);
     const off = lampOffsets(view.visible, bayLights.length);
     bayLights.forEach((s, k) => {
       const x = cx + off[k] * BAY.pitch;
-      s.position.set(x, 1.3, 0.62); s.target.position.set(x, 0.66, -0.1);
+      s.position.set(x, BAY.cornice + 0.36, 0.62); s.target.position.set(x, BAY.height * 0.7, -0.1);
     });
     moon.target.position.set(cx, 0.4, 0);
     if (room) room.room.position.x = roomBaseX + (cx - roomBaseX) * 0.88;
