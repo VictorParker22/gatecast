@@ -63,7 +63,7 @@ npm run ci          # npm test && npm run build
 
 ## Deployment
 
-The site is deployed on Vercel (`vercel.json`). Vercel runs `node scripts/build-data.cjs`, which downloads the airport list, writes the map outline, compiles the Tailwind stylesheets into `public/styles/site.css` and `console.css` (`scripts/build-css.cjs`), bundles The Stacks' scripts (three.js, cannon-es, gsap, Rough.js and `js/library.js`) into hashed, minified files in `public/js/dist/` with esbuild (`scripts/build-js.cjs`; `public/library.html` is rewritten to load them, while `library.html` in the repo keeps its import map for the dev server), and assembles the static site in `public/`, including the plain `/stacks/` pages; the functions in `api/` serve the `/api` routes. The build step needs `npm ci` first (for `topojson-client`, `world-atlas`, the Tailwind CLI and esbuild) and network access. `public/` is generated and not committed.
+The site is deployed on Vercel (`vercel.json`). Vercel runs `node scripts/build-data.cjs`, which downloads the airport list, writes the map outline, compiles the Tailwind stylesheets into `public/styles/site.css` and `console.css` (`scripts/build-css.cjs`), bundles The Stacks' scripts (three.js, cannon-es, gsap, Rough.js, Zdog and `js/library.js`) into hashed, minified files in `public/js/dist/` with esbuild (`scripts/build-js.cjs`; `public/library.html` is rewritten to load them, while `library.html` in the repo keeps its import map for the dev server), and assembles the static site in `public/`, including the plain `/stacks/` pages; the functions in `api/` serve the `/api` routes. The build step needs `npm ci` first (for `topojson-client`, `world-atlas`, the Tailwind CLI and esbuild) and network access. `public/` is generated and not committed.
 
 ### Weekly archive, RSS, newsletter and visit counts
 
@@ -120,7 +120,7 @@ The site is deployed on Vercel (`vercel.json`). Vercel runs `node scripts/build-
 | `review.html`, `js/review.js`, `js/reviewmodel.js` | Reviewer console for the Both sides queue (sign-in link, queue, publish, assistant); not in the navigation, `noindex`. Rules in `reviewmodel.js` are unit-tested |
 | `supabase/migrations/` | Database: the Both sides review queue, statehouse votes and their switch, the hourly collector job; see `supabase/README.md` |
 | `supabase/functions/` | Edge Functions: `collect` (statehouse votes from Open States, hourly) and `assist` (the reviewer console's assistant) |
-| `docs/` | Design system, user research plan, research report, content sources, moderation policy, design direction |
+| `docs/` | Design system, user research plan, research report, content sources, moderation policy, design direction, the motion and graphics toolkit (`docs/motion-toolkit.md`) |
 | `tests/` | Unit tests for the pure modules and the server's parsers (`node --test`) |
 | `.github/` | CI workflow, Dependabot, issue forms and pull request template |
 

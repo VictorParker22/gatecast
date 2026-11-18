@@ -8,6 +8,12 @@ Gatecast has no tagged releases yet. `package.json` has said `1.0.0` since the f
 
 ### Added
 
+- **A rubber stamp on the empty library card, and the toolkit written down** (owner, 18 Nov 2026: "check all of these libraries for motion graphic ... save all of them and pick what we can use from those libraries to update our library in every way possible").
+  - All eleven tools were installed and measured, and their licences read: `docs/motion-toolkit.md` records what each does, its licence, its real size, and why it is or is not used.
+  - Zdog 1.1.3 (MIT, 8 kB gzipped) draws a small rubber stamp beside the sentence on an empty library card, in the room's leather, brass and red-ink tokens. It turns once when it appears and once more when the pointer comes onto the card, then rests; with reduced motion it is drawn still. It loads when the browser is idle, and without it the card is as it was.
+  - Vendored in `vendor/zdog/` as one ES module (the package ships CommonJS only; the README there gives the command), named in the import map and the bundler. `stampTurn` in `js/librarymodel.js` has a test.
+  - Two findings that rule tools out: Hydra is AGPL, which would put its terms on the whole site, and LYGIA is free for non-commercial use only.
+
 - **Hand-inked stamps on the library card** (owner, 18 Nov 2026, with a list of free graphics tools: "be creative with them and maybe use it for the library section to enhance"). Of the eleven tools, Rough.js fits the room best: the design the owner drew has ink stamps the page lacked.
   - Each date stamp on the library card now has a hand-inked outline instead of a straight border, turned a little differently for each book, and the same on every visit (the wobble and tilt come from the book and the time it was stamped). The "Worth knowing." label on a book's back cover gets a pencil line under it.
   - Rough.js 4.6.6 (MIT) is vendored in `vendor/roughjs/`, loads only after the page is up and in its own 28 kB file, and draws in the ink colours the page already had. Without it the stamps keep their plain border. The drawings are decoration: hidden from screen readers, and the stamp's text and label are unchanged.

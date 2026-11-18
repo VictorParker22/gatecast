@@ -207,9 +207,9 @@ test('library.html: import map points at vendored files that exist, with their l
   const { existsSync } = await import('node:fs');
   const html = readFileSync(new URL('../library.html', import.meta.url), 'utf8');
   const map = JSON.parse(/<script type="importmap">([\s\S]*?)<\/script>/.exec(html)[1]).imports;
-  assert.deepEqual(Object.keys(map).sort(), ['cannon-es', 'gsap', 'roughjs', 'three', 'three/addons/']);
+  assert.deepEqual(Object.keys(map).sort(), ['cannon-es', 'gsap', 'roughjs', 'three', 'three/addons/', 'zdog']);
   for (const [k, v] of Object.entries(map)) assert.ok(existsSync(new URL('../' + v.replace('./', ''), import.meta.url)), `${k} -> ${v}`);
-  for (const f of ['vendor/three/LICENSE', 'vendor/cannon-es/LICENSE', 'vendor/gsap/LICENSE.md', 'vendor/roughjs/LICENSE', 'vendor/three/three.core.js']) assert.ok(existsSync(new URL('../' + f, import.meta.url)), f);
+  for (const f of ['vendor/three/LICENSE', 'vendor/cannon-es/LICENSE', 'vendor/gsap/LICENSE.md', 'vendor/roughjs/LICENSE', 'vendor/zdog/LICENSE', 'vendor/three/three.core.js']) assert.ok(existsSync(new URL('../' + f, import.meta.url)), f);
   assert.match(readFileSync(new URL('../vendor/three/three.core.js', import.meta.url), 'utf8').slice(0, 2000), /REVISION = '187'/);
   // Only the library page loads 3D code.
   for (const page of ['index.html', 'trip.html', 'flights.html', 'how.html']) assert.ok(!/importmap|stacks3d/.test(readFileSync(new URL('../' + page, import.meta.url), 'utf8')), page);
