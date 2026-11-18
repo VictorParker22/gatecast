@@ -66,8 +66,8 @@
   .lib-label { @apply relative mt-0 mr-0 -mb-1 ml-1.5 whitespace-nowrap max-sm:hidden; filter: drop-shadow(0 6px 6px rgb(0 0 0 / 0.55)); transform: rotate(-2.2deg); }
   .lib-label span { @apply block; padding: --spacing(2.5) --spacing(5.5) 9px; color: #221A10; @apply not-italic font-extrabold; font-size: var(--text-lib-label); line-height: 1.05; @apply font-sign normal-nums; letter-spacing: 0.05em; @apply uppercase; background: #E3D2AC var(--tex-paper) center / 260px; box-shadow: inset 0 0 18px rgb(110 75 30 / 0.45); clip-path: polygon(0 8%, 3% 0, 9% 6%, 15% 1%, 22% 5%, 30% 0, 38% 4%, 47% 1%, 55% 6%, 63% 0, 71% 4%, 79% 1%, 87% 5%, 94% 0, 100% 7%, 98% 30%, 100% 55%, 97% 78%, 100% 100%, 92% 94%, 85% 100%, 77% 95%, 69% 100%, 61% 94%, 52% 99%, 44% 94%, 36% 100%, 27% 95%, 19% 100%, 11% 94%, 4% 100%, 0 92%, 2% 66%, 0 40%); }
   .lib-title { @apply relative m-0 font-slab font-normal; font-size: var(--text-lib-title); line-height: 0.98; letter-spacing: 0.005em; @apply z-1 text-transparent whitespace-nowrap; background: repeating-linear-gradient(90deg, rgb(255 255 255 / 0.07) 0 1px, rgb(0 0 0 / 0.06) 1px 2px, transparent 2px 5px),
-    linear-gradient(180deg, #E4E1DA 0%, #B5B0A6 30%, #7D776E 50%, #9C968C 58%, #CBC6BC 76%, #8E887E 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-stroke: 1.5px rgb(28 24 18 / 0.9); filter: drop-shadow(0 2px 0 #3A342C) drop-shadow(0 3px 0 #14110D) drop-shadow(0 12px 14px rgb(0 0 0 / 0.75)); }
-  .lib-title::after { @apply absolute inset-0 pointer-events-none text-transparent; content: attr(data-text) / ""; background: linear-gradient(180deg, rgb(255 255 255 / 0.75) 0%, rgb(255 255 255 / 0) 22%, rgb(255 255 255 / 0) 100%); -webkit-background-clip: text; background-clip: text; transform: translate(-1px, -1px); -webkit-text-stroke: 0; }
+    linear-gradient(180deg, #C9C4BA 0%, #A29C92 26%, #6C675F 50%, #868077 60%, #ADA79C 78%, #746E65 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-stroke: 1.5px rgb(28 24 18 / 0.9); filter: drop-shadow(0 2px 0 #3A342C) drop-shadow(0 3px 0 #14110D) drop-shadow(0 12px 14px rgb(0 0 0 / 0.75)); }
+  .lib-title::after { @apply absolute inset-0 pointer-events-none text-transparent; content: attr(data-text) / ""; background: linear-gradient(180deg, rgb(255 255 255 / 0.55) 0%, rgb(255 255 255 / 0) 22%, rgb(255 255 255 / 0) 100%); -webkit-background-clip: text; background-clip: text; transform: translate(-1px, -1px); -webkit-text-stroke: 0; }
   .lib-lede { @apply max-w-180 mt-0; font-size: var(--text-lib-lede); line-height: 1.45; @apply italic; font-weight: 450; color: #EADFC6; text-shadow: 0 1px 2px rgb(0 0 0 / 0.9), 0 0 18px rgb(0 0 0 / 0.6); @apply text-pretty; }
   .lib-cardwrap { grid-area: card; @apply relative min-w-0 justify-self-end; }
   .lib-cardbtn { @apply inline-flex items-center gap-2 min-h-tap py-0 px-3.5 cursor-pointer text-lib-ink border-2 border-lib-brass-edge; border-radius: 6px; background: var(--color-lib-paper) var(--tex-paper) center / 260px; box-shadow: 0 6px 14px rgb(0 0 0 / 0.55); @apply not-italic font-extrabold; font-size: var(--text-base); @apply leading-none font-sign normal-nums tracking-code uppercase whitespace-nowrap; }
@@ -101,14 +101,15 @@
   .lib-page .lib-search input:focus-visible { outline: none; }
   .lib-chips { grid-area: chips; @apply flex flex-nowrap gap-x-2 min-w-0 overflow-x-auto pt-0.5 pb-3.5; scroll-snap-type: x proximity; scrollbar-width: none; }
   .lib-chips::-webkit-scrollbar { @apply hidden; }
-  .lib-chip { @apply relative inline-flex flex-none items-center min-h-tap; scroll-snap-align: start; padding: 0 11px; @apply cursor-pointer; border: 2px solid #1A120B; border-radius: 6px; color: #F1E3C4; background: var(--chip, #3A2619) var(--tex-leather) center / 180px; background-blend-mode: overlay; box-shadow: inset 0 1px 0 rgb(255 230 190 / 0.18), inset 0 -2px 0 rgb(0 0 0 / 0.4), 0 4px 10px rgb(0 0 0 / 0.5); @apply not-italic font-extrabold; font-size: var(--text-note); @apply leading-none font-sign normal-nums tracking-code uppercase; transition: transform 0.12s ease, filter 0.12s ease; }
-  .lib-chip::before { content: ""; @apply absolute; inset: 3px; border: 1px dashed rgb(255 220 160 / 0.32); border-radius: 4px; @apply pointer-events-none; }
+  .lib-chip { @apply relative inline-flex flex-none items-center min-h-tap; scroll-snap-align: start; padding: 0 11px; @apply cursor-pointer; border: 2px solid #8D877B; border-radius: 6px; color: #F1E3C4; background: linear-gradient(rgb(18 16 14 / 0.6), rgb(18 16 14 / 0.6)), var(--chip, #2E2A26) var(--tex-leather) center / 180px; box-shadow: inset 0 1px 0 rgb(255 240 215 / 0.22), inset 0 -2px 0 rgb(0 0 0 / 0.45), 0 0 0 1px #14110D, 0 4px 10px rgb(0 0 0 / 0.5); @apply not-italic font-extrabold; font-size: var(--text-note); @apply leading-none font-sign normal-nums tracking-code uppercase; transition: transform 0.12s ease, filter 0.12s ease; }
+  .lib-chip::before { content: ""; @apply absolute; inset: 3px; border: 1px solid rgb(225 218 200 / 0.28); border-radius: 4px; @apply pointer-events-none; }
   .lib-chip::after { content: ""; @apply absolute; left: 50%; bottom: -11px; @apply w-7; height: 5px; transform: translateX(-50%); border-radius: 50%; background: var(--color-lib-glow); box-shadow: 0 0 8px 3px rgb(255 190 100 / 0.55), 0 0 22px 6px rgb(255 170 80 / 0.25); @apply opacity-85; }
-  .lib-chip:nth-child(n + 5) { background: linear-gradient(rgb(30 12 8 / 0.5), rgb(30 12 8 / 0.5)), #4C2620 var(--tex-red) center / 200px; background-blend-mode: normal; }
+  .lib-chip:nth-child(n + 5) { border-color: #2A130D; background: linear-gradient(rgb(30 12 8 / 0.42), rgb(30 12 8 / 0.42)), #5A2D24 var(--tex-red) center / 200px; }
+  .lib-chip:nth-child(n + 5)::before { border: 1px dashed rgb(255 214 170 / 0.4); }
   .lib-chip:hover { transform: translateY(-1px); filter: brightness(1.12); }
   .lib-chip:active { transform: translateY(1px); }
-  .lib-chip[aria-pressed="true"] { @apply border-lib-brass-edge; color: #2A1D0A; background: linear-gradient(180deg, var(--color-lib-brass-1), var(--color-lib-brass-2) 55%, var(--color-lib-brass-3)); background-blend-mode: normal; box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.55), 0 0 16px rgb(255 200 110 / 0.35), 0 4px 10px rgb(0 0 0 / 0.5); }
-  .lib-chip[aria-pressed="true"]::before { border-color: rgb(60 40 10 / 0.35); }
+  .lib-chip[aria-pressed="true"] { border-color: #C39A45; color: #F2CC6E; background: linear-gradient(rgb(20 14 8 / 0.55), rgb(20 14 8 / 0.55)), #33271A var(--tex-leather) center / 180px; background-blend-mode: normal; box-shadow: inset 0 1px 0 rgb(255 230 170 / 0.3), 0 0 16px rgb(255 200 110 / 0.4), 0 4px 10px rgb(0 0 0 / 0.5); }
+  .lib-chip[aria-pressed="true"]::before { border: 1px solid rgb(228 184 92 / 0.55); }
   .lib-chip[aria-pressed="true"]::after { @apply opacity-100; box-shadow: 0 0 10px 4px rgb(255 200 110 / 0.75), 0 0 28px 8px rgb(255 170 80 / 0.35); }
   .lib-surprise { grid-area: surprise; }
   .lib-toggles { grid-area: toggles; @apply flex gap-2.5 justify-end self-center; }
@@ -134,21 +135,56 @@
        so it takes no room from the bookcases. */
     .lib-status { @apply absolute left-0 top-full mt-1 whitespace-nowrap; }
   }
+  .lib-hero__lede { @apply hidden; }
+  /* From 1100px the room follows the owner's design (17 Nov 2026, "copy the same exact design and sizes"): the torn
+     label and the slab title with the introduction under them, the library card pinned open at the top right, the
+     search with the shelf chips beside it, Surprise me and the count under the search, then three large bookcases
+     across 88% of the window. Every size is the design's, as a share of its 2000px width (tokens in main.css), in
+     the unit --spacing-lib-u: 1% of the window's width, less on a short window so the first screen keeps the
+     design's composition (it is 2000 by 1310). */
   @media (min-width: 1100px) {
-    .lib-room__ui { grid-template-columns: max-content minmax(--spacing(56), 1fr) max-content max-content max-content; @apply gap-x-4; grid-template-areas: "title search surprise toggles card" "chips chips chips chips chips"; }
-    .lib-search { @apply justify-self-end w-full max-w-100; }
+    .lib-page { --lib-room-w: min(88%, calc(88 * var(--spacing-lib-u)), var(--container-lib-room)); }
+    .lib-room__ui { width: var(--lib-room-w); @apply items-start; row-gap: 0; column-gap: clamp(12px, calc(1 * var(--spacing-lib-u)), 20px);
+      grid-template-columns: clamp(20rem, calc(25.6 * var(--spacing-lib-u)), 32rem) minmax(0, 1fr) max-content; grid-template-rows: auto auto auto auto; grid-template-areas: "title title card" "search chips chips" "surprise chips chips" "status status toggles"; padding-top: clamp(8px, calc(0.65 * var(--spacing-lib-u)), 13px); }
+    /* The label's words sit in the top of its paper; the title overlaps the paper's lower half, as in the design. */
+    .lib-label { margin: 0 0 calc(-3 * var(--spacing-lib-u)) calc(-1.9 * var(--spacing-lib-u)); transform: rotate(-3.6deg); }
+    .lib-label span { padding: 1.35em 2.3em 3em 2em; font-size: var(--text-lib-hero-label); letter-spacing: 0.06em; background-color: #CDB488; background-size: 420px; }
+    .lib-title { font-size: var(--text-lib-hero-title); -webkit-text-stroke-width: 2.5px; }
+    .lib-hero__lede { @apply block; max-width: calc(57 * var(--spacing-lib-u)); margin-top: clamp(5px, calc(0.55 * var(--spacing-lib-u)), 11px); font-size: var(--text-lib-hero-lede); line-height: 1.34; color: #EBDDB0; }
+    /* The card: pinned open on its board (below 1100px it is a button that opens it). */
+    .lib-cardwrap { width: clamp(21.5rem, calc(25.8 * var(--spacing-lib-u)), 32.5rem); padding: clamp(18px, calc(1.4 * var(--spacing-lib-u)), 28px) 0.375rem 0 0; margin-top: calc(-1 * var(--spacing-lib-top)); }
+    .lib-cardwrap::before { @apply absolute; content: ""; inset: 0 -0.5rem -0.75rem 0.875rem; border-radius: 0 0 6px 6px; transform: rotate(2.4deg); background: #3B2516 var(--tex-wood) center / 300px; box-shadow: 0 16px 30px rgb(0 0 0 / 0.6), inset 0 0 0 1px rgb(255 220 160 / 0.12); }
+    .lib-cardbtn { @apply hidden; }
+    .lib-card { @apply relative grid w-auto mt-0 z-auto; top: auto; right: auto; padding: clamp(18px, calc(1.5 * var(--spacing-lib-u)), 30px) clamp(18px, calc(1.5 * var(--spacing-lib-u)), 30px) clamp(10px, calc(0.9 * var(--spacing-lib-u)), 18px); transform: rotate(1.6deg); }
+    .lib-card h2 { font-size: clamp(20px, calc(1.4 * var(--spacing-lib-u)), 28px); }
+    .lib-card__count { font-size: clamp(15px, calc(1.05 * var(--spacing-lib-u)), 21px); color: #FFC57A; background-color: #5A2414; border-color: #E08A3C; box-shadow: 0 0 14px rgb(255 150 60 / 0.55), inset 0 1px 0 rgb(255 255 255 / 0.2); }
+    .lib-card__list button, .lib-card__empty, .lib-card__foot { font-size: clamp(15px, calc(1.05 * var(--spacing-lib-u)), 21px); }
+    .lib-card__list button { min-height: clamp(44px, calc(3.3 * var(--spacing-lib-u)), 66px); }
+    .lib-stamp { font-size: clamp(15px, calc(1.05 * var(--spacing-lib-u)), 21px); }
+    /* Search and chips on one row; chips that do not fit go to a second row under the first. */
+    .lib-search, .lib-chips { margin-top: clamp(26px, calc(3.1 * var(--spacing-lib-u)), 62px); }
+    .lib-search { height: clamp(52px, calc(3.3 * var(--spacing-lib-u)), 66px); padding-inline: clamp(14px, calc(1.2 * var(--spacing-lib-u)), 24px); gap: clamp(10px, calc(0.8 * var(--spacing-lib-u)), 16px); }
+    .lib-search input { font-size: var(--text-lib-hero-ui); }
+    .lib-search svg { width: clamp(18px, calc(1.2 * var(--spacing-lib-u)), 24px); height: clamp(18px, calc(1.2 * var(--spacing-lib-u)), 24px); }
+    .lib-chips { @apply flex-wrap overflow-visible pt-0; column-gap: clamp(5px, calc(0.42 * var(--spacing-lib-u)), 8.5px); row-gap: clamp(16px, calc(1.2 * var(--spacing-lib-u)), 24px); padding-bottom: 0.875rem; }
+    .lib-chip { min-height: clamp(44px, calc(3.05 * var(--spacing-lib-u)), 61px); padding: 0 clamp(7px, calc(0.6 * var(--spacing-lib-u)), 12px); font-size: var(--text-lib-hero-chip); }
+    /* Surprise me: an antique brass plate with a screw at each end, under the search. */
+    .lib-surprise { @apply justify-self-start self-start; margin-top: clamp(14px, calc(1.1 * var(--spacing-lib-u)), 22px); min-height: clamp(48px, calc(3.15 * var(--spacing-lib-u)), 63px); padding-inline: clamp(34px, calc(2.6 * var(--spacing-lib-u)), 52px); font-size: var(--text-lib-hero-ui); border-width: 3px; border-color: #4A3817; color: #2B1E0C;
+      background: var(--tex-brass) center / 220px, linear-gradient(180deg, #DCC591 0%, #B59A5E 52%, #84693A 100%); box-shadow: inset 0 0 0 2px rgb(255 240 200 / 0.35), inset 0 0 0 5px rgb(70 50 15 / 0.35), inset 0 -2px 0 rgb(0 0 0 / 0.25), 0 6px 14px rgb(0 0 0 / 0.6); }
+    .lib-toggles { @apply justify-self-end self-end; }
+    .lib-status { @apply static mt-0; margin-top: clamp(12px, calc(1.3 * var(--spacing-lib-u)), 26px); font-size: clamp(21px, calc(1.45 * var(--spacing-lib-u)), 29px); }
   }
   .lib-cases { @apply hidden; }
   /* The frame holds n bays and the headroom over them (the Book of the Week, the figurines): model.js frameWorld(n)
-     is (n x 0.68 + (n - 1) x 0.06 + 0.08) by 1.33 m. 4 bays from 1100px, 3 from 940px, 2 from 600px, 1 below
-     (tests/stacks3d.test.mjs checks these against frameWorld). */
-  .s3d .lib-cases { @apply relative block z-1; width: min(100% - 2 * var(--spacing-lib-gutter), var(--container-frame)); margin: --spacing(2) auto 0; aspect-ratio: 2.98 / 1.33; @apply pointer-events-none; }
+     is (n x 0.68 + (n - 1) x 0.06 + 0.08) by 1.33 m. 3 bays from 940px, 2 from 600px, 1 below
+     (tests/stacks-v2-front.test.mjs checks these against frameWorld). */
+  .s3d .lib-cases { @apply relative block z-1; width: min(100% - 2 * var(--spacing-lib-gutter), var(--container-frame)); margin: --spacing(2) auto 0; aspect-ratio: 2.24 / 1.33; @apply pointer-events-none; }
   @media (min-width: 1100px) {
-    /* Four bookcases and the bar above them fit one window: the frame narrows on a short window (never below 60rem). */
-    .s3d .lib-cases { width: min(100% - 2 * var(--spacing-lib-gutter), var(--container-frame), max(60rem, (100svh - 17.5rem) * 2.98 / 1.33)); }
-  }
-  @media (max-width: 1099px) {
-    .s3d .lib-cases { aspect-ratio: 2.24 / 1.33; }
+    /* Three large bookcases across the room, as in the design. The frame's top 27% is headroom (0.36 of its 1.33 m:
+       the Book of the Week and the figurines stand in it), which is 0.1607 of the frame's width; the negative margin
+       lets that headroom overlap the controls, so the cornices start about 5rem under the count. */
+    .s3d .lib-cases { width: var(--lib-room-w); margin-top: calc(5rem - 0.1607 * var(--lib-room-w)); }
+    .lib-pan { top: 52%; }
   }
   @media (max-width: 939px) {
     .s3d .lib-cases { aspect-ratio: 1.5 / 1.33; }
@@ -160,9 +196,9 @@
   .lib-pan svg { @apply w-5 h-5 stroke-current; fill: none; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
   .lib-pan--prev { @apply -left-2; }
   .lib-pan--next { @apply -right-2; }
-  @media (min-width: 1400px) {
-    .lib-pan--prev { @apply -left-15; }
-    .lib-pan--next { @apply -right-15; }
+  @media (min-width: 1100px) {
+    .lib-pan--prev { @apply -left-13; }
+    .lib-pan--next { @apply -right-13; }
   }
   .lib-pan[disabled] { @apply opacity-35; cursor: default; }
   .lib-pager { @apply absolute left-0 right-0 -bottom-5 text-center not-italic font-normal; font-size: var(--text-lg); @apply leading-none font-pixel normal-nums; color: #CDBE98; @apply pointer-events-none; }
@@ -408,6 +444,11 @@
   .lib-about { @apply grid justify-items-start gap-3; }
   .lib-about__title { @apply m-0 font-slab font-normal text-lib-cream; font-size: clamp(var(--text-2xl), 1.1rem + 1vw, var(--text-3xl)); line-height: 1.1; }
   .lib-about__links { @apply flex flex-wrap gap-x-5 gap-y-1; & a { @apply inline-flex min-h-tap items-center text-white; } }
+  @media (min-width: 1100px) {
+    /* The introduction is in the hero here, so under the room only the three links stay, over the "put a book forward" card. */
+    .lib-below { width: var(--lib-room-w); @apply grid-cols-1 gap-y-4; }
+    .lib-about__title, .lib-about > .lib-lede { @apply hidden; }
+  }
   .lib-submit__card { @apply relative grid gap-3 max-w-read py-6 px-5 sm:px-7 text-lib-ink; background: var(--color-lib-paper) var(--tex-paper) center / 420px; box-shadow: 0 10px 22px rgb(0 0 0 / 0.55), inset 0 0 30px rgb(120 80 30 / 0.3); border-radius: 2px; }
   .lib-submit__title { @apply m-0 not-italic font-normal; font-size: clamp(var(--text-2xl), 1.1rem + 1vw, var(--text-3xl)); line-height: 1.1; @apply font-slab normal-nums text-lib-ink; }
   .lib-submit__lede { font-size: var(--text-note); @apply leading-normal font-semibold; }

@@ -65,7 +65,7 @@ export function loadImage(url, cors = false, timeout = 8000) {
 }
 
 const VIGNETTE_GRAIN = {
-  uniforms: { tDiffuse: { value: null }, time: { value: 0 }, grain: { value: 0.045 }, vignette: { value: 0.55 }, res: { value: new THREE.Vector2(1, 1) }, focus: { value: 0 } },
+  uniforms: { tDiffuse: { value: null }, time: { value: 0 }, grain: { value: 0.045 }, vignette: { value: 0.4 }, res: { value: new THREE.Vector2(1, 1) }, focus: { value: 0 } },
   vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
   fragmentShader: `
     uniform sampler2D tDiffuse; uniform float time, grain, vignette, focus; uniform vec2 res; varying vec2 vUv;
@@ -194,21 +194,28 @@ export async function mount(opts) {
 
   /* ---------- Materials ---------- */
   const woodSrc = woodImg ? toCanvas(woodImg, texSize) : P.woodCanvas(high ? 1024 : 512);
+  { // Old, grey boards (the owner's design): most of the photo's red-brown taken out, the grain kept.
+    const wctx = woodSrc.getContext('2d');
+    wctx.save(); wctx.globalCompositeOperation = 'saturation'; wctx.globalAlpha = 0.62; wctx.fillStyle = '#808080';
+    wctx.fillRect(0, 0, woodSrc.width, woodSrc.height);
+    wctx.globalCompositeOperation = 'screen'; wctx.globalAlpha = 0.22; wctx.fillStyle = '#B4A898'; // and a little lighter, so the grain shows in the lamplight
+    wctx.fillRect(0, 0, woodSrc.width, woodSrc.height); wctx.restore();
+  }
   const woodPBR = P.derivePBR(woodSrc, { size: high ? 512 : 256, strength: 2.6, rough: 0.58, roughGain: 0.35 });
   const woodMat = keep(new THREE.MeshStandardMaterial({
     map: tex(woodSrc, { repeat: true }), normalMap: tex(woodPBR.normal, { srgb: false, repeat: true }), roughnessMap: tex(woodPBR.rough, { srgb: false, repeat: true }),
-    roughness: 1, metalness: 0, color: woodImg ? 0x6c5a4c : 0x6a5c54, normalScale: new THREE.Vector2(0.55, 0.55),
+    roughness: 1, metalness: 0, color: woodImg ? 0xc4bcb2 : 0xa89e94, normalScale: new THREE.Vector2(0.8, 0.8), // grey, weathered boards (the owner's design)
   }));
   const backCanvas = (() => {
     const w = 512, h = 680, c = P.makeCanvas(w, h), ctx = c.getContext('2d');
     ctx.drawImage(woodSrc, 0, 0, w, h);
-    ctx.fillStyle = 'rgba(10,6,3,0.5)'; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = 'rgba(10,6,3,0.3)'; ctx.fillRect(0, 0, w, h);
     ctx.globalCompositeOperation = 'multiply';
     const yPx = (y) => h - (y / BAY.header[0]) * h;
     ctx.drawImage(P.backPanelShade(w, h, [[yPx(BAY.floors[0] + BAY.clear), yPx(BAY.floors[0])], [yPx(BAY.floors[1] + BAY.clear), yPx(BAY.floors[1])]]), 0, 0);
     return c;
   })();
-  const backMat = keep(new THREE.MeshStandardMaterial({ map: tex(backCanvas), roughness: 0.85, metalness: 0, color: woodImg ? 0x6a584c : 0xbbbbbb }));
+  const backMat = keep(new THREE.MeshStandardMaterial({ map: tex(backCanvas), roughness: 0.85, metalness: 0, color: woodImg ? 0xa8937e : 0xbbbbbb }));
   const pagesSrc = pagesImg ? rotate90(toCanvas(pagesImg, 256)) : P.pagesCanvas(256); // stripes along u
   const pagesMat = keep(new THREE.MeshStandardMaterial({ map: tex(pagesSrc), roughness: 0.92 }));
   const curveTex = tex(P.spineCurveCanvas(), { srgb: false });
@@ -226,11 +233,11 @@ export async function mount(opts) {
   const darkWoodMat = keep(new THREE.MeshStandardMaterial({ color: 0x2a1a10, roughness: 0.55 }));
 
   /* ---------- Lights ---------- */
-  const hemi = new THREE.HemisphereLight(0x6d82b0, 0x1a1008, 0.26);
+  const hemi = new THREE.HemisphereLight(0x99a1b3, 0x3a2e24, 0.8);
   scene.add(hemi);
   const moon = new THREE.DirectionalLight(0x8fb0ff, 2.1); // the window: cool rim light on the right-hand edges
   moon.position.set(3.4, 2.4, -0.6); scene.add(moon); scene.add(moon.target);
-  const key = new THREE.SpotLight(0xffd8b4, 6, 0, 0.62, 0.8, 2); // the lamps' warmth, from the left
+  const key = new THREE.SpotLight(0xffe6d0, 6.5, 0, 0.62, 0.8, 2); // the lamps' warmth, from the left
   key.position.set(-1.1, 2.3, 2.1);
   scene.add(key); scene.add(key.target);
   if (high) {
@@ -240,7 +247,7 @@ export async function mount(opts) {
     key.shadow.camera.near = 1; key.shadow.camera.far = 6;
   }
   const bayLights = [0, 1, 2, 3].map(() => {
-    const s = new THREE.SpotLight(0xffc98c, 9, 0, 0.42, 0.6, 2); // a picture light over each case: a warm pool on the plate and the upper row
+    const s = new THREE.SpotLight(0xffdfba, 5.5, 0, 0.42, 0.6, 2); // a picture light over each case: a warm pool on the plate and the upper row
     scene.add(s); scene.add(s.target);
     return s;
   });
@@ -449,7 +456,9 @@ export async function mount(opts) {
     // The brass name plate, engraved with the shelf's name.
     const { worldW, worldH } = P.plateSize(shelf.name);
     const pl = P.paintPlate(shelf.name, worldW, worldH, { h: high ? 128 : 80, brass: brassImg });
-    const plateMat = keep(new THREE.MeshStandardMaterial({ map: tex(pl.map), roughnessMap: tex(pl.pbr, { srgb: false }), metalnessMap: tex(pl.pbr, { srgb: false }), roughness: 1, metalness: 1, envMapIntensity: 1.5, color: 0xd0c0a4 }));
+    const plateTex = tex(pl.map);
+    // A little of its own light, so the name reads in the cornice's shadow as well as under the picture light.
+    const plateMat = keep(new THREE.MeshStandardMaterial({ map: plateTex, roughnessMap: tex(pl.pbr, { srgb: false }), metalnessMap: tex(pl.pbr, { srgb: false }), roughness: 1, metalness: 1, envMapIntensity: 1.2, color: 0x93866c, emissive: 0xffffff, emissiveMap: plateTex, emissiveIntensity: 0.2 }));
     const plate = part(g, keep(new THREE.BoxGeometry(worldW, worldH, 0.004)), [brassMat, brassMat, brassMat, brassMat, plateMat, brassMat], 0, (BAY.header[0] + BAY.header[1]) / 2 + 0.004, 0.022);
     plate.castShadow = false;
     // A soft contact shadow where the case stands on the floor.
@@ -565,7 +574,7 @@ export async function mount(opts) {
     const ps = P.plateSize(text, 0.04);
     const pw = Math.min(plinthW - 0.02, ps.worldW), ph = ps.worldH * (pw / ps.worldW);
     const pl = P.paintPlate(text, pw, ph, { h: high ? 96 : 64, brass: brassImg });
-    const plaqueMat = keep(new THREE.MeshStandardMaterial({ map: tex(pl.map), roughnessMap: tex(pl.pbr, { srgb: false }), metalnessMap: tex(pl.pbr, { srgb: false }), roughness: 1, metalness: 1, envMapIntensity: 1.6, color: 0xd8c8a8 }));
+    const plaqueMat = keep(new THREE.MeshStandardMaterial({ map: tex(pl.map), roughnessMap: tex(pl.pbr, { srgb: false }), metalnessMap: tex(pl.pbr, { srgb: false }), roughness: 1, metalness: 1, envMapIntensity: 1.2, color: 0x8f816a }));
     const plaque = part(group, keep(new THREE.BoxGeometry(pw, ph, 0.004)), [brassMat, brassMat, brassMat, brassMat, plaqueMat, brassMat], 0, 0.02, plinthD / 2 + 0.006, { cast: false });
     plaque.rotation.x = -0.28;
     // The book, its front cover to the room: slot turned a quarter so the +x board (the cover) faces +z.

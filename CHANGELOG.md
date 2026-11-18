@@ -65,6 +65,13 @@ Gatecast has no tagged releases yet. `package.json` has said `1.0.0` since the f
 
 ### Changed
 
+- **The Stacks on a desktop follows the owner's design** (owner request, 18 Nov 2026: "copy the same exact design and sizes"). From 1100px:
+  - The hero is back: the torn label and the slab title (81px at 1100 to 147px at 2000) with the introduction under them, and the library card pinned open at the top right. Below 1100px the compact bar of 17 Nov stays, with the introduction under the room.
+  - The search has the shelf chips beside it, Surprise me and the count under it. Chips are dark plates with a steel edge, the later shelves red leather, the chosen one dark with gold; Surprise me is an antique brass plate.
+  - Three large bookcases across the room instead of four (`.s3d .lib-cases` is `2.24 / 1.33` from 940px; the four-bay frame is gone). The frame's headroom overlaps the controls, so the cornices start about 5rem under the count.
+  - Sizes are the design's, as a share of its 2000px width, in the unit `--spacing-lib-u` (`min(1vw, 1.55svh)`): on a 16:9 laptop the room is a little narrower, so the first screen still shows the whole first row of books.
+  - The bookcases look older: grey, weathered boards (the wood photo with most of its red-brown taken out), a lighter back panel, neutral-warm lamps instead of orange, and brass plates whose names read in both 3D tiers.
+
 - **A healthier weird-news mix** (owner request, 17 Nov 2026: "not only UPI"). On 17 Nov UPI had 11 of the 21 stories, 8 of them stacked at the top of the feed stories.
   - Order (`lib/weird.js` `mixOutlets`, `LIMITS.bandsMs` and `LIMITS.mix`): after the editor's picks, which stay on top and untouched, feed stories are interleaved by outlet within freshness bands (under 2 days, 2–7, 7–14, older), each outlet's strangest story first, without the same outlet twice in a row when another fresh story fits; no outlet may take more than 3 of the first 12 feed stories or 10 of the first 30 while other outlets have stories. The category filter and limits work as before on the mixed order.
   - Per-source windows (`maxAgeDays`, default 14, at most 90): Atlas Obscura 60 days, Smithsonian and Mental Floss 45, ScienceDaily 30, Live Science 21 (its tag feeds 45). A story older than 14 days always sorts after the fresher ones.
