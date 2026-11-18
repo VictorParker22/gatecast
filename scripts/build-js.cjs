@@ -1,6 +1,6 @@
 // Bundles The Stacks' scripts (library.html) for the deploy with esbuild:
 //   js/library.js and everything it imports, including the 3D room (js/stacks3d/, loaded with a dynamic import) and the
-//   vendored libraries it uses (three r187 and its addons, cannon-es, gsap), become a few minified ES modules in
+//   vendored libraries it uses (three r187 and its addons, cannon-es, gsap, roughjs), become a few minified ES modules in
 //   public/js/dist/, named by a hash of their content (so vercel.json can cache them for a year), with no source maps.
 //   Same sources, same files: the output is deterministic.
 //   buildJs(outRoot) from build-data.cjs -> public/js/dist/*.js, and public/library.html pointed at the entry
@@ -18,12 +18,12 @@ const ENTRY = 'js/library.js';
 const ROOM = 'js/stacks3d/index.js'; // the 3D room, a dynamic import of the entry
 const vendor = (p) => path.join(root, 'vendor', p);
 // The bare specifiers of library.html's import map, resolved to the same vendored files.
-const ALIASES = { three: vendor('three/three.module.js'), 'cannon-es': vendor('cannon-es/cannon-es.js'), gsap: vendor('gsap/index.js') };
+const ALIASES = { three: vendor('three/three.module.js'), 'cannon-es': vendor('cannon-es/cannon-es.js'), gsap: vendor('gsap/index.js'), roughjs: vendor('roughjs/rough.esm.js') };
 
 const importMapPlugin = {
   name: 'gatecast-importmap',
   setup(build) {
-    build.onResolve({ filter: /^(three|cannon-es|gsap)$/ }, (a) => ({ path: ALIASES[a.path] }));
+    build.onResolve({ filter: /^(three|cannon-es|gsap|roughjs)$/ }, (a) => ({ path: ALIASES[a.path] }));
     build.onResolve({ filter: /^three\/addons\// }, (a) => ({ path: vendor('three/addons/' + a.path.slice('three/addons/'.length)) }));
   },
 };
@@ -53,7 +53,7 @@ async function buildJs(outRoot = path.join(root, 'public')) {
     outdir, entryNames: '[name]-[hash]', chunkNames: '[name]-[hash]',
     legalComments: 'eof', charset: 'utf8', metafile: true, logLevel: 'warning',
     // Not every vendored file carries its licence in a comment (cannon-es does not): point at the files that do.
-    banner: { js: '/* Gatecast, The Stacks. Built from js/ and vendor/: three.js (MIT) /vendor/three/LICENSE, cannon-es (MIT) /vendor/cannon-es/LICENSE, GSAP /vendor/gsap/LICENSE.md */' },
+    banner: { js: '/* Gatecast, The Stacks. Built from js/ and vendor/: three.js (MIT) /vendor/three/LICENSE, cannon-es (MIT) /vendor/cannon-es/LICENSE, GSAP /vendor/gsap/LICENSE.md, Rough.js (MIT) /vendor/roughjs/LICENSE */' },
     plugins: [importMapPlugin],
   });
   const rel = (f) => path.relative(outRoot, path.join(root, f)).split(path.sep).join('/');

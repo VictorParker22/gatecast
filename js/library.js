@@ -9,7 +9,7 @@
 import { initSettings, store } from './shell.js';
 import {
   BOOKSHOP_AFFILIATE, BOOKSHOP_DISCLOSURE, authorLine, surname, filterView, statusText, pickRandom, spineStyle, balancedRows,
-  bookBox, flightStart, parseHash, buildHash, stampCard, stampDate, worldcatUrl, bookshopUrl, openLibraryUrl, coverUrl, coverFor, needsCoverApi,
+  bookBox, flightStart, parseHash, buildHash, stampCard, stampDate, inkSeed, stampTilt, worldcatUrl, bookshopUrl, openLibraryUrl, coverUrl, coverFor, needsCoverApi,
   previewPlace, previewShift, libraryData, stockedShelves, featuredView, originNote, bayColumns,
 } from './librarymodel.js';
 import { createPreview } from './librarypreview.js';
@@ -323,6 +323,38 @@ function applyFilter() {
   return view;
 }
 
+/* ---------- Hand-inked marks ---------- */
+// Rough.js (vendored, MIT) draws the outline of each stamp on the library card and the pencil line under "Worth
+// knowing." as SVG, in the ink the CSS already gives the text. It loads after the page is up; without it the stamp keeps
+// its plain CSS border and the label has no line. A mark is drawn once it has a size (the card is closed on a phone,
+// the dialog starts hidden) and again if that size changes.
+const SVG_NS = 'http://www.w3.org/2000/svg';
+let roughLib = null;
+const loadRough = () => (roughLib ||= import('roughjs').then((m) => m.default).catch(() => null));
+function drawInk(rough, node) {
+  const w = node.offsetWidth, h = node.offsetHeight, seed = Number(node.dataset.inkSeed) || 1;
+  const key = `${w}x${h}:${seed}`;
+  if (!w || !h || node.dataset.inkDrawn === key) return;
+  node.dataset.inkDrawn = key;
+  for (const old of node.querySelectorAll(':scope > .lib-ink')) old.remove();
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('class', 'lib-ink'); svg.setAttribute('aria-hidden', 'true'); svg.setAttribute('focusable', 'false');
+  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  const pen = rough.svg(svg);
+  if (node.dataset.ink === 'stamp') svg.append(pen.rectangle(1.5, 1.5, w - 3, h - 3, { seed, roughness: 0.9, bowing: 0.7, strokeWidth: 1.5, stroke: 'currentColor' }));
+  else svg.append(pen.line(0, h - 1.5, w, h - 1.5, { seed, roughness: 1.3, bowing: 1.6, strokeWidth: 1.3, stroke: 'currentColor' }));
+  node.append(svg);
+  node.classList.add('is-inked');
+}
+const inkWatch = 'ResizeObserver' in window
+  ? new ResizeObserver((entries) => { loadRough().then((rough) => { if (rough) for (const e of entries) if (e.target.isConnected) drawInk(rough, e.target); }); })
+  : null;
+function ink(node, kind, seed) {
+  if (!inkWatch) return;
+  node.dataset.ink = kind; node.dataset.inkSeed = String(seed);
+  inkWatch.unobserve(node); inkWatch.observe(node); // observing again reports the size now, so a new seed is drawn
+}
+
 /* ---------- Library card (localStorage only) ---------- */
 
 function loadCard() {
@@ -331,6 +363,7 @@ function loadCard() {
 }
 function renderCard(fresh = null) {
   const list = $('card-list');
+  if (inkWatch) for (const old of list.querySelectorAll('.lib-stamp')) inkWatch.unobserve(old);
   list.textContent = '';
   for (const c of state.card) {
     const book = bookOf(c.id);
@@ -340,7 +373,10 @@ function renderCard(fresh = null) {
     b.addEventListener('click', () => pullOut(book.id));
     const st = el('span', 'lib-stamp', stampDate(c.at));
     st.setAttribute('aria-label', 'Stamped ' + stampText(c.at, locale));
+    const seed = inkSeed(c.id, c.at);
+    st.style.setProperty('--lib-stamp-tilt', stampTilt(seed) + 'deg');
     li.append(b, st);
+    ink(st, 'stamp', seed);
     if (fresh === c.id) li.classList.add('is-fresh');
     list.append(li);
   }
@@ -444,6 +480,7 @@ function fillBook(book) {
   for (const t of book.tags) tags.append(el('li', null, t));
   $('bk-note').hidden = !book.contentNote; $('bk-note-text').textContent = book.contentNote || '';
   $('bk-caveat').hidden = !book.caveat; $('bk-caveat-text').textContent = book.caveat || '';
+  if (book.caveat) ink($('bk-caveat').querySelector('strong'), 'line', inkSeed(book.id));
   $('bk-wc').href = worldcatUrl(book);
   $('bk-buy').href = bookshopUrl(book);
   $('bk-ol').href = openLibraryUrl(book, cover);

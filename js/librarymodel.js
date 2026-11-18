@@ -269,6 +269,19 @@ export function stampDate(ms, timeZone) {
   } catch { return ''; }
 }
 
+// The hand-inked marks (Rough.js draws them in js/library.js). A mark's seed comes from what it marks, so the same
+// stamp has the same wobble on every visit: a positive 31-bit integer from the book id and the time it was stamped.
+export function inkSeed(id, at = 0) {
+  let h = 2166136261;
+  for (const ch of String(id) + '|' + String(at)) { h ^= ch.codePointAt(0); h = Math.imul(h, 16777619); }
+  return ((h >>> 0) % 2147483646) + 1;
+}
+// How far a stamp is turned, in degrees: between -7 and 3, never flat (a real stamp is never square to the card).
+export function stampTilt(seed) {
+  const t = Math.round((-7 + ((Number(seed) || 1) % 101) / 10) * 10) / 10;
+  return Math.abs(t) < 1 ? -4 : t;
+}
+
 /* ---------- Links ---------- */
 
 const q = (book) => `${book.title} ${book.authors?.[0] || ''}`.trim();
