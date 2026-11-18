@@ -12,8 +12,11 @@ const RAYS = {
   vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
   fragmentShader: `varying vec2 vUv; uniform float time, strength;
     void main(){
-      float across = smoothstep(0.0, 0.45, vUv.x) * smoothstep(1.0, 0.55, vUv.x);
-      float along = pow(1.0 - vUv.y, 1.6) * smoothstep(0.0, 0.08, vUv.y);
+      // Clamped first: with anti-aliasing a varying can land just outside 0..1 at an edge, and pow() of a negative
+      // number is not a number, which the bloom pass then smears into a blank rectangle (see BEAM in index.js).
+      vec2 uv = clamp(vUv, 0.0, 1.0);
+      float across = smoothstep(0.0, 0.45, uv.x) * (1.0 - smoothstep(0.55, 1.0, uv.x));
+      float along = pow(1.0 - uv.y, 1.6) * smoothstep(0.0, 0.08, uv.y);
       float flicker = 0.85 + 0.15 * sin(time * 0.4 + vUv.y * 3.0);
       gl_FragColor = vec4(vec3(0.7, 0.8, 1.0), across * along * 0.6 * strength * flicker);
     }`,
