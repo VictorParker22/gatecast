@@ -116,7 +116,7 @@ function llmsTxt(all = stacks.readData()) {
     '',
     `> Gatecast is a free website with three parts: weird news from real outlets (each story is the outlet’s own headline, linked to the original), the local weather told plainly, and The Stacks, a library of ${data.books.length} real books with content notes and “Worth knowing” accuracy notes written by its editor.`,
     '',
-    'Gatecast is independent: no ads, no affiliate links, no tracking cookies, no accounts. It lives at https://gatecast.vercel.app and is not connected to other projects called Gatecast.',
+    'Gatecast is independent: no ads, no affiliate links, no tracking cookies, no accounts. It lives at ' + stacks.SITE_ORIGIN + ' and is not connected to other projects called Gatecast.',
     '',
     'How Gatecast handles sources: it never copies an outlet’s article. A story shows the outlet’s headline, its name, the date and a link. For the editor’s picks it adds a short hook and a summary in its own words. Stories whose oddness is someone’s misfortune (deaths, injuries, children, crime) are held back.',
     '',

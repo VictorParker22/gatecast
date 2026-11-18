@@ -236,10 +236,10 @@ test('drafted quotes are kept only when found word for word in the page', () => 
 });
 
 test('CORS allows only the site, its previews and local servers', () => {
-  for (const o of ['https://gatecast.vercel.app', 'https://gatecast-git-main-team.vercel.app', 'https://gatecast-abc123-team.vercel.app', 'http://localhost:4186', 'http://127.0.0.1:4173', 'http://localhost']) {
+  for (const o of ['https://thegatecast.com', 'https://www.thegatecast.com', 'https://gatecast.vercel.app', 'https://gatecast-git-main-team.vercel.app', 'https://gatecast-abc123-team.vercel.app', 'http://localhost:4186', 'http://127.0.0.1:4173', 'http://localhost']) {
     assert.equal(originAllowed(o), true, o);
   }
-  for (const o of ['https://evil.vercel.app', 'https://gatecast.vercel.app.evil.com', 'http://gatecast.vercel.app', 'https://localhost:3000', 'null', '', undefined]) {
+  for (const o of ['https://evil.vercel.app', 'https://gatecast.vercel.app.evil.com', 'http://gatecast.vercel.app', 'http://thegatecast.com', 'https://thegatecast.com.evil.com', 'https://evil.thegatecast.com', 'https://evilthegatecast.com', 'https://thegatecast.com:8443', 'https://localhost:3000', 'null', '', undefined]) {
     assert.equal(originAllowed(o), false, String(o));
   }
   assert.equal(originAllowed('https://gatecast.example', ['https://gatecast.example']), true);

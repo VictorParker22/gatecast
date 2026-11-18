@@ -34,8 +34,9 @@ const SB_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SB_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 const SALT = Deno.env.get('COMMUNITY_SALT') ?? '';
 const EXTRA_ORIGINS = (Deno.env.get('COMMUNITY_ALLOWED_ORIGINS') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
-// Where the site's data/books.json lives (the shelves a book may be put forward for). Optional; a custom domain.
-const SITE = (Deno.env.get('COMMUNITY_SITE_ORIGIN') ?? 'https://gatecast.vercel.app').replace(/\/+$/, '');
+// Where the site's data/books.json lives (the shelves a book may be put forward for). Optional; the default is the
+// site's own address (lib/site.js SITE_ORIGIN).
+const SITE = (Deno.env.get('COMMUNITY_SITE_ORIGIN') ?? 'https://www.thegatecast.com').replace(/\/+$/, '');
 
 type Json = Record<string, unknown>;
 type Rpc = { ok: true; data: unknown } | { ok: false; status: number };

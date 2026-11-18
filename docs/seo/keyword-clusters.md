@@ -2,6 +2,8 @@
 
 17 Nov 2026. One cluster is one page: no two pages target the same search.
 
+**Update, 18 Nov 2026: the site moved to `https://www.thegatecast.com`.** The pages and their paths are the same, so every cluster below still maps to the same page; only the host changed. The custom-domain decision is done. Cluster 1 (Brand) is still **taken**: the first results for "Gatecast" are still the Stargate podcast. "The Gatecast" in the address helps a little, and "thegatecast" is a search the site can own, but it does not solve the brand search; that takes links and mentions. Search Console numbers will start again under the new property, so the four weeks of data this report asks for count from the move. Steps: [`domain-move.md`](domain-move.md).
+
 **How to read the demand column.** No keyword tool was connected for this report (the Ahrefs and Similarweb connectors failed to connect), so there are no search-volume numbers here. "Demand" and "Competition" are judgements from the earlier research (`docs/research`, the growth plan) and from who ranks today. Replace them with Search Console numbers once the site has four weeks of data.
 
 - **Keywords:** 96, from the site's pages, the growth plan and the book list

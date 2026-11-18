@@ -224,14 +224,17 @@ test('routes and limit replies', () => {
   assert.equal(limitReply({ ok: false, error: 'something' }).status, 502);
 });
 
-test('CORS: production, the owner’s gatecast previews and localhost only', () => {
+test('CORS: production (the new address and the old one), the owner’s gatecast previews and localhost only', () => {
   for (const ok of [
-    'https://gatecast.vercel.app',
+    'https://thegatecast.com', 'https://www.thegatecast.com',
+    'https://gatecast.vercel.app', // the address until 18 Nov 2026: still allowed while it answers
     'https://gatecast-a1b2c3d4e-victorparkerr-4350s-projects.vercel.app',
     'https://gatecast-git-claude-jolly-faraday-anudd2-victorparkerr-4350s-projects.vercel.app',
     'http://localhost:4173', 'http://localhost', 'http://127.0.0.1:8080',
   ]) assert.equal(originAllowed(ok), true, ok);
   for (const bad of [
+    'http://thegatecast.com', 'https://thegatecast.com.evil.com', 'https://evil.thegatecast.com', 'https://thegatecast.com:8443',
+    'https://evilthegatecast.com', 'https://THEGATECAST.com', 'https://thegatecast.co',
     'https://gatecast.vercel.app.evil.com',
     'https://evil.com/https://gatecast.vercel.app',
     'http://gatecast.vercel.app',
@@ -246,17 +249,18 @@ test('CORS: production, the owner’s gatecast previews and localhost only', () 
     'null', '', undefined,
   ]) assert.equal(originAllowed(bad), false, String(bad));
   assert.equal(originAllowed('https://weird.example.org', ['https://weird.example.org']), true);
-  assert.equal(corsHeaders('https://gatecast.vercel.app')['Access-Control-Allow-Origin'], 'https://gatecast.vercel.app');
+  for (const o of ['https://thegatecast.com', 'https://www.thegatecast.com', 'https://gatecast.vercel.app']) assert.equal(corsHeaders(o)['Access-Control-Allow-Origin'], o);
   assert.equal(corsHeaders('https://evil.com')['Access-Control-Allow-Origin'], undefined);
   assert.equal(corsHeaders('https://evil.com').Vary, 'Origin');
 });
 
 test('writes must be JSON and, from a browser, from our own pages', () => {
-  assert.deepEqual(writeAllowed('https://gatecast.vercel.app', 'application/json'), { ok: true });
+  assert.deepEqual(writeAllowed('https://thegatecast.com', 'application/json'), { ok: true });
+  assert.deepEqual(writeAllowed('https://gatecast.vercel.app', 'application/json'), { ok: true }, 'the old address still works');
   assert.deepEqual(writeAllowed('', 'application/json; charset=utf-8'), { ok: true }, 'no Origin: not a cross-site browser request');
   assert.equal(writeAllowed('https://evil.com', 'application/json').status, 403);
-  assert.equal(writeAllowed('https://gatecast.vercel.app', 'text/plain').status, 415, 'a simple cross-site POST is refused');
-  assert.equal(writeAllowed('https://gatecast.vercel.app', null).status, 415);
+  assert.equal(writeAllowed('https://thegatecast.com', 'text/plain').status, 415, 'a simple cross-site POST is refused');
+  assert.equal(writeAllowed('https://thegatecast.com', null).status, 415);
 });
 
 /* ---------- browser module ---------- */

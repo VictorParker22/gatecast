@@ -122,7 +122,7 @@ test('favourites caption: honest about who ranked the row', () => {
 test('clicks are counted only for links to the page’s own weird stories', () => {
   const urls = new Set(['https://www.upi.com/Odd_News/2026/11/13/story-1/']);
   assert.equal(storyFor('https://www.upi.com/Odd_News/2026/11/13/story-1/', urls), 'https://www.upi.com/Odd_News/2026/11/13/story-1/');
-  for (const other of ['https://www.upi.com/', 'https://gatecast.vercel.app/#believe', 'how.html', '', null, undefined]) assert.equal(storyFor(other, urls), null, String(other));
+  for (const other of ['https://www.upi.com/', 'https://www.thegatecast.com/#believe', 'how.html', '', null, undefined]) assert.equal(storyFor(other, urls), null, String(other));
   assert.equal(storyFor('https://www.upi.com/Odd_News/2026/11/13/story-1/', null), null);
 });
 
@@ -187,6 +187,7 @@ test('tip links: https only, never our own pages', () => {
   assert.equal(tipUrl(' https://www.upi.com/Odd_News/x '), 'https://www.upi.com/Odd_News/x');
   assert.equal(tipUrl('http://www.upi.com/x'), null);
   assert.equal(tipUrl('upi.com/x'), null);
-  assert.equal(tipUrl('https://gatecast.vercel.app/'), null);
+  for (const own of ['https://www.thegatecast.com/', 'https://www.thegatecast.com/how.html', 'https://gatecast.vercel.app/']) assert.equal(tipUrl(own), null, own);
+  assert.equal(tipUrl('https://www.thegatecast.com.example.org/x'), 'https://www.thegatecast.com.example.org/x', 'another site whose name starts the same way');
   assert.equal(tipUrl(''), null);
 });
