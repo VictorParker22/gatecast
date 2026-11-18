@@ -120,6 +120,7 @@ The site is deployed on Vercel (`vercel.json`). Vercel runs `node scripts/build-
 | `review.html`, `js/review.js`, `js/reviewmodel.js` | Reviewer console for the Both sides queue (sign-in link, queue, publish, assistant); not in the navigation, `noindex`. Rules in `reviewmodel.js` are unit-tested |
 | `supabase/migrations/` | Database: the Both sides review queue, statehouse votes and their switch, the hourly collector job; see `supabase/README.md` |
 | `supabase/functions/` | Edge Functions: `collect` (statehouse votes from Open States, hourly) and `assist` (the reviewer console's assistant) |
+| `video/launch/`, `docs/video/` | The launch video for The Stacks and its Motion Canvas source (its own `package.json`; not part of the site build) |
 | `docs/` | Design system, user research plan, research report, content sources, moderation policy, design direction, the motion and graphics toolkit (`docs/motion-toolkit.md`) |
 | `tests/` | Unit tests for the pure modules and the server's parsers (`node --test`) |
 | `.github/` | CI workflow, Dependabot, issue forms and pull request template |

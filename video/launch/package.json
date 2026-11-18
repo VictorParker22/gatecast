@@ -1,0 +1,21 @@
+{
+  "name": "gatecast-launch-video",
+  "private": true,
+  "version": "1.0.0",
+  "description": "The launch video for The Stacks, made with Motion Canvas. Not part of the site build.",
+  "scripts": {
+    "serve": "vite",
+    "render": "node render.cjs"
+  },
+  "dependencies": {
+    "@motion-canvas/2d": "3.17.2",
+    "@motion-canvas/core": "3.17.2",
+    "@motion-canvas/ffmpeg": "3.17.2"
+  },
+  "devDependencies": {
+    "@motion-canvas/ui": "3.17.2",
+    "@motion-canvas/vite-plugin": "3.17.2",
+    "typescript": "5.4.5",
+    "vite": "4.5.14"
+  }
+}

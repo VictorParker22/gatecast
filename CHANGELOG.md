@@ -8,6 +8,12 @@ Gatecast has no tagged releases yet. `package.json` has said `1.0.0` since the f
 
 ### Added
 
+- **A launch video for The Stacks** (owner, 18 Nov 2026: "build the launch video with motion canvas").
+  - `docs/video/the-stacks-launch.mp4`: 31 seconds, 1920x1080 at 30 frames a second, silent. Six parts: a hook ("Some stories are true. Some only say they are."), the library page, a book pulled out and turned over, the "Worth knowing" note, the stamped library card, and an end card with the address.
+  - Every picture is a real screenshot of `library.html` (the full 3D room, taken locally), the typefaces are the site's own, and every sentence is one the site already says or a count from `data/books.json`. The book shown has the site's stand-in cover, not a publisher's.
+  - The source is in `video/launch/` (Motion Canvas 3.17.2, MIT) with its own `package.json`, outside the site build and tests. `node render.cjs` renders it again without a screen by driving the Motion Canvas editor in headless Chromium; `capture/` retakes the screenshots.
+  - Not done: sound, and a vertical cut for phones.
+
 - **A rubber stamp on the empty library card, and the toolkit written down** (owner, 18 Nov 2026: "check all of these libraries for motion graphic ... save all of them and pick what we can use from those libraries to update our library in every way possible").
   - All eleven tools were installed and measured, and their licences read: `docs/motion-toolkit.md` records what each does, its licence, its real size, and why it is or is not used.
   - Zdog 1.1.3 (MIT, 8 kB gzipped) draws a small rubber stamp beside the sentence on an empty library card, in the room's leather, brass and red-ink tokens. It turns once when it appears, and once again each time the card is opened or the pointer comes onto it, then rests; with reduced motion it is drawn still. It loads when the browser is idle, and without it the card is as it was.
