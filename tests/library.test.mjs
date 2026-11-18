@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import {
   BOOKSHOP_AFFILIATE, fold, surname, authorLine, matches, filterView, statusText, pickRandom, hashId, spineStyle, SPINE_PALETTE,
-  shelfRows, balancedRows, bookBox, flightStart, BOOK_ASPECT, parseHash, buildHash, stampCard, stampDate, worldcatUrl, bookshopUrl,
+  shelfRows, balancedRows, bookBox, flightStart, BOOK_ASPECT, parseHash, buildHash, stampCard, stampDate, inkSeed, stampTilt, worldcatUrl, bookshopUrl,
   openLibraryUrl, coverUrl, validate, NO_COVER, coverFor,
 } from '../js/librarymodel.js';
 
@@ -203,6 +203,15 @@ test('library card stamps newest first, without duplicates, at most five', () =>
   assert.deepEqual(card.map((c) => c.id), ['f', 'e', 'd', 'a', 'c']);
   assert.deepEqual(stampCard('junk', 'x', 5), [{ id: 'x', at: 5 }]);
   assert.equal(stampDate(Date.UTC(2026, 10, 16, 12), 'UTC'), '16 NOV');
+  // The hand-inked outline: the same stamp always gets the same seed and tilt; another book or day gets another.
+  const seed = inkSeed('skyjack', 1763300000000);
+  assert.equal(seed, inkSeed('skyjack', 1763300000000));
+  assert.notEqual(seed, inkSeed('skyjack', 1763300000001));
+  assert.notEqual(seed, inkSeed('dead-mountain', 1763300000000));
+  for (const s of [seed, inkSeed('', 0), inkSeed('a'), inkSeed('ünï', 9e15)]) assert.ok(Number.isInteger(s) && s >= 1 && s <= 2147483646, String(s));
+  for (let s = 1; s < 400; s++) { const t = stampTilt(s); assert.ok(t >= -7 && t <= 3.1 && Math.abs(t) >= 1, `${s}: ${t}`); }
+  assert.equal(stampTilt(seed), stampTilt(seed));
+  assert.equal(stampTilt('junk'), stampTilt(1));
 });
 
 test('links: WorldCat and Bookshop searches, no affiliate until one is set, Open Library only when confirmed', () => {

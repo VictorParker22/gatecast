@@ -8,6 +8,12 @@ Gatecast has no tagged releases yet. `package.json` has said `1.0.0` since the f
 
 ### Added
 
+- **Hand-inked stamps on the library card** (owner, 18 Nov 2026, with a list of free graphics tools: "be creative with them and maybe use it for the library section to enhance"). Of the eleven tools, Rough.js fits the room best: the design the owner drew has ink stamps the page lacked.
+  - Each date stamp on the library card now has a hand-inked outline instead of a straight border, turned a little differently for each book, and the same on every visit (the wobble and tilt come from the book and the time it was stamped). The "Worth knowing." label on a book's back cover gets a pencil line under it.
+  - Rough.js 4.6.6 (MIT) is vendored in `vendor/roughjs/`, loads only after the page is up and in its own 28 kB file, and draws in the ink colours the page already had. Without it the stamps keep their plain border. The drawings are decoration: hidden from screen readers, and the stamp's text and label are unchanged.
+  - `js/librarymodel.js` has the seed and tilt rules (`inkSeed`, `stampTilt`) with tests; the import-map test knows the new entry.
+  - Not used, and why: LYGIA's licence does not allow free commercial use; Theatre.js, tsParticles and Lottie would add far more code than what they would draw here; Hydra and WebGL Fluid have no place in the room; Remotion and Motion Canvas make videos, not pages.
+
 - **Who makes Gatecast** (owner, 18 Nov 2026: "the mother company is oryntlabs.co"). The site now names its maker, ORYNTLabs LLC, an independent product studio in New Jersey, USA, with details taken from the studio's own site.
   - `how.html` has a "Who makes Gatecast" section (in its list of contents) and, for the first time, an email address for corrections, security reports and newsrooms: `contact@oryntlabs.co`. GitHub stays as the public route.
   - Every hand-written page's footer says "Made by ORYNTLabs LLC", linked to that section. The structured data on the front page and the How page keeps Gatecast as the brand and names the company as its parent; `llms.txt` says who makes it.
