@@ -3,7 +3,7 @@
 // Gatecast's pages have changed, so they recrawl them sooner. Run it by hand after a deploy that changed pages:
 //   node scripts/indexnow.cjs                 every URL in the sitemap
 //   node scripts/indexnow.cjs --dry-run       print what would be sent, send nothing
-//   node scripts/indexnow.cjs https://www.thegatecast.com/how.html ...   only these URLs
+//   node scripts/indexnow.cjs https://www.thegatecast.com/how ...   only these URLs
 // The key is the 32-character file at the repo root (<key>.txt, holding the key itself), which the build copies to
 // https://www.thegatecast.com/<key>.txt. It is public by design: IndexNow checks that file to confirm the URLs are
 // ours. Before sending, the script checks that the deployed key file is there and matches (skip with --no-check).

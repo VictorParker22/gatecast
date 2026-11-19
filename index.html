@@ -6,7 +6,7 @@
   <meta name="color-scheme" content="light dark">
   <script>
     try { document.querySelector('meta[name="color-scheme"]').content = localStorage.getItem("color-scheme") ?? "light dark"; } catch (e) {}
-    if (new URLSearchParams(location.search).has('r')) location.replace('trip.html' + location.search);
+    if (new URLSearchParams(location.search).has('r')) location.replace('trip' + location.search);
     // Before any script runs: a returning visitor never sees the first-visit prompt flash before the forecast,
     // and a saved trip in the next few days starts the airport list early. Without storage it is a first visit.
     // The stylesheet also reads data-start to keep room for what the scripts fill in (styles/components/front.css).
@@ -181,9 +181,9 @@
         <nav class="site-nav" aria-label="Main">
         <ul>
           <li><a href="./" aria-current="page"><svg class="site-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h13v14H6a2 2 0 0 1-2-2zM17 9h3v8a2 2 0 0 1-2 2M7 9h7M7 12.5h7M7 16h4"/></svg><span>Front page</span></a></li>
-          <li><a href="library.html"><svg class="site-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V5h4v15M10 20V3h4v17M16 20l2.5-14 3.5.7L19.5 20M3 20h19"/></svg><span>Library</span></a></li>
-          <li><a href="trip.html"><svg class="site-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="1"/><path d="M9 7V4h6v3M3 12h18"/></svg><span>Trips</span></a></li>
-          <li><a href="flights.html"><svg class="site-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 13.5l19-7-4 13-5-4.5-3 3.5v-5l12-7"/></svg><span>Flights</span></a></li>
+          <li><a href="library"><svg class="site-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V5h4v15M10 20V3h4v17M16 20l2.5-14 3.5.7L19.5 20M3 20h19"/></svg><span>Library</span></a></li>
+          <li><a href="trip"><svg class="site-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="1"/><path d="M9 7V4h6v3M3 12h18"/></svg><span>Trips</span></a></li>
+          <li><a href="flights"><svg class="site-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 13.5l19-7-4 13-5-4.5-3 3.5v-5l12-7"/></svg><span>Flights</span></a></li>
         </ul>
       </nav>
         <nav class="sections" id="sections" aria-label="Sections" hidden></nav>
@@ -264,7 +264,7 @@
               <div class="brief__about-body">
                 <p>The brief is picked from four things only: the place you chose (kept on this device), the weather there (official National Weather Service alerts and the forecast at the airports near you), the US state that place is in, and a trip saved on this device, which only adds a note when an alert covers your departure. Each item says which of them put it there.</p>
                 <p>Headlines, statehouse votes and Both sides are listed newest first, as published or recorded. They are never ranked by clicks or popularity, and clicks on them are not counted.</p>
-                <p><a href="how.html">How Gatecast works</a></p>
+                <p><a href="how">How Gatecast works</a></p>
               </div>
             </details>
             <div class="brief__new" id="brief-new" role="status" hidden></div>
@@ -288,7 +288,7 @@
               <h3 class="flybox__h" id="fly-h">Flying? Check your trip</h3>
             </div>
             <div class="flex flex-col gap-2.5" id="fly-body"></div>
-            <form class="flex flex-wrap gap-2" id="fly-form" action="trip.html" method="get">
+            <form class="flex flex-wrap gap-2" id="fly-form" action="trip" method="get">
               <div class="flybox__field"><label for="fly-from">From</label><input id="fly-from" name="from" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="3" placeholder="JFK" pattern="[A-Za-z]{3}" required></div>
               <div class="flybox__field"><label for="fly-to">To</label><input id="fly-to" name="to" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="3" placeholder="LHR" pattern="[A-Za-z]{3}" required></div>
               <div class="flybox__field flybox__field--wide"><label for="fly-when">Leaving (local time at the airport)</label><input id="fly-when" name="t" type="datetime-local" required></div>
@@ -332,9 +332,9 @@
           <p class="libteaser__tag">New: The Stacks</p>
           <h2 class="libteaser__h" id="lib-h">A library for the curious</h2>
           <p class="libteaser__p">True crime, unsolved mysteries, weird history, strange science and the cons that fooled everyone, beside the fantasy and science fiction classics. Pull a book off the shelf and turn it over.</p>
-          <a class="bev bev--sun libteaser__go" href="library.html">Enter the library <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+          <a class="bev bev--sun libteaser__go" href="library">Enter the library <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
         </div>
-        <a class="shelf" href="library.html" aria-label="Browse the shelves in the library">
+        <a class="shelf" href="library" aria-label="Browse the shelves in the library">
           <span class="shelf__books" aria-hidden="true">
             <span class="spine spine--1">In Cold Blood</span>
             <span class="spine spine--2">Zodiac</span>
@@ -369,7 +369,7 @@
             <li>A story runs only if the strangeness is in the situation, not in someone’s misfortune.</li>
             <li>A weird rating on a card is our editor’s opinion, shown only when they gave one. The Weird-o-meter on the lead is yours.</li>
           </ul>
-          <a class="about__more" href="how.html">How Gatecast works</a>
+          <a class="about__more" href="how">How Gatecast works</a>
           <a class="about__more" href="/weekly/">Every pick, week by week</a>
         </section>
       </section>
@@ -379,17 +379,17 @@
   <footer class="site-footer">
     <nav class="badges" aria-label="About Gatecast">
       <a class="badge badge--cobalt" href="https://open-meteo.com/" rel="noopener">Forecasts by Open-Meteo</a>
-      <a class="badge badge--sun" href="how.html">Real sources only</a>
-      <a class="badge badge--night" href="how.html">How Gatecast works</a>
+      <a class="badge badge--sun" href="how">Real sources only</a>
+      <a class="badge badge--night" href="how">How Gatecast works</a>
       <a class="badge badge--lime" href="#guestbook">Sign the guestbook</a>
-      <a class="badge" href="library.html">The Stacks library</a>
+      <a class="badge" href="library">The Stacks library</a>
       <a class="badge" href="/weekly/">Picks of the week</a>
       <a class="badge" href="/feed.xml">RSS feed</a>
     </nav>
     <!-- The newsletter signup: filled by js/newsletter.js only when data/site.json names a Buttondown username. -->
     <div id="newsletter" class="mb-6" hidden></div>
     <div class="site-footer__lines">
-      <p>Headlines and preview images belong to their publishers; we link to every original and copy none of their reporting. Gatecast is a planning aid, not an official source: check your airline for the status of your flight. <a href="/weekly/">Weird news, week by week</a>. <a href="/stacks/">The Stacks, as a list</a>. <a href="how.html">How Gatecast works</a>. Made by <a href="how.html#who">ORYNTLabs LLC</a>.</p>
+      <p>Headlines and preview images belong to their publishers; we link to every original and copy none of their reporting. Gatecast is a planning aid, not an official source: check your airline for the status of your flight. <a href="/weekly/">Weird news, week by week</a>. <a href="/stacks/">The Stacks, as a list</a>. <a href="how">How Gatecast works</a>. Made by <a href="how#who">ORYNTLabs LLC</a>.</p>
       <p>Forecasts: <a href="https://open-meteo.com/" rel="noopener">Open-Meteo</a> (CC BY 4.0). Sky: Gatecast’s WebGL engine. Radar: <a href="https://www.rainviewer.com/" rel="noopener">RainViewer</a>. Map: © <a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a> contributors. Observations: NOAA. US status: FAA. Alerts: National Weather Service.</p>
     </div>
   </footer>

@@ -353,7 +353,7 @@ function renderSky() {
 
 const ARROW = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
 const LINK = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>';
-const tripUrl = (t) => `trip.html${tripQuery(t)}`;
+const tripUrl = (t) => `trip${tripQuery(t)}`;
 
 // When the trip leaves, in the first airport's own time: "Today 09:15 GMT", "Tomorrow 07:40 CET", "Thu 19 Nov 06:00 EST".
 function tripWhen(plan) {
@@ -493,7 +493,7 @@ $('#fly-form').addEventListener('submit', (e) => {
   err.hidden = !bad;
   err.textContent = bad ? bad[1] : '';
   if (bad) { $(bad[0]).setAttribute('aria-invalid', 'true'); $(bad[0]).focus(); return; }
-  location.href = `trip.html${tripQuery({ r: [from, to], t: when, l: [], d: [] })}`;
+  location.href = `trip${tripQuery({ r: [from, to], t: when, l: [], d: [] })}`;
 });
 
 /* ---------- Today in <place> ---------- */
@@ -563,7 +563,7 @@ function nearList() {
     const lvl = risk.level === 'low' ? 'calm' : risk.level;
     const word = risk.level === 'unknown' ? 'No forecast' : risk.level === 'low' ? 'Calm' : LEVEL_LABEL[risk.level];
     const plans = state.faa.filter((x) => x.airport === a.code || x.airport === a.icao).map((x) => faaPlanLine(x, (ms) => fmt().clock(ms))).filter(Boolean);
-    return `<li><a href="flights.html?airport=${a.code}"><span class="code">${a.code}</span><span class="near__name">${esc(shortName(a))}<small>${far(km)}</small></span></a>
+    return `<li><a href="flights?airport=${a.code}"><span class="code">${a.code}</span><span class="near__name">${esc(shortName(a))}<small>${far(km)}</small></span></a>
       <span class="near__lvl near__lvl--${lvl}">${riskIcon(risk.level === 'low' ? 'low' : risk.level)}${word}</span>
       ${plans.map((l) => `<p class="near__plan">${esc(l)}</p>`).join('')}</li>`;
   }).join('')}</ul>`;
@@ -677,7 +677,7 @@ function signalItem(s) {
     <p class="wxnews__head">${riskIcon(s.level)}<span>${esc(s.title)}</span><span class="sr-only"> (${LEVEL_LABEL[s.level].toLowerCase()} risk)</span></p>
     <p class="wxnews__line">${esc(s.line)}</p>
     ${s.because ? `<p class="because">${esc(s.because)}</p>` : ''}
-    <p class="wxnews__foot"><span>Gatecast forecast check</span><a href="flights.html?airport=${s.code}">Flights at ${s.code}</a></p>
+    <p class="wxnews__foot"><span>Gatecast forecast check</span><a href="flights?airport=${s.code}">Flights at ${s.code}</a></p>
   </li>`;
 }
 // Headlines as a news module: a lead story, compact rows beside it, cards under both (arrangeHeadlines).

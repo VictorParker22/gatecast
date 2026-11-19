@@ -6,6 +6,15 @@ Gatecast has no tagged releases yet. `package.json` has said `1.0.0` since the f
 
 ## [Unreleased]
 
+### Changed
+
+- **Page addresses without ".html"** (owner, 19 Nov 2026: "the urls are showing .html in the bar that is crazy"). The library is now `/library`, and likewise `/trip`, `/flights` and `/how`; the front page is `/`.
+  - The pages are the same files. `vercel.json` serves each at its clean address and redirects the old one for good (308), keeping any `?…` and `#…`, so shared links, bookmarks and search results keep working. `server.js` does the same locally, from one list (`CLEAN_PAGES` in `lib/site.js`).
+  - Every link, form, canonical address, `og:url`, structured-data address, sitemap entry and `llms.txt` link uses the clean address: the hand-written pages, the 404 page, the `/stacks/` and `/weekly/` pages, and the links the front page and the flights page build in script.
+  - Not a site-wide switch (`cleanUrls` stays off): Google's ownership file must keep answering at its `.html` address, and `review.html` keeps its name because the editor's sign-in link points at it.
+  - Still a static site, with no framework: this changes addresses only.
+  - `tests/seo.test.mjs` checks the redirects and rewrites against the list, and that nothing the site writes points at an old address.
+
 ### Added
 
 - **A launch video for The Stacks** (owner, 18 Nov 2026: "build the launch video with motion canvas").

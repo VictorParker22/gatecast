@@ -18,6 +18,7 @@ const TYPES = {
 // The pages and root files (the same list the build copies, scripts/build-data.cjs STATIC_FILES, plus the IndexNow key
 // file) and the folders served from the repo.
 const site = require('./scripts/build-data.cjs');
+const { CLEAN_PAGES } = require('./lib/site.js');
 const KEY_FILE = site.indexNowKeyFile();
 const PUBLIC = [...site.STATIC_FILES, ...(KEY_FILE ? [KEY_FILE] : []), 'styles', 'js', 'data', 'vendor', 'assets'];
 // File names carry no content hash, so pages, scripts and styles are always revalidated (a cheap 304):
@@ -120,8 +121,12 @@ const server = http.createServer(async (req, res) => {
   // Anything that is not a file of the site gets the 404 page, as on Vercel (public/404.html).
   const notFound = () => fs.readFile(path.join(ROOT, '404.html'), (e, page) => (e ? send(404, 'Not found', 'text/plain')
     : send(404, req.method === 'HEAD' ? undefined : page, TYPES['.html'], { 'Cache-Control': 'public, max-age=0, must-revalidate' })));
+  // Clean addresses, as in vercel.json: /library is library.html, and the old ".html" address redirects for good.
+  const old = /^\/(index|[a-z]+)\.html$/.exec(url.pathname);
+  if (old && (old[1] === 'index' || CLEAN_PAGES.includes(old[1]))) return send(308, '', 'text/plain', { Location: (old[1] === 'index' ? '/' : '/' + old[1]) + url.search });
   let rel;
   try { rel = path.normalize(decodeURIComponent(url.pathname)).replace(/^[/\\]+/, '') || 'index.html'; } catch { return notFound(); }
+  if (CLEAN_PAGES.includes(rel)) rel += '.html';
   const file = path.join(ROOT, rel);
   const top = rel.split(path.sep)[0];
   if (!file.startsWith(ROOT + path.sep) || !PUBLIC.includes(top)) return notFound();

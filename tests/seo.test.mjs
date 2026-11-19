@@ -18,6 +18,8 @@ const N = require('../scripts/indexnow.cjs');
 const S = require('../scripts/build-stacks-pages.cjs');
 
 const PUBLIC = ['index.html', 'library.html', 'trip.html', 'flights.html', 'how.html'];
+// A page's address has no ".html": library.html is /library, and the front page is /.
+const slug = (f) => (f === 'index.html' ? '' : f.replace(/\.html$/, ''));
 const head = (html) => html.slice(0, html.indexOf('</head>'));
 const meta = (html, attr, key) => { const m = new RegExp(`<meta ${attr}="${key}" content="([^"]*)">`).exec(html); return m ? m[1] : null; };
 const ldOf = (html) => [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1]));
@@ -88,11 +90,11 @@ test('JSON-LD: it parses; the home page names the logo and en-GB; the other page
   for (const [f, name] of [['library.html', 'The Stacks'], ['trip.html', 'Trips'], ['flights.html', 'Flights'], ['how.html', 'How Gatecast works']]) {
     const crumbs = nodes(read(f)).find((n) => n['@type'] === 'BreadcrumbList');
     assert.ok(crumbs, `${f}: BreadcrumbList`);
-    assert.deepEqual(crumbs.itemListElement.map((i) => [i.position, i.name, i.item]), [[1, 'Gatecast', B.SITE], [2, name, B.SITE + f]], f);
+    assert.deepEqual(crumbs.itemListElement.map((i) => [i.position, i.name, i.item]), [[1, 'Gatecast', B.SITE], [2, name, B.SITE + slug(f)]], f);
   }
   const how = nodes(read('how.html'));
   const about = how.find((n) => n['@type'] === 'AboutPage');
-  assert.equal(about.url, B.SITE + 'how.html');
+  assert.equal(about.url, B.SITE + 'how');
   assert.equal(about.inLanguage, 'en-GB');
   assert.equal(about.isPartOf['@id'], site['@id']);
   assert.equal(about.breadcrumb['@id'], how.find((n) => n['@type'] === 'BreadcrumbList')['@id']);
@@ -118,7 +120,7 @@ test('404.html: the site header and nav, links home, to The Stacks, Trips and Fl
   assert.ok(B.STATIC_FILES.includes('404.html'), 'copied to public/404.html, which Vercel serves with a 404 status');
   assert.ok(html.includes('class="site-header"') && html.includes('aria-label="Main"'));
   assert.equal((html.match(/<h1[\s>]/g) || []).length, 1);
-  for (const href of ['/', '/library.html', '/trip.html', '/flights.html']) assert.ok(html.includes(`href="${href}"`), href);
+  for (const href of ['/', '/library', '/trip', '/flights']) assert.ok(html.includes(`href="${href}"`), href);
   const rel = [...html.matchAll(/(?:href|src)="([^"]+)"/g)].map((x) => x[1]).filter((u) => !u.startsWith('/') && !u.startsWith('#'));
   assert.deepEqual(rel, [], 'no relative links: the page is served at any depth');
   assert.ok(read('styles/main.css').includes('@source "../404.html";'), 'Tailwind scans it');
@@ -128,17 +130,17 @@ test('sitemap lastmod: the newest commit among a page\'s sources; the build day 
   assert.equal(B.pageLastmod(['a', 'b'], (f) => ({ a: '2026-11-10', b: '2026-11-14' })[f], '2099-01-01'), '2026-11-14');
   assert.equal(B.pageLastmod(['a', 'b'], (f) => (f === 'a' ? '2026-11-10' : null), '2099-01-01'), '2026-11-10', 'an unknown source is older than the window');
   assert.equal(B.pageLastmod(['a'], () => null, '2099-01-01'), '2099-01-01');
-  assert.deepEqual(B.PAGE_SOURCES['library.html'], ['library.html', 'data/books.json']);
-  assert.deepEqual(B.SITEMAP_PAGES, ['', 'library.html', 'trip.html', 'flights.html', 'how.html', 'weekly/']);
+  assert.deepEqual(B.PAGE_SOURCES.library, ['library.html', 'data/books.json']);
+  assert.deepEqual(B.SITEMAP_PAGES, ['', 'library', 'trip', 'flights', 'how', 'weekly/']);
   assert.deepEqual(B.PAGE_SOURCES['weekly/'], ['lib/weekly.js']);
   const dates = { 'index.html': '2026-11-01', 'library.html': '2026-11-02', 'data/books.json': '2026-11-09', 'trip.html': '2026-11-03', 'how.html': '2026-11-05', 'lib/weekly.js': '2026-11-17' };
   const e = B.sitemapEntries({ day: '2099-01-01', dateOf: (f) => dates[f] || null });
   const at = (p) => e.find((x) => x.loc === B.SITE + p).lastmod;
   assert.equal(at(''), '2026-11-01');
-  assert.equal(at('library.html'), '2026-11-09', 'the library moves with its books');
-  assert.equal(at('trip.html'), '2026-11-03');
-  assert.equal(at('flights.html'), '2099-01-01', 'unknown: the build day');
-  assert.equal(at('how.html'), '2026-11-05');
+  assert.equal(at('library'), '2026-11-09', 'the library moves with its books');
+  assert.equal(at('trip'), '2026-11-03');
+  assert.equal(at('flights'), '2099-01-01', 'unknown: the build day');
+  assert.equal(at('how'), '2026-11-05');
   assert.equal(at('weekly/'), '2026-11-17');
 });
 
@@ -215,9 +217,9 @@ test('indexnow.cjs: the payload, the key-file check and the answers, against a m
   const site = 'https://www.thegatecast.com/', key = 'f'.repeat(32);
   assert.deepEqual(N.urlsFromSitemap('<urlset><url><loc>https://a.example/x</loc></url><url><loc> https://a.example/y </loc></url></urlset>'), ['https://a.example/x', 'https://a.example/y']);
   const urls = N.sitemapUrls();
-  assert.ok(urls.includes(site) && urls.includes(site + 'how.html') && urls.some((u) => u.includes('/stacks/')));
-  const [p] = N.payloads([site, site + 'how.html', site], { site, key });
-  assert.deepEqual(p, { host: 'www.thegatecast.com', key, keyLocation: `https://www.thegatecast.com/${key}.txt`, urlList: [site, site + 'how.html'] });
+  assert.ok(urls.includes(site) && urls.includes(site + 'how') && urls.some((u) => u.includes('/stacks/')));
+  const [p] = N.payloads([site, site + 'how', site], { site, key });
+  assert.deepEqual(p, { host: 'www.thegatecast.com', key, keyLocation: `https://www.thegatecast.com/${key}.txt`, urlList: [site, site + 'how'] });
   assert.throws(() => N.payloads(['https://evil.example/'], { site, key }), /not on https:\/\/www\.thegatecast\.com/);
   for (const other of ['http://www.thegatecast.com/', 'https://thegatecast.com/', 'https://gatecast.vercel.app/']) assert.throws(() => N.payloads([other], { site, key }), /not on/, other);
   assert.throws(() => N.payloads([], { site, key }), /no URLs/);
@@ -231,13 +233,13 @@ test('indexnow.cjs: the payload, the key-file check and the answers, against a m
     return { ok: status < 300, status, text: async () => '' };
   };
   const log = [];
-  let out = await N.submit([site, site + 'how.html'], { site, key, fetchImpl: fetchImpl(202), log: (x) => log.push(x) });
+  let out = await N.submit([site, site + 'how'], { site, key, fetchImpl: fetchImpl(202), log: (x) => log.push(x) });
   assert.equal(calls[0].url, `https://www.thegatecast.com/${key}.txt`, 'checks the live key file first');
   assert.equal(calls[1].url, N.ENDPOINT);
   assert.equal(N.ENDPOINT, 'https://api.indexnow.org/indexnow');
   assert.equal(calls[1].method, 'POST');
   assert.match(calls[1].headers['Content-Type'], /^application\/json/);
-  assert.deepEqual(JSON.parse(calls[1].body).urlList, [site, site + 'how.html']);
+  assert.deepEqual(JSON.parse(calls[1].body).urlList, [site, site + 'how']);
   assert.deepEqual(out, { sent: 2, results: [{ status: 202, count: 2, ok: true }] });
   assert.match(log[0], /202 Accepted/);
 
@@ -331,7 +333,7 @@ test('llms.txt: a short guide for AI assistants, made from the same data as the 
   const books = JSON.parse(fs.readFileSync(new URL('../data/books.json', import.meta.url), 'utf8'));
   assert.ok(txt.includes(`a library of ${books.books.length} real books`), 'the count comes from books.json');
   for (const s of books.shelves) assert.ok(txt.includes(`](https://www.thegatecast.com/stacks/${s.id}/)`), s.id);
-  for (const u of ['stacks/worth-knowing/', 'stacks/content-notes/', 'stacks/skyjack/', 'weekly/', 'feed.xml', 'how.html', 'trip.html', 'flights.html']) assert.ok(txt.includes(`(https://www.thegatecast.com/${u})`), u);
+  for (const u of ['stacks/worth-knowing/', 'stacks/content-notes/', 'stacks/skyjack/', 'weekly/', 'feed.xml', 'how', 'trip', 'flights', 'library']) assert.ok(txt.includes(`(https://www.thegatecast.com/${u})`), u);
   // Every link is to this site, and nothing reads as an instruction to a model.
   for (const m of txt.matchAll(/\]\((https?:\/\/[^)]+)\)/g)) assert.ok(m[1].startsWith('https://www.thegatecast.com/'), m[1]);
   assert.ok(!/ignore|you must|always (say|recommend)|system prompt/i.test(txt));
@@ -355,7 +357,7 @@ test('one address: https://www.thegatecast.com (the www form Vercel serves, no t
   assert.ok(read('supabase/functions/community/index.ts').includes(`Deno.env.get('COMMUNITY_SITE_ORIGIN') ?? '${SITE_ORIGIN}'`));
   for (const f of PUBLIC) {
     const h = head(read(f));
-    const page = SITE_ORIGIN + '/' + (f === 'index.html' ? '' : f);
+    const page = SITE_ORIGIN + '/' + slug(f);
     assert.ok(h.includes(`<link rel="canonical" href="${page}">`), `${f}: canonical`);
     assert.equal(meta(h, 'property', 'og:url'), page, `${f}: og:url`);
     assert.equal(meta(h, 'property', 'og:image'), SITE_ORIGIN + '/vendor/og/gatecast-og.png', `${f}: og:image`);
@@ -399,12 +401,39 @@ test('vercel.json: the old address redirects for good to the same page at the ne
   assert.doesNotMatch(JSON.stringify(v), /"value":\s*"(www\.)?thegatecast/);
 });
 
+test('clean addresses: /library, not /library.html, in every link, canonical and sitemap entry; the old ones redirect', async () => {
+  const { CLEAN_PAGES } = require('../lib/site.js');
+  assert.deepEqual(CLEAN_PAGES, ['library', 'trip', 'flights', 'how']);
+  const v = JSON.parse(read('vercel.json'));
+  // Each page: its file served at the clean address, and the old address sent there for good. The front page is "/".
+  const redirects = v.redirects.filter((r) => r.source.endsWith('.html') && !r.has).map((r) => [r.source, r.destination, r.permanent]);
+  assert.deepEqual(redirects, [['/index.html', '/', true], ...CLEAN_PAGES.map((p) => [`/${p}.html`, `/${p}`, true])]);
+  const rewrites = v.rewrites.filter((r) => r.destination.endsWith('.html')).map((r) => [r.source, r.destination]);
+  assert.deepEqual(rewrites, CLEAN_PAGES.map((p) => [`/${p}`, `/${p}.html`]));
+  for (const p of CLEAN_PAGES) assert.ok(read(`${p}.html`).length > 1000, `${p}.html is still the file`);
+  // Not a site-wide switch: Google's ownership file and the editor's sign-in page keep their ".html".
+  assert.equal(v.cleanUrls, undefined);
+  assert.ok(!v.redirects.some((r) => /review|google/.test(r.source) && !r.has));
+  // Nothing the site writes points at an old address: the hand-written pages, the scripts that build links, the
+  // generated pages, the sitemap and llms.txt.
+  const OLD = /(?:href|action)="[^"]*\b(?:index|library|trip|flights|how)\.html|thegatecast\.com\/(?:index|library|trip|flights|how)\.html|[`'"]\/?(?:library|trip|flights|how)\.html[?#$`'"]/;
+  for (const f of [...PUBLIC, '404.html', 'js/weather.js', 'js/flights.js', 'lib/weekly.js']) {
+    const text = read(f).split('\n').filter((l) => !/^\s*(\/\/|\*|<!--)/.test(l)).join('\n');
+    assert.doesNotMatch(text, OLD, f);
+  }
+  for (const page of S.renderStacks(S.stocked(JSON.parse(read('data/books.json'))), await S.loadModel())) assert.doesNotMatch(page.html, OLD, page.path);
+  assert.doesNotMatch(B.sitemapXml({ day: '2099-01-01', dateOf: () => null }), /\.html/);
+  assert.doesNotMatch(B.llmsTxt(), /thegatecast\.com\/[a-z]+\.html/);
+  // Locally the same: server.js reads the list.
+  assert.match(read('server.js'), /CLEAN_PAGES\.includes\(rel\)\) rel \+= '\.html'/);
+});
+
 test('the maker is named the same way everywhere: ORYNTLabs LLC, with one contact address', () => {
   const MAKER = 'ORYNTLabs LLC', EMAIL = 'contact@oryntlabs.co';
   // Every hand-written page's footer names the maker and links to the How page's section about it.
   for (const f of ['index.html', 'how.html', 'trip.html', 'flights.html', 'library.html']) {
     const h = read(f), foot = h.slice(h.indexOf('<footer'), h.indexOf('</footer>'));
-    assert.ok(foot.includes(`Made by <a href="how.html#who">${MAKER}</a>.`), `${f}: footer`);
+    assert.ok(foot.includes(`Made by <a href="how#who">${MAKER}</a>.`), `${f}: footer`);
     assert.equal(foot.split(MAKER).length - 1, 1, `${f}: named once in the footer`);
   }
   // The How page has that section, in its list of contents, with the address written out as a mailto link.

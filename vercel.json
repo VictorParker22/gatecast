@@ -11,12 +11,22 @@
       "permanent": true
     },
 
+    { "source": "/index.html", "destination": "/", "permanent": true },
+    { "source": "/library.html", "destination": "/library", "permanent": true },
+    { "source": "/trip.html", "destination": "/trip", "permanent": true },
+    { "source": "/flights.html", "destination": "/flights", "permanent": true },
+    { "source": "/how.html", "destination": "/how", "permanent": true },
+
     { "source": "/stacks", "destination": "/stacks/", "permanent": true },
     { "source": "/stacks/:id([a-z0-9-]+)", "destination": "/stacks/:id/", "permanent": true },
     { "source": "/weekly", "destination": "/weekly/", "permanent": true },
     { "source": "/weekly/:week(\\d{4}-W\\d{2})", "destination": "/weekly/:week/", "permanent": true }
   ],
   "rewrites": [
+    { "source": "/library", "destination": "/library.html" },
+    { "source": "/trip", "destination": "/trip.html" },
+    { "source": "/flights", "destination": "/flights.html" },
+    { "source": "/how", "destination": "/how.html" },
     { "source": "/weekly/", "destination": "/api/weird?view=weekly" },
     { "source": "/weekly/:week(\\d{4}-W\\d{2})/", "destination": "/api/weird?view=weekly&week=:week" },
     { "source": "/feed.xml", "destination": "/api/weird?view=feed" },
