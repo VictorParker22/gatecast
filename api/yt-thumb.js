@@ -8,8 +8,9 @@ module.exports = async (req, res) => {
     return res.status(405).send('Method not allowed');
   }
   const id = new URL(req.url, 'http://localhost').searchParams.get('id');
-  const out = await youtube.thumbFor(id);
+  const out = !require('../lib/videos.js').stillRequestAllowed(req.headers) ? require('../lib/videos.js').stillRefused() : await youtube.thumbFor(id);
   for (const [k, v] of Object.entries(out.headers)) res.setHeader(k, v);
+  res.setHeader('Vary', require('../lib/videos.js').STILL_VARY); // the shared cache keeps a refusal and a picture apart
   res.status(out.status);
   return req.method === 'HEAD' ? res.end() : res.end(out.body);
 };

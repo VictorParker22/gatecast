@@ -25,7 +25,7 @@
 // (tests/community.test.mjs).
 
 import {
-  BODY_MAX, bookHash, clickHash, clientKey, corsHeaders, dayBucket, limitReply, parseIds, route, ROUTE_METHOD, saltReady, shapeRatings,
+  BODY_MAX, bookHash, clickHash, clientAddress, clientKey, corsHeaders, dayBucket, limitReply, parseIds, route, ROUTE_METHOD, saltReady, shapeRatings,
   storyId, tipHash, validateClick, validateTip, validateVote, voterHash, writeAllowed, publicRating, shapeFavourites,
   validateBook, shelfInfo, BOOK_DUPLICATE,
 } from './logic.mjs';
@@ -130,7 +130,7 @@ Deno.serve(async (req: Request) => {
   const gate = writeAllowed(origin, req.headers.get('content-type'), EXTRA_ORIGINS);
   if (!gate.ok) return reply({ error: gate.error }, gate.status);
 
-  const who = clientKey(req.headers.get('x-forwarded-for'));
+  const who = clientKey(clientAddress((name: string) => req.headers.get(name)));
   if (!who) return reply({ error: 'no_client_address', message: 'Your connection could not be identified, so this was not saved.' }, 400);
 
   const parsed = await readJson(req);

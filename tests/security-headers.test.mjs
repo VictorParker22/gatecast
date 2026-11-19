@@ -133,3 +133,49 @@ test('the owner\'s tools on public functions need the owner\'s key on the live s
   assert.match(read('api/book-covers.js'), /only !== null && require\('\.\.\/lib\/site\.js'\)\.ownerTool\(/);
   assert.match(read('api/weird.js'), /weird\.parseQuery\(q\)\.debug \? weird\.DEBUG_CACHE_CONTROL/);
 });
+
+test('a video still is served to Gatecast\'s own pages, not to a direct link or another site', async () => {
+  const V = require('../lib/videos.js');
+  assert.equal(V.STILL_VARY, 'Sec-Fetch-Site');
+  for (const ok of [{}, { 'sec-fetch-site': 'same-origin' }, { 'sec-fetch-site': '' }, undefined, null]) assert.equal(V.stillRequestAllowed(ok), true, JSON.stringify(ok));
+  for (const no of ['none', 'cross-site', 'same-site', 'anything']) assert.equal(V.stillRequestAllowed({ 'sec-fetch-site': no }), false, no);
+  assert.equal(V.stillRequestAllowed(new Headers({ 'Sec-Fetch-Site': 'cross-site' })), false);
+  assert.equal(V.stillRequestAllowed(new Headers({ 'Sec-Fetch-Site': 'same-origin' })), true);
+  const refused = V.stillRefused();
+  assert.equal(refused.status, 403);
+  assert.equal(refused.headers['Cache-Control'], 'no-store');
+  assert.equal(refused.headers.Vary, 'Sec-Fetch-Site');
+  // Both functions refuse before fetching anything, and every answer varies by the header (the shared cache keeps a
+  // refusal and a picture apart).
+  for (const f of ['../api/media-thumb.js', '../api/yt-thumb.js']) {
+    const handler = require(f);
+    const sent = {}; let status = 0, body = null;
+    const res = { setHeader: (k, v) => { sent[k] = v; }, status: (s) => { status = s; return res; }, end: (b) => { body = b; }, send: (b) => { body = b; } };
+    await handler({ method: 'GET', url: '/api/x?p=youtube&id=dQw4w9WgXcQ', headers: { 'sec-fetch-site': 'none' } }, res);
+    assert.equal(status, 403, f);
+    assert.equal(sent.Vary, 'Sec-Fetch-Site', f);
+    assert.equal(sent['Cache-Control'], 'no-store', f);
+    assert.match(String(body), /own pages only/);
+    assert.match(read(f.slice(3)), /res\.setHeader\('Vary', [\w(')./]+\.STILL_VARY\)/, f);
+  }
+  const s = read('server.js');
+  assert.equal((s.match(/stillRequestAllowed\(req\.headers\)/g) || []).length, 2, 'the local server does the same for both');
+});
+
+test('the collector can be started only by the hourly job: a Vault token, checked and claimed in one step', () => {
+  const sql = read('supabase/migrations/20261119140000_collect_scheduler_only.sql');
+  assert.match(sql, /vault\.create_secret\(/);
+  assert.doesNotMatch(sql, /[0-9a-f]{32,}/i, 'no token value in the repository');
+  assert.match(sql, /create or replace function public\.collect_claim\(p_token text\)[\s\S]*security definer[\s\S]*set search_path = ''/);
+  assert.match(sql, /pg_advisory_xact_lock\(/, 'requests that arrive together queue');
+  assert.match(sql, /revoke all on function public\.collect_claim\(text\) from public, anon, authenticated;/);
+  assert.match(sql, /grant execute on function public\.collect_claim\(text\) to service_role;/);
+  assert.match(sql, /'X-Collect-Token', \(select decrypted_secret from vault\.decrypted_secrets where name = 'collect_run_token'\)/);
+  const fn = read('supabase/functions/collect/index.ts');
+  const serve = fn.slice(fn.indexOf('Deno.serve('));
+  assert.ok(serve.indexOf("req.headers.get('x-collect-token')") < serve.indexOf('OS_KEY'), 'the token is checked before anything else');
+  assert.match(serve, /if \(!token \|\| token\.length > 200\) return json\(\{ ran: false, reason: 'not allowed' \}, 403\);/);
+  assert.match(serve, /db\('rpc\/collect_claim', \{ method: 'POST', body: JSON\.stringify\(\{ p_token: token \}\) \}\)/);
+  assert.doesNotMatch(fn, /collector_runs\?select=started_at/, 'no read-then-insert guard left');
+  assert.doesNotMatch(serve, /db\('collector_runs', \{ method: 'POST'/, 'the run row is made by the claim');
+});

@@ -96,14 +96,14 @@ const server = http.createServer(async (req, res) => {
   }
   // A YouTube video's still image, fetched by the server so the visitor's browser contacts only Gatecast (api/yt-thumb.js).
   if (url.pathname === '/api/yt-thumb') {
-    const out = await youtube.thumbFor(url.searchParams.get('id'));
-    res.writeHead(out.status, { ...SECURITY_HEADERS, ...out.headers });
+    const out = !videos.stillRequestAllowed(req.headers) ? videos.stillRefused() : await youtube.thumbFor(url.searchParams.get('id'));
+    res.writeHead(out.status, { ...SECURITY_HEADERS, ...out.headers, Vary: videos.STILL_VARY });
     return res.end(req.method === 'HEAD' ? undefined : out.body);
   }
   // Any provider's video still (YouTube, Vimeo, TikTok), the same way (api/media-thumb.js, lib/videos.js).
   if (url.pathname === '/api/media-thumb') {
-    const out = await videos.mediaThumb(url.searchParams.get('p'), url.searchParams.get('id'));
-    res.writeHead(out.status, { ...SECURITY_HEADERS, ...out.headers });
+    const out = !videos.stillRequestAllowed(req.headers) ? videos.stillRefused() : await videos.mediaThumb(url.searchParams.get('p'), url.searchParams.get('id'));
+    res.writeHead(out.status, { ...SECURITY_HEADERS, ...out.headers, Vary: videos.STILL_VARY });
     return res.end(req.method === 'HEAD' ? undefined : out.body);
   }
   // The sitemap is written by the build step; locally it is made on request, dated today, from the same code.
