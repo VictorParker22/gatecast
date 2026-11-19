@@ -223,7 +223,7 @@ test('no JavaScript is needed and nothing is embedded: plain HTML with site.css 
 test('book pages link the shelf, the 3D library, the same outbound links as the library, and 4–6 siblings', () => {
   for (const b of data.books) {
     const h = byId.get(b.id).html;
-    assert.ok(h.includes(`href="/library.html#book=${b.id}">Open it in The Stacks</a>`), b.id);
+    assert.ok(h.includes(`href="/library#book=${b.id}">Open it in The Stacks</a>`), b.id);
     assert.ok(h.includes(`href="/stacks/${b.shelf}/"`), `${b.id}: shelf linked`);
     assert.ok(h.includes(`href="${m.worldcatUrl(b).replace(/&/g, '&amp;')}"`), `${b.id}: WorldCat`);
     assert.ok(h.includes(`href="${m.bookshopUrl(b, null).replace(/&/g, '&amp;')}"`), `${b.id}: Bookshop.org, plain`);
@@ -245,10 +245,10 @@ test('book pages link the shelf, the 3D library, the same outbound links as the 
   }
   for (const s of data.shelves) {
     const h = byId.get(s.id).html;
-    assert.ok(h.includes(`href="/library.html#shelf=${s.id}"`));
+    assert.ok(h.includes(`href="/library#shelf=${s.id}"`));
     assert.ok(h.includes(S.shelfIntro(data.books.filter((b) => b.shelf === s.id))));
   }
-  assert.ok(byId.get(null).html.includes('href="/library.html"'));
+  assert.ok(byId.get(null).html.includes('href="/library"'));
 });
 
 test('an approved preview is a link out: YouTube or C-SPAN watch page, Internet Archive details, no embed', () => {
@@ -272,8 +272,8 @@ test('sitemap: the pages, /stacks/, the stocked shelves and the books with a tak
   assert.equal(urls.length, B.SITEMAP_PAGES.length + 1 + NS + NG + listed, 'pages, /stacks/, shelves and only the books with a take');
   assert.equal(new Set(urls.map((u) => u.loc)).size, urls.length, 'no duplicates');
   const at = (loc) => urls.find((u) => u.loc === 'https://www.thegatecast.com/' + loc);
-  assert.equal(at('how.html').lastmod, '2026-11-10', 'a page: its last commit');
-  assert.equal(at('trip.html').lastmod, '2099-01-01', 'no git date: the build day');
+  assert.equal(at('how').lastmod, '2026-11-10', 'a page: its last commit');
+  assert.equal(at('trip').lastmod, '2099-01-01', 'no git date: the build day');
   assert.ok(!xml.includes('review.html'));
   for (const u of urls.filter((x) => x.loc.includes('/stacks/'))) {
     assert.match(u.loc, /^https:\/\/www\.thegatecast\.com\/stacks\/([a-z0-9-]+\/)?$/);
@@ -324,8 +324,9 @@ test('vercel.json: only /stacks/ (and /weekly/) URLs get a trailing-slash redire
   assert.equal(v.trailingSlash, undefined);
   assert.equal(v.cleanUrls, undefined);
   // The /weekly/ redirects are the weekly archive's own (tests/weekly.test.mjs); the one with a host condition sends
-  // the old address to the new one (tests/seo.test.mjs).
-  const r = v.redirects.filter((x) => !x.source.startsWith('/weekly') && !x.has);
+  // the old address to the new one, and the ".html" ones send a page's old address to its clean one (both in
+  // tests/seo.test.mjs). cleanUrls stays off: it would also redirect Google's ownership file, which must answer 200.
+  const r = v.redirects.filter((x) => !x.source.startsWith('/weekly') && !x.has && !x.source.endsWith('.html'));
   assert.deepEqual(r.map((x) => [x.source, x.destination, x.permanent]), [['/stacks', '/stacks/', true], ['/stacks/:id([a-z0-9-]+)', '/stacks/:id/', true]]);
   // Vercel matches sources strictly (a trailing slash is not optional): the same pattern as a regular expression.
   const re = /^\/stacks\/([a-z0-9-]+)$/;

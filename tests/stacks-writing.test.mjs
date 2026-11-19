@@ -195,11 +195,11 @@ test('how.html has a "How the books are chosen" section, listed on the page, tha
 test('the library footer and every /stacks/ page link to How the books are chosen', () => {
   const lib = read('library.html');
   const foot = lib.match(/<footer class="lib-footer">([\s\S]*?)<\/footer>/)[1];
-  assert.equal((foot.match(/href="how\.html#books"/g) || []).length, 1);
-  assert.ok(foot.includes('<a href="how.html#books">How the books are chosen</a>'));
+  assert.equal((foot.match(/href="how#books"/g) || []).length, 1);
+  assert.ok(foot.includes('<a href="how#books">How the books are chosen</a>'));
   for (const [id, h] of pages) {
     const f = h.match(/<footer class="site-footer">([\s\S]*?)<\/footer>/)[1];
-    assert.ok(f.includes('<a href="/how.html#books">How the books are chosen</a>'), `${id ?? 'index'}: footer link`);
+    assert.ok(f.includes('<a href="/how#books">How the books are chosen</a>'), `${id ?? 'index'}: footer link`);
   }
   assert.ok(S.UI_TEXT.includes('How the books are chosen'));
 });

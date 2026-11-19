@@ -24,10 +24,10 @@ const SITE = stacks.SITE_ORIGIN + '/'; // one constant for the whole site (canon
 // and a thin week is noindex), the index links every one.
 const PAGE_SOURCES = {
   '': ['index.html'],
-  'library.html': ['library.html', 'data/books.json'],
-  'trip.html': ['trip.html'],
-  'flights.html': ['flights.html'],
-  'how.html': ['how.html'],
+  'library': ['library.html', 'data/books.json'],
+  'trip': ['trip.html'],
+  'flights': ['flights.html'],
+  'how': ['how.html'],
   'weekly/': ['lib/weekly.js'],
 };
 const SITEMAP_PAGES = Object.keys(PAGE_SOURCES);
@@ -129,7 +129,7 @@ function llmsTxt(all = stacks.readData()) {
     link('Content notes', SITE + 'stacks/content-notes/', 'what each book describes, so a reader can decide before starting'),
     ...data.shelves.map((s) => link(s.name, stacks.pageUrl(s.id), s.note)),
     ...takes.map((b) => link(`${b.title}: Gatecast’s take`, stacks.pageUrl(b.id), 'why the book is on the shelf, what it does well and what to keep in mind')),
-    link('The 3D library', SITE + 'library.html', 'the same books in a 3D reading room'),
+    link('The 3D library', SITE + 'library', 'the same books in a 3D reading room'),
     '',
     '## Weird news',
     '',
@@ -139,13 +139,13 @@ function llmsTxt(all = stacks.readData()) {
     '',
     '## How it works',
     '',
-    link('How Gatecast works', SITE + 'how.html', 'how stories and books are chosen, where the data comes from, what Gatecast never does, corrections'),
-    link('How the books are chosen', SITE + 'how.html#books'),
+    link('How Gatecast works', SITE + 'how', 'how stories and books are chosen, where the data comes from, what Gatecast never does, corrections'),
+    link('How the books are chosen', SITE + 'how#books'),
     '',
     '## Weather tools',
     '',
-    link('Trips', SITE + 'trip.html', 'will the weather disrupt a flight connection?'),
-    link('Flights', SITE + 'flights.html', 'a flight’s status with the weather at both ends'),
+    link('Trips', SITE + 'trip', 'will the weather disrupt a flight connection?'),
+    link('Flights', SITE + 'flights', 'a flight’s status with the weather at both ends'),
     '',
   ];
   return lines.join('\n');

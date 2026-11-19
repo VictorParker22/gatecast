@@ -400,7 +400,7 @@ function renderFlight() {
       <p class="max-w-read text-xs text-np-muted [grid-area:note]">Position from community aircraft receivers, refreshed every 30 seconds; the landing time is our estimate from distance and speed. Scheduled times, gates and cancellations need an airline feed, so they are not shown here. Check with your airline for those.</p>
     </article>
     ${ends.length ? weatherBlock(ends, u, { id: 'wx-title', link: true, cardTitle, many: ends.length > 1 }) : ''}
-    ${to ? `<p class="mt-4 text-sm text-np-muted">Connecting onward in ${esc(to.city || to.code)}? <a href="trip.html">Check a connection</a> against the forecast.</p>` : ''}`;
+    ${to ? `<p class="mt-4 text-sm text-np-muted">Connecting onward in ${esc(to.city || to.code)}? <a href="trip">Check a connection</a> against the forecast.</p>` : ''}`;
 }
 
 /* ---------- Airport ---------- */
@@ -455,7 +455,7 @@ function renderAirport() {
         <section class="panel" aria-labelledby="hours-title"><h2 id="hours-title">Next 12 hours at ${a.code}</h2>
           ${strip || `<p class="text-sm text-np-muted">${missing}</p>`}
         </section>
-        <p class="text-sm text-np-muted">Flying through ${a.code}? <a href="trip.html">Check a connection</a> against the forecast for your times.</p>
+        <p class="text-sm text-np-muted">Flying through ${a.code}? <a href="trip">Check a connection</a> against the forecast for your times.</p>
       </div>
       <section class="panel xl:sticky xl:top-4" aria-labelledby="near-title"><h2 id="near-title">In the air near ${a.code}</h2>${nearbyBoard(a, nearby, u)}</section>
     </div>`;

@@ -352,7 +352,8 @@ test('routes: vercel.json sends /weekly/ and /feed.xml to the existing /api/weir
   const v = JSON.parse(read('vercel.json'));
   assert.equal(fs.readdirSync(new URL('../api/', import.meta.url)).filter((f) => f.endsWith('.js')).length, 12, 'still 12 functions (the Hobby limit)');
   const toRe = (src) => new RegExp(`^${src.replace(/:(\w+)\(([^)]+)\)/g, '($2)')}$`);
-  for (const r of v.rewrites) {
+  // The other rewrites give the hand-written pages their clean addresses (tests/seo.test.mjs).
+  for (const r of v.rewrites.filter((x) => x.destination.startsWith('/api/weird'))) {
     const sample = r.source.replace(/:week\([^)]+\)/, '2026-W47');
     assert.ok(toRe(r.source).test(sample), r.source);
     const q = W.routeQuery(sample);

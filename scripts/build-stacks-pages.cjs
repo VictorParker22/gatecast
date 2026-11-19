@@ -205,9 +205,9 @@ const UI_TEXT = [
 
 const NAV = [
   ['/', 'Front page', '<path d="M4 5h13v14H6a2 2 0 0 1-2-2zM17 9h3v8a2 2 0 0 1-2 2M7 9h7M7 12.5h7M7 16h4"/>'],
-  ['/library.html', 'Library', '<path d="M4 20V5h4v15M10 20V3h4v17M16 20l2.5-14 3.5.7L19.5 20M3 20h19"/>'],
-  ['/trip.html', 'Trips', '<rect x="3" y="7" width="18" height="13" rx="1"/><path d="M9 7V4h6v3M3 12h18"/>'],
-  ['/flights.html', 'Flights', '<path d="M2.5 13.5l19-7-4 13-5-4.5-3 3.5v-5l12-7"/>'],
+  ['/library', 'Library', '<path d="M4 20V5h4v15M10 20V3h4v17M16 20l2.5-14 3.5.7L19.5 20M3 20h19"/>'],
+  ['/trip', 'Trips', '<rect x="3" y="7" width="18" height="13" rx="1"/><path d="M9 7V4h6v3M3 12h18"/>'],
+  ['/flights', 'Flights', '<path d="M2.5 13.5l19-7-4 13-5-4.5-3 3.5v-5l12-7"/>'],
 ];
 
 // JSON for a <script type="application/ld+json">: "<" escaped so no string can close the element.
@@ -273,7 +273,7 @@ ${body}
   </main>
 
   <footer class="site-footer">
-    <p>Titles, authors and dates are checked by our editor. Descriptions are written by us. Covers and records: <a href="https://openlibrary.org/" rel="noopener">Open Library</a>. <a href="/how.html#books">How the books are chosen</a>. <a href="/how.html">How Gatecast works</a>.</p>
+    <p>Titles, authors and dates are checked by our editor. Descriptions are written by us. Covers and records: <a href="https://openlibrary.org/" rel="noopener">Open Library</a>. <a href="/how#books">How the books are chosen</a>. <a href="/how">How Gatecast works</a>.</p>
     <p>Where a book has a cover, your browser loads it from Open Library. Links to WorldCat, Bookshop.org, Open Library, YouTube, C-SPAN, PBS, Criterion, Google Books and the Internet Archive go to those sites; nothing from them loads here until you follow one.</p>
   </footer>
 </body>
@@ -429,7 +429,7 @@ function bookPage(book, data, m) {
           ${book.tags.map((t) => `<li>${esc(t)}</li>`).join('')}
         </ul>
         <div class="stk-actions">
-          <a class="btn btn--primary" href="/library.html#book=${encodeURIComponent(book.id)}">Open it in The Stacks</a>
+          <a class="btn btn--primary" href="/library#book=${encodeURIComponent(book.id)}">Open it in The Stacks</a>
           <a class="btn" href="${esc(m.worldcatUrl(book))}" rel="noopener">Find at your library</a>
           <a class="btn" href="${esc(m.bookshopUrl(book, null))}" rel="noopener">Buy at Bookshop.org</a>
           <a class="btn" href="${esc(m.openLibraryUrl(book, m.coverFor(book)))}" rel="noopener">Open Library record</a>
@@ -482,7 +482,7 @@ function shelfPage(shelf, data, m) {
         ${paras.map((p) => `<p>${esc(p)}</p>`).join('\n        ')}
       </div>` : ''}
       <p class="stk-intro text-sm text-np-muted">${esc(shelfIntro(books))}</p>
-      <div class="stk-actions"><a class="btn btn--primary" href="/library.html#shelf=${encodeURIComponent(shelf.id)}">Open this shelf in The Stacks</a></div>
+      <div class="stk-actions"><a class="btn btn--primary" href="/library#shelf=${encodeURIComponent(shelf.id)}">Open this shelf in The Stacks</a></div>
     </section>
 
     <section class="stk-section" aria-labelledby="books-title">
@@ -614,7 +614,7 @@ function indexPage(data, m) {
       <h1 id="stacks-title" class="stk-title">The Stacks</h1>
       <p class="stk-lede">Real books on true crime, unsolved mysteries, weird history, strange science, cults and cons, beside classic fantasy and science fiction, picked by our editor and described in our own words.</p>
       <p class="stk-intro">Every shelf and book in The Stacks, as a plain list.</p>
-      <div class="stk-actions"><a class="btn btn--primary" href="/library.html">Open the 3D library</a></div>
+      <div class="stk-actions"><a class="btn btn--primary" href="/library">Open the 3D library</a></div>
       <ul class="stk-shelves" aria-label="Shelves">
         ${data.shelves.map((s) => `<li><a href="${pagePath(s.id)}">${esc(s.name)}</a></li>`).join('\n        ')}
       </ul>
