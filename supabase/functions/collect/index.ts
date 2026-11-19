@@ -4,21 +4,22 @@
 // It copies the public record only: official title, counts, party split,
 // date and links. It writes nothing of its own.
 //
-// It can be called with the public key, so it protects itself:
+// Only the hourly job may start it. The job sends a token that lives in the database's Vault (X-Collect-Token); the
+// function passes it to public.collect_claim, which checks it and takes the run in one step:
 //   - at most one run every 5 minutes
 //   - at most 8 Open States requests per run and 400 per day
-//   - the reply holds counts only
+// Without the token the function does nothing and says nothing (403). The reply holds counts only.
 //
-// GET /functions/v1/collect            the 4 states collected longest ago
-// GET /functions/v1/collect?states=OH,NJ
+// /functions/v1/collect            the 4 states collected longest ago
+// /functions/v1/collect?states=OH,NJ
+// To run it by hand, send the same request the job sends, from the SQL editor (supabase/README.md).
 
 const SB_URL = Deno.env.get('SUPABASE_URL')!;
 const SB_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const OS_KEY = Deno.env.get('Open-States') ?? '';
 
-const MIN_GAP_MS = 5 * 60 * 1000;
 const RUN_BUDGET = 8;
-const DAY_BUDGET = 400;
+// The 5-minute gap and the 400-a-day budget are enforced in the database (public.collect_claim), with RUN_BUDGET.
 const SPACING_MS = 2000;
 const MAX_AGE_DAYS = 120;
 const SEATS_MAX_AGE_MS = 30 * 864e5;
@@ -186,18 +187,29 @@ async function collectState(s: any) {
   return result;
 }
 
+// Why a claim was refused, in fixed words (never the database's own message).
+const REFUSED: Record<string, [string, number]> = {
+  too_soon: ['ran less than 5 minutes ago', 200],
+  day_budget: ['daily request budget used', 200],
+};
+
 Deno.serve(async (req: Request) => {
+  // Only the hourly job knows the token; anyone else gets nothing, before any work is done.
+  const token = req.headers.get('x-collect-token') ?? '';
+  if (!token || token.length > 200) return json({ ran: false, reason: 'not allowed' }, 403);
   if (!OS_KEY) return json({ ran: false, reason: 'the Open-States secret is missing' }, 500);
+
+  // The token check, the 5-minute gap, the daily budget and the new run row: one step in the database, so requests
+  // that arrive together cannot all pass. The row counts as a full run until this one finishes.
+  let claim: any;
+  try { claim = await db('rpc/collect_claim', { method: 'POST', body: JSON.stringify({ p_token: token }) }); }
+  catch { return json({ ran: false, reason: 'unavailable' }, 502); }
+  if (!claim || claim.ok !== true) {
+    const [reason, status] = REFUSED[claim?.reason] ?? ['not allowed', 403];
+    return json({ ran: false, reason }, status);
+  }
+  const run = { id: claim.run };
   used = 0;
-
-  const since = new Date(Date.now() - 864e5).toISOString();
-  const runs: any[] = (await db(`collector_runs?select=started_at,requests&started_at=gte.${since}&order=started_at.desc`)) ?? [];
-  if (runs[0] && Date.now() - +new Date(runs[0].started_at) < MIN_GAP_MS) return json({ ran: false, reason: 'ran less than 5 minutes ago' });
-  const today = runs.reduce((a, r) => a + (r.requests ?? 0), 0);
-  if (today + RUN_BUDGET > DAY_BUDGET) return json({ ran: false, reason: 'daily request budget used' });
-
-  // Counted as a full run until it finishes, so a crashed run still uses up its share of the day.
-  const [run] = await db('collector_runs', { method: 'POST', body: JSON.stringify({ requests: RUN_BUDGET }), headers: { Prefer: 'return=representation' } });
 
   const asked = (new URL(req.url).searchParams.get('states') ?? '').toUpperCase().split(',').filter((s) => STATES[s]).slice(0, 4);
   const states: any[] = asked.length

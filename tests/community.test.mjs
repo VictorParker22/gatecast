@@ -3,8 +3,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash, webcrypto } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import {
-  normaliseStoryUrl, storyId, sha256Hex, isStoryId, parseIPv6, clientKey, dayBucket, voterHash, tipHash, clickHash, saltReady,
+  normaliseStoryUrl, storyId, sha256Hex, isStoryId, parseIPv6, clientAddress, clientKey, dayBucket, voterHash, tipHash, clickHash, saltReady,
   publicHost, checkTipUrl, validateVote, validateClick, parseIds, validateTip, publicRating, shapeRatings, shapeFavourites, route, ROUTE_METHOD,
   limitReply, originAllowed, corsHeaders, writeAllowed, VOTE_THRESHOLD, MAX_IDS, NOTE_MAX,
 } from '../supabase/functions/community/logic.mjs';
@@ -77,6 +78,18 @@ test('the visitor key comes from the first x-forwarded-for hop; IPv6 is cut to i
   assert.equal(clientKey('[2001:db8::1]:443'), '2001:db8:0:0::/64');
   assert.equal(clientKey('::ffff:203.0.113.9'), '203.0.113.9');
   for (const bad of [null, '', 'unknown', '999.1.1.1', 'a.b.c.d', 'x'.repeat(100), '1.2.3']) assert.equal(clientKey(bad), null, String(bad));
+  // Which header the address is read from: the one the platform sets and a visitor cannot (cf-connecting-ip). A
+  // forged x-forwarded-for changes nothing while it is there; without it (a local run) the first hop is used.
+  const from = (h) => clientKey(clientAddress((name) => h[name] ?? null));
+  assert.equal(from({ 'cf-connecting-ip': '198.51.100.20', 'x-forwarded-for': '203.0.113.7, 198.51.100.20, 10.0.0.1' }), '198.51.100.20', 'a forged first hop is ignored');
+  assert.equal(from({ 'cf-connecting-ip': '198.51.100.20', 'x-forwarded-for': 'not-an-address' }), '198.51.100.20');
+  assert.equal(from({ 'cf-connecting-ip': '2001:db8:abcd:12:1:2:3:4' }), '2001:db8:abcd:12::/64');
+  assert.equal(from({ 'x-forwarded-for': '203.0.113.7, 10.0.0.1' }), '203.0.113.7', 'local run: no platform header');
+  assert.equal(from({ 'cf-connecting-ip': '  ', 'x-forwarded-for': '203.0.113.7' }), '203.0.113.7');
+  assert.equal(from({}), null);
+  const index = readFileSync(new URL('../supabase/functions/community/index.ts', import.meta.url), 'utf8');
+  assert.match(index, /clientKey\(clientAddress\(\(name: string\) => req\.headers\.get\(name\)\)\)/);
+  assert.doesNotMatch(index, /clientKey\(req\.headers\.get\('x-forwarded-for'\)\)/);
   assert.deepEqual(parseIPv6('::1'), [0, 0, 0, 0, 0, 0, 0, 1]);
   assert.equal(parseIPv6('1::2::3'), null);
 });

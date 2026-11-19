@@ -84,9 +84,18 @@ export function parseIPv6(ip) {
   return groups.map((g) => parseInt(g, 16));
 }
 
-// The visitor's address from the first hop of x-forwarded-for, as the identity votes and tips are counted by:
-// an IPv4 address as written, an IPv6 address cut to its /64 (one home or phone usually holds a whole /64 and
-// can change the rest at will). null when the header has no usable address.
+// Which address a request came from, as the platform reports it. On Supabase every request arrives through
+// Cloudflare, which sets cf-connecting-ip itself and rejects a request that tries to supply one (tested on the live
+// gateway, 19 Nov 2026), so a visitor cannot choose it. x-forwarded-for is only the fallback for a local run, where
+// no such header exists: there its first hop is whatever the caller sent. `get` reads a request header by name.
+export function clientAddress(get) {
+  const cf = String(get('cf-connecting-ip') ?? '').trim();
+  return cf || String(get('x-forwarded-for') ?? '');
+}
+
+// The visitor's address (clientAddress above; for a forwarded list, its first hop), as the identity votes and tips
+// are counted by: an IPv4 address as written, an IPv6 address cut to its /64 (one home or phone usually holds a
+// whole /64 and can change the rest at will). null when there is no usable address.
 export function clientKey(xff) {
   let first = String(xff ?? '').split(',')[0].trim();
   if (!first || first.length > 64) return null;

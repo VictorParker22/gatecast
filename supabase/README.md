@@ -10,6 +10,7 @@ Gatecast's database lives in the Supabase project `gatecast` (`hfdwmzuedjcsaxgzh
 | `migrations/20261116033422_both_sides_guard_withdraw_delete.sql` | Only a reviewer can withdraw or delete a published topic; deletions are logged |
 | `migrations/20261116040853_state_votes.sql` | `state_votes` (statehouse floor votes copied from Open States), the collector's bookkeeping tables, and the `state_votes` switch |
 | `migrations/20261116041156_collect_state_votes_hourly.sql` | A `pg_cron` job, `collect-state-votes`, that calls the `collect` function at 7 minutes past every hour. The repository copy has the project's anon key replaced by `<SUPABASE_ANON_KEY>` |
+| `migrations/20261119140000_collect_scheduler_only.sql` | Only the hourly job can start `collect`: a token made in the database and kept in Vault (`collect_run_token`), which the job sends as `X-Collect-Token`; `public.collect_claim(token)` checks it and takes the run in one step (5 minutes apart, 400 Open States requests a day), so requests that arrive together cannot all pass. Applied 19 Nov 2026. |
 | `migrations/20261116090000_reviewer_console.sql` | **Written, not applied yet.** What the reviewer console needs beyond the queue: internal notes, a topic's review history, hiding a vote, collector health (see below) |
 | `functions/collect/index.ts` | Edge Function that reads up to four states per run from Open States and writes passage votes into `state_votes`. Copies the public record only: official title, counts, party split, date and links |
 | `functions/assist/` | Edge Function behind the reviewer console's assistant (Claude). See `docs/assist.md` |
@@ -107,6 +108,23 @@ Until it is applied, the console works without these: notes and vote hiding say 
 Secrets live in Supabase (Project → Edge Functions → Secrets), never in this repository or in front-end code:
 
 - `Open-States`: the Open States API key, read by `collect`.
+
+**Running the collector by hand.** The function answers only to the token in Vault, so start it from the SQL editor with the request the hourly job sends (replace the bearer with the project's anon key, as in the job; add `?states=OH,NJ` to the address for chosen states):
+
+```sql
+select net.http_post(
+  url := 'https://hfdwmzuedjcsaxgzhzmu.supabase.co/functions/v1/collect',
+  headers := jsonb_build_object(
+    'Content-Type', 'application/json',
+    'X-Collect-Token', (select decrypted_secret from vault.decrypted_secrets where name = 'collect_run_token'),
+    'Authorization', 'Bearer <SUPABASE_ANON_KEY>'
+  ),
+  body := '{}'::jsonb,
+  timeout_milliseconds := 60000
+);
+```
+
+A run less than 5 minutes after the last one answers "ran less than 5 minutes ago". The `probe` function in the project is a retired one-off diagnostic (it answers 404) and can be deleted in the dashboard.
 - `ANTHROPIC_API_KEY`: the Anthropic key, read by `assist`.
 - `COMMUNITY_SALT`: a long random secret, read by `community`, which hashes visitors' addresses with it. **The function refuses to run without it** (at least 16 characters; use 32+ random characters, e.g. `openssl rand -hex 32`). Set it once and leave it: changing it makes every visitor a new voter, so they could vote again on stories they already rated, and the per-day tip hashes stop matching for the rest of that day.
 - `COMMUNITY_ALLOWED_ORIGINS` (optional): extra browser origins for `community`, comma-separated. `https://www.thegatecast.com`, `https://www.thegatecast.com` and the old `https://gatecast.vercel.app` are allowed in the code (`logic.mjs`); until that code is deployed, set this secret to `https://www.thegatecast.com,https://www.thegatecast.com`.

@@ -45,7 +45,7 @@ No account, no cookie, no raw IP address is stored anywhere.
 
 How it works:
 
-- The visitor's address is read from the first hop of `x-forwarded-for` inside the Edge Function, hashed at once and dropped. It is never stored, logged or sent to the database. The function's log records error codes only.
+- The visitor's address is read inside the Edge Function from `cf-connecting-ip`, the header the platform sets itself and a visitor cannot choose (a request that tries to supply one is rejected at the edge; tested 19 Nov 2026). Before that date it was the first hop of `x-forwarded-for`, which is the same address for an honest visitor, so existing votes keep their owner. The address is hashed at once and dropped. It is never stored, logged or sent to the database. The function's log records error codes only.
 - Without the salt the hashes cannot be matched back to addresses by trying every IPv4 address, which is why the function refuses to run without `COMMUNITY_SALT` (at least 16 characters).
 - The vote hash has no day in it, so one visitor is one voter on a story for as long as the vote is kept. The tip hash changes every UTC day, so tips cannot be linked across days.
 - IPv6 addresses are cut to their /64, because one home or phone usually holds a whole /64 and can rotate the rest at will. Several people behind one address (an office, a school, a mobile carrier's NAT) share one vote per story. That is the accepted cost of not having accounts.

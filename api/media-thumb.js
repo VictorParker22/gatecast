@@ -10,8 +10,9 @@ module.exports = async (req, res) => {
     return res.status(405).send('Method not allowed');
   }
   const q = new URL(req.url, 'http://localhost').searchParams;
-  const out = await videos.mediaThumb(q.get('p'), q.get('id'));
+  const out = !videos.stillRequestAllowed(req.headers) ? videos.stillRefused() : await videos.mediaThumb(q.get('p'), q.get('id'));
   for (const [k, v] of Object.entries(out.headers)) res.setHeader(k, v);
+  res.setHeader('Vary', videos.STILL_VARY); // the shared cache keeps a refusal and a picture apart
   res.status(out.status);
   return req.method === 'HEAD' ? res.end() : res.end(out.body);
 };
