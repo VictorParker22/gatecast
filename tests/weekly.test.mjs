@@ -432,5 +432,5 @@ test('the function and the local server serve the same pages; /api/weird JSON is
   // Without view the function still answers with lib/weird.js, exactly as before.
   const src = read('api/weird.js');
   assert.match(src, /if \(weekly\.isView\(q\.get\('view'\)\)\) \{/);
-  assert.match(src, /const body = await weird\.weirdFor\(q\);\n    res\.setHeader\('Cache-Control', q\.get\('debug'\) \? weird\.DEBUG_CACHE_CONTROL : weird\.CACHE_CONTROL\);\n    res\.status\(200\)\.json\(body\);/);
+  assert.match(src, /const body = await weird\.weirdFor\(q\);\n    res\.setHeader\('Cache-Control', weird\.parseQuery\(q\)\.debug \? weird\.DEBUG_CACHE_CONTROL : weird\.CACHE_CONTROL\);\n    res\.status\(200\)\.json\(body\);/);
 });

@@ -61,9 +61,28 @@ function cacheSet(key, data) {
   try { sessionStorage.setItem(key, JSON.stringify({ at: Date.now(), data })); } catch {}
 }
 
+// Forecast values are numbers and nothing else. Whatever the forecast service sends, or this tab's storage holds, a
+// field that is not a finite number becomes null here, before any page prints it (several are written into HTML).
+export const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+export const nums = (o) => (o && typeof o === 'object' && !Array.isArray(o) ? Object.fromEntries(Object.entries(o).map(([k, v]) => [k, num(v)])) : null);
+export const numRows = (list) => (Array.isArray(list) ? list.map(nums).filter(Boolean) : []);
+const zone = (v) => (typeof v === 'string' && /^[A-Za-z0-9_+\-/]{1,64}$/.test(v) ? v : 'UTC'); // an IANA time zone name
+// A forecast for one spot, as loadWeather returns it: every level re-checked (fresh or from the cache).
+export function cleanWeather(d) {
+  if (!d || typeof d !== 'object') return null;
+  const now = nums(d.now);
+  if (!now) return null;
+  const air = nums(d.air);
+  return {
+    at: num(d.at) ?? Date.now(), tz: zone(d.tz), now,
+    hours: numRows(d.hours).filter((x) => x.code != null), days: numRows(d.days).filter((x) => x.max != null),
+    air: air && air.aqi != null ? air : null,
+  };
+}
+
 function toHours(loc) {
   const h = loc.hourly;
-  return h.time.map((t, i) => ({
+  return h.time.map((t, i) => nums({
     t: t * 1000,
     temp: h.temperature_2m[i], pop: h.precipitation_probability[i], precip: h.precipitation[i],
     snow: h.snowfall[i], code: h.weather_code[i], vis: h.visibility[i],
@@ -75,7 +94,8 @@ function toHours(loc) {
 export async function loadForecasts(airports) {
   const uniq = [...new Map(airports.map((a) => [a.code, a])).values()];
   const key = 'fc:' + uniq.map((a) => a.code).join(',');
-  let data = cacheGet(key);
+  const cached = cacheGet(key);
+  let data = Array.isArray(cached) ? cached.map(numRows) : null;
   let at = Date.now();
   if (!data) {
     const url = new URL('https://api.open-meteo.com/v1/forecast');
@@ -199,7 +219,7 @@ const DAILY = 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_
 const inflight = new Map();
 export function loadWeather(lat, lon) {
   const key = `wx:${lat},${lon}`;
-  const hit = cacheGet(key);
+  const hit = cleanWeather(cacheGet(key));
   if (hit) return Promise.resolve(hit);
   if (!inflight.has(key)) inflight.set(key, fetchWeather(lat, lon, key).finally(() => inflight.delete(key)));
   return inflight.get(key);
@@ -230,15 +250,18 @@ async function fetchWeather(lat, lon, key) {
     })).filter((x) => x.max != null),
     air: air && air.current && air.current.us_aqi != null ? { aqi: air.current.us_aqi, pm25: air.current.pm2_5 } : null,
   };
-  cacheSet(key, data);
-  return data;
+  const clean = cleanWeather(data);
+  if (!clean) throw new Error('forecast');
+  cacheSet(key, clean);
+  return clean;
 }
 
 // Current conditions for several far-away cities in one request (the "Here and there" box).
 export async function loadCities(cities) {
   const key = 'cities:' + cities.map((c) => c.name).join(',');
+  const city = (c, i) => ({ name: cities[i].name, tz: zone(c && c.tz), temp: num(c && c.temp), code: num(c && c.code), day: num(c && c.day) });
   const hit = cacheGet(key);
-  if (hit) return hit;
+  if (Array.isArray(hit) && hit.length === cities.length) return hit.map(city);
   try {
     const url = new URL('https://api.open-meteo.com/v1/forecast');
     url.search = new URLSearchParams({
@@ -248,9 +271,7 @@ export async function loadCities(cities) {
     const res = await fetch(url);
     if (!res.ok) return null;
     const json = await res.json();
-    const data = (Array.isArray(json) ? json : [json]).map((j, i) => ({
-      name: cities[i].name, tz: j.timezone, temp: j.current.temperature_2m, code: j.current.weather_code, day: j.current.is_day,
-    }));
+    const data = (Array.isArray(json) ? json : [json]).slice(0, cities.length).map((j, i) => city({ tz: j.timezone, temp: j.current.temperature_2m, code: j.current.weather_code, day: j.current.is_day }, i));
     cacheSet(key, data);
     return data;
   } catch { return null; }

@@ -256,7 +256,13 @@ function weatherBlock(ends, u, { id, link, cardTitle, many, flush = false }) {
 // The route service knows airports the bundled list may not; fall back to its fields.
 function resolveAirport(r) {
   if (!r) return null;
-  return airport(r.iata) || { code: r.iata || r.icao, icao: r.icao, name: r.name, city: r.city, country: r.country, lat: r.lat, lon: r.lon, tz: 'UTC' };
+  const known = airport(r.iata);
+  if (known) return known;
+  // Not in our list: take the service's fields only if they are what they claim to be (lib/live.js checks them too).
+  const code = [r.iata, r.icao].find((c) => typeof c === 'string' && /^[A-Z0-9]{3,4}$/.test(c));
+  if (!code || !Number.isFinite(r.lat) || !Number.isFinite(r.lon)) return null;
+  const text = (v) => (typeof v === 'string' ? v : '');
+  return { code, icao: typeof r.icao === 'string' && /^[A-Z0-9]{4}$/.test(r.icao) ? r.icao : null, name: text(r.name), city: text(r.city), country: text(r.country), lat: r.lat, lon: r.lon, tz: 'UTC' };
 }
 
 async function showFlight(q, quiet = false) {

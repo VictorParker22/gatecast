@@ -212,10 +212,14 @@ function fromQuery() {
   return { r: r.slice(0, 5), t: p.get('t'), l: nums('l'), d: nums('d') };
 }
 function fillForm(trip) {
-  stops = trip.r.map((code, i) => ({ id: ++uid, code: airport(code)?.code || '', layover: trip.l[i - 1] || 90 }));
+  // A trip may come from this browser's storage (the recent trips), so nothing in it is trusted: codes are looked up
+  // in our own list, and every number is made a number before it reaches the form.
+  const list = (v) => (Array.isArray(v) ? v : []);
+  const minutes = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
+  stops = list(trip.r).map((code, i) => ({ id: ++uid, code: airport(code)?.code || '', layover: minutes(list(trip.l)[i - 1]) || 90 }));
   durations = {};
-  trip.d.forEach((m, i) => { if (m) durations[i] = m; });
-  depEl.value = trip.t;
+  list(trip.d).forEach((m, i) => { const n = minutes(m); if (n) durations[i] = n; });
+  depEl.value = typeof trip.t === 'string' ? trip.t : '';
   renderStops();
 }
 
