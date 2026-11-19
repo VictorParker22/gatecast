@@ -19,7 +19,15 @@ const TYPES = {
 // file) and the folders served from the repo.
 const site = require('./scripts/build-data.cjs');
 const { CLEAN_PAGES } = require('./lib/site.js');
+const { inlineScriptHashes, securityHeaders } = require('./lib/security-headers.js');
 const KEY_FILE = site.indexNowKeyFile();
+// The browser protection headers, as vercel.json sends them (lib/security-headers.js). Two local differences: the
+// inline scripts are read from the pages as they are here (library.html's import map is one; the build removes it),
+// and plain-http requests are not upgraded, because this server is plain http.
+const SECURITY_HEADERS = Object.fromEntries(securityHeaders(
+  site.STATIC_FILES.filter((f) => f.endsWith('.html')).flatMap((f) => { try { return inlineScriptHashes(fs.readFileSync(path.join(__dirname, f), 'utf8')); } catch { return []; } }),
+  { upgrade: false },
+));
 const PUBLIC = [...site.STATIC_FILES, ...(KEY_FILE ? [KEY_FILE] : []), 'styles', 'js', 'data', 'vendor', 'assets'];
 // File names carry no content hash, so pages, scripts and styles are always revalidated (a cheap 304):
 // a long cache could pair a new weather.js with an old core.js. Only files whose staleness is harmless
@@ -40,7 +48,7 @@ const videos = require('./lib/videos.js');
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
   const send = (status, body, type, extra = {}) => {
-    res.writeHead(status, { 'Content-Type': type, 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'strict-origin-when-cross-origin', ...extra });
+    res.writeHead(status, { 'Content-Type': type, ...SECURITY_HEADERS, ...extra });
     res.end(body);
   };
   if (req.method !== 'GET' && req.method !== 'HEAD') return send(405, 'Method not allowed', 'text/plain');
@@ -83,19 +91,19 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === '/api/weird') {
     try {
       const body = JSON.stringify(await weird.weirdFor(url.searchParams));
-      return send(200, body, TYPES['.json'], { 'Cache-Control': url.searchParams.get('debug') ? weird.DEBUG_CACHE_CONTROL : weird.CACHE_CONTROL });
+      return send(200, body, TYPES['.json'], { 'Cache-Control': weird.parseQuery(url.searchParams).debug ? weird.DEBUG_CACHE_CONTROL : weird.CACHE_CONTROL });
     } catch (err) { return send(502, JSON.stringify({ error: 'upstream unavailable' }), TYPES['.json'], { 'Cache-Control': 'no-store' }); }
   }
   // A YouTube video's still image, fetched by the server so the visitor's browser contacts only Gatecast (api/yt-thumb.js).
   if (url.pathname === '/api/yt-thumb') {
     const out = await youtube.thumbFor(url.searchParams.get('id'));
-    res.writeHead(out.status, { 'Referrer-Policy': 'strict-origin-when-cross-origin', ...out.headers });
+    res.writeHead(out.status, { ...SECURITY_HEADERS, ...out.headers });
     return res.end(req.method === 'HEAD' ? undefined : out.body);
   }
   // Any provider's video still (YouTube, Vimeo, TikTok), the same way (api/media-thumb.js, lib/videos.js).
   if (url.pathname === '/api/media-thumb') {
     const out = await videos.mediaThumb(url.searchParams.get('p'), url.searchParams.get('id'));
-    res.writeHead(out.status, { 'Referrer-Policy': 'strict-origin-when-cross-origin', ...out.headers });
+    res.writeHead(out.status, { ...SECURITY_HEADERS, ...out.headers });
     return res.end(req.method === 'HEAD' ? undefined : out.body);
   }
   // The sitemap is written by the build step; locally it is made on request, dated today, from the same code.
@@ -127,6 +135,7 @@ const server = http.createServer(async (req, res) => {
   let rel;
   try { rel = path.normalize(decodeURIComponent(url.pathname)).replace(/^[/\\]+/, '') || 'index.html'; } catch { return notFound(); }
   if (CLEAN_PAGES.includes(rel)) rel += '.html';
+  if (rel.includes('\0')) return notFound(); // a NUL in the path would throw inside fs
   const file = path.join(ROOT, rel);
   const top = rel.split(path.sep)[0];
   if (!file.startsWith(ROOT + path.sep) || !PUBLIC.includes(top)) return notFound();

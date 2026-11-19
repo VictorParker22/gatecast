@@ -1781,7 +1781,7 @@ function approveForm(sub) {
 const COVER_OFF_SHELF_HINT = 'On the true crime and case-file shelves the cover is off by default; tick Show cover only for a sober jacket.';
 
 function submissionDetail(sub) {
-  const mail = sub.contact_email ? `<a href="mailto:${esc(sub.contact_email)}">${esc(sub.contact_email)}</a>` : '<span class="rv-quiet">No address left: there is no one to tell.</span>';
+  const mail = sub.contact_email ? `<a href="mailto:${esc(encodeURIComponent(sub.contact_email))}">${esc(sub.contact_email)}</a>` : '<span class="rv-quiet">No address left: there is no one to tell.</span>';
   return `<div class="rv-ticket"><div class="rv-ticket__main">
     ${backTo()}
     <header class="rv-ticket__head">

@@ -6,6 +6,16 @@ Gatecast has no tagged releases yet. `package.json` has said `1.0.0` since the f
 
 ## [Unreleased]
 
+### Security
+
+- **Browser protection headers, and outside data re-checked before a page prints it** (owner, 19 Nov 2026, after a security check: "yes do both gaps").
+  - Every response now carries a Content-Security-Policy, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy` and `Cross-Origin-Opener-Policy`. The rules are in `lib/security-headers.js`; `vercel.json` holds the values for the live site and `server.js` sends the same ones locally.
+  - The policy lets scripts run only from the site's own files, the five inline scripts in the pages (each named by its hash), WebAssembly for the 3D library's decoders, and the two outside scripts loaded on request (X's embed widget, Google Books' viewer). No `unsafe-inline` and no `unsafe-eval`: an injected script, an inline handler, a `javascript:` link and text run as code are all refused. Pictures, video, frames and data may come from any https address, because stories link media from many outlets. The site cannot be framed by another site, and forms post only to the site or Buttondown.
+  - After changing an inline `<script>`, run `node scripts/security-headers.cjs --write`; `tests/security-headers.test.mjs` fails until `vercel.json` matches the pages.
+  - Two independent reviews went through every place a page or a function handles outside data. No way was found for a visitor to inject markup through headlines, tips, book pitches or addresses. Fixed: an airport from the flight-route service is now checked field by field (`lib/live.js`, `js/flights.js`); forecast values are made numbers or null before any page prints them, fresh or cached (`js/data.js`); a saved trip from the browser's storage is no longer trusted (`js/trip.js`); a submitter's address is encoded in the reviewer page's mail link (`js/review.js`).
+  - The owner's tools on public functions (`/api/weird?debug=1`, `/api/book-covers?only=`) need the owner's key on the live site (`GATECAST_DEBUG_TOKEN` in Vercel's settings; with none set they are off there). They re-read every feed uncached and listed the moderation rules to anyone.
+  - Still open, for the owner to decide: the vote and tip limits may be bypassable with a forged forwarding header (needs a controlled test on the live function); the collector function can be started by anyone with the public key; the picture relay serves any video's still, not only current stories; there is no request limit on the Vercel functions (a Vercel Firewall setting).
+
 ### Changed
 
 - **Page addresses without ".html"** (owner, 19 Nov 2026: "the urls are showing .html in the bar that is crazy"). The library is now `/library`, and likewise `/trip`, `/flights` and `/how`; the front page is `/`.

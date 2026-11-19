@@ -3,7 +3,8 @@ const books = require('../lib/books.js');
 module.exports = async (req, res) => {
   try {
     const only = new URL(req.url, 'http://localhost').searchParams.get('only');
-    if (only !== null) {
+    // ?only= is the owner's tool (it skips the shared cache): on the live site it needs the owner's key.
+    if (only !== null && require('../lib/site.js').ownerTool(new URL(req.url, 'http://localhost').searchParams.get('key'))) {
       res.setHeader('Cache-Control', 'no-store');
       const parsed = books.parseOnly(only);
       if (parsed.error) return res.status(400).json({ error: parsed.error });
